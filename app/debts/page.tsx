@@ -7,7 +7,8 @@ import { HandCoins, Plus, CheckCircle, Users, ArrowUpRight, ArrowDownLeft } from
 export interface Debt {
   id: string;
   person_name: string;
-  type: 'Given (Receivable)' | 'Taken (Payable)';
+  type: string;
+  direction: 'Given (Receivable)' | 'Taken (Payable)';
   amount: number;
   due_date: string;
   status: 'Active' | 'Settled';
@@ -25,13 +26,24 @@ export interface Kameti {
   created_at?: string;
 }
 
+const DEBT_TYPES = [
+  'Personal Loan',
+  'Family / Friend Loan',
+  'Credit Card',
+  'Business Loan',
+  'Installment / Finance',
+  'Borrowed Cash',
+  'Other'
+];
+
 export default function DebtsPage() {
   const [activeTab, setActiveTab] = useState<'debts' | 'kameti'>('debts');
   
   // Debts State
   const [debts, setDebts] = useState<Debt[]>([]);
   const [personName, setPersonName] = useState('');
-  const [debtType, setDebtType] = useState<'Given (Receivable)' | 'Taken (Payable)'>('Given (Receivable)');
+  const [debtType, setDebtType] = useState(DEBT_TYPES[0]);
+  const [direction, setDirection] = useState<'Given (Receivable)' | 'Taken (Payable)'>('Given (Receivable)');
   const [debtAmount, setDebtAmount] = useState('');
   const [debtDueDate, setDebtDueDate] = useState('');
   const [debtNotes, setDebtNotes] = useState('');
@@ -72,6 +84,7 @@ export default function DebtsPage() {
       {
         person_name: personName,
         type: debtType,
+        direction: direction,
         amount: parseFloat(debtAmount),
         due_date: debtDueDate,
         status: 'Active',
@@ -121,8 +134,8 @@ export default function DebtsPage() {
     if (!error) fetchData();
   };
 
-  const totalReceivable = debts.filter(d => d.type === 'Given (Receivable)' && d.status === 'Active').reduce((s, d) => s + Number(d.amount), 0);
-  const totalPayable = debts.filter(d => d.type === 'Taken (Payable)' && d.status === 'Active').reduce((s, d) => s + Number(d.amount), 0);
+  const totalReceivable = debts.filter(d => d.direction === 'Given (Receivable)' && d.status === 'Active').reduce((s, d) => s + Number(d.amount), 0);
+  const totalPayable = debts.filter(d => d.direction === 'Taken (Payable)' && d.status === 'Active').reduce((s, d) => s + Number(d.amount), 0);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -185,27 +198,42 @@ export default function DebtsPage() {
 
               <form onSubmit={handleAddDebt} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Person Name</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Person / Institution Name</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Ali / Uncle / Friend"
+                    placeholder="e.g. Ali / Meezan Bank / Friend"
                     value={personName}
                     onChange={(e) => setPersonName(e.target.value)}
                     className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Type</label>
-                  <select
-                    value={debtType}
-                    onChange={(e) => setDebtType(e.target.value as any)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                  >
-                    <option value="Given (Receivable)">Given (Logay - Receivable)</option>
-                    <option value="Taken (Payable)">Taken (Denay - Payable)</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Debt Type</label>
+                    <select
+                      value={debtType}
+                      onChange={(e) => setDebtType(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                    >
+                      {DEBT_TYPES.map((dt) => (
+                        <option key={dt} value={dt}>{dt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Direction</label>
+                    <select
+                      value={direction}
+                      onChange={(e) => setDirection(e.target.value as any)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                    >
+                      <option value="Given (Receivable)">Given (Logay)</option>
+                      <option value="Taken (Payable)">Taken (Denay)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -228,16 +256,16 @@ export default function DebtsPage() {
                       required
                       value={debtDueDate}
                       onChange={(e) => setDebtDueDate(e.target.value)}
-                      className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-2 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Purpose</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Remarks</label>
                   <input
                     type="text"
-                    placeholder="e.g. Temporary cash help for emergency"
+                    placeholder="e.g. Monthly installment details or agreement note"
                     value={debtNotes}
                     onChange={(e) => setDebtNotes(e.target.value)}
                     className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -248,7 +276,7 @@ export default function DebtsPage() {
                   type="submit"
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
                 >
-                  Save Record
+                  Save Loan Record
                 </button>
               </form>
             </div>
@@ -273,10 +301,13 @@ export default function DebtsPage() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-slate-900 text-xs">{d.person_name}</h4>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
-                            d.type.includes('Given') ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                          }`}>
+                          <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-medium">
                             {d.type}
+                          </span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
+                            d.direction?.includes('Given') ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {d.direction}
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-500">{d.notes || 'No remarks'}</p>
