@@ -46,7 +46,11 @@ export default function TransactionsPage() {
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const [description, setDescription] = useState('');
   const [enteredBy, setEnteredBy] = useState('Husband');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState('');
+
+useEffect(() => {
+  setDate(new Date().toISOString().split('T')[0]);
+}, []);
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
