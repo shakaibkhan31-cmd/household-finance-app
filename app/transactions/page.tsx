@@ -389,7 +389,7 @@ export default function TransactionsPage() {
                             <p className="text-[10px] text-slate-400">{t.description || '-'}</p>
                           </td>
                           <td className="py-3.5 px-4 text-slate-600">
-                            <p className="font-medium text-slate-700">{t.name || t.account_name}</p>
+                            <p className="font-medium text-slate-700">{t.account_name}</p>
                             <p className="text-[10px] text-slate-400">{t.payment_method}</p>
                           </td>
                           <td className="py-3.5 px-4 text-right">
