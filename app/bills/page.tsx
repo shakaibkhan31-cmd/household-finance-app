@@ -354,4 +354,33 @@ export default function BillsPage() {
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-500" />
-              Paid
+              Paid Bills History ({paidBills.length})
+            </h3>
+
+            {paidBills.length === 0 ? (
+              <p className="text-center py-4 text-xs text-slate-400">No paid bills recorded yet.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {paidBills.map((bill) => (
+                  <div key={bill.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-slate-800 text-xs">{bill.title}</p>
+                      <p className="text-[10px] text-slate-400">
+                        Issued: {bill.bill_date} • Paid on: {bill.paid_date || bill.due_date}
+                      </p>
+                    </div>
+                    <p className="font-semibold text-slate-700 text-xs">
+                      PKR {Number(bill.total_payable || bill.amount).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  );
+}
