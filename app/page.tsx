@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, Wallet, ArrowUpCircle, ArrowDownCircle, RefreshCw, CreditCard, Receipt, CheckCircle, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Wallet, ArrowDownCircle, RefreshCw, CreditCard, Receipt, CheckCircle } from 'lucide-react';
+import DebtsTracker from '@/components/DebtsTracker';
 
 interface Account {
   id: string;
@@ -276,6 +277,9 @@ export default function FinanceDashboard() {
             ))}
           </div>
         </div>
+
+        {/* Debts & Arrears Tracker Component */}
+        <DebtsTracker />
 
         {/* Form and Transactions Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
