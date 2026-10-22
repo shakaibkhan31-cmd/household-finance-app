@@ -45,16 +45,15 @@ const CATEGORIES = [
 ];
 
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Debit / Credit Card', 'Digital Wallet'];
-const DEFAULT_ACCOUNTS = ['Meezan Bank', 'HBL', 'Cash Wallet', 'NayaPay', 'SadaPay', 'EasyPaisa'];
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [availableAccounts, setAvailableAccounts] = useState<string[]>(DEFAULT_ACCOUNTS);
+  const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Form State
   const [type, setType] = useState<string>('Expense');
-  const [accountName, setAccountName] = useState(DEFAULT_ACCOUNTS[0]);
+  const [accountName, setAccountName] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
@@ -74,19 +73,24 @@ export default function TransactionsPage() {
     fetchTransactionsAndAccounts();
   }, []);
 
-  // Fetch Transactions & Dynamic Accounts list from Supabase
+  // Fetch Accounts strictly from Supabase 'accounts' table & Transactions
   const fetchTransactionsAndAccounts = async () => {
     setLoading(true);
     
-    // Fetch accounts table if exists, otherwise fallback to defaults
-    const { data: accData } = await supabase.from('accounts').select('name');
-    if (accData && accData.length > 0) {
+    // 1. Fetch real accounts from Supabase
+    const { data: accData, error: accError } = await supabase.from('accounts').select('name');
+    if (accError) {
+      console.error('Error fetching accounts:', accError.message);
+    } else if (accData && accData.length > 0) {
       const fetchedAccountNames = accData.map((a: { name: string }) => a.name);
       setAvailableAccounts(fetchedAccountNames);
       setAccountName(fetchedAccountNames[0]);
+    } else {
+      setAvailableAccounts([]);
+      setAccountName('');
     }
 
-    // Fetch transactions
+    // 2. Fetch transactions
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -103,7 +107,10 @@ export default function TransactionsPage() {
   // Add Transaction
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !accountName) return;
+    if (!amount || !accountName) {
+      alert('Please select an account and enter an amount.');
+      return;
+    }
 
     const parsedAmount = parseFloat(amount);
 
@@ -164,135 +171,142 @@ export default function TransactionsPage() {
             New Ledger Entry
           </h2>
 
-          <form onSubmit={handleAddTransaction} className="space-y-4">
-            {/* Date & Type Dropdown */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
+          {availableAccounts.length === 0 ? (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
+              <p className="font-semibold">No Accounts Found!</p>
+              <p>Please go to the <strong>Accounts</strong> page from the sidebar and add your first bank account or wallet before recording transactions.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleAddTransaction} className="space-y-4">
+              {/* Date & Type Dropdown */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Transaction Type</label>
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
+                  >
+                    {TRANSACTION_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
+              {/* Account Dropdown (Dynamic from Database) */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Transaction Type</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Account</label>
                 <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
-                  {TRANSACTION_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                  {availableAccounts.map((acc) => (
+                    <option key={acc} value={acc}>{acc}</option>
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* Account Dropdown */}
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Account</label>
-              <select
-                value={accountName}
-                onChange={(e) => setAccountName(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              {/* Category & Amount */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Paid To / Received From Field */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Paid to / Received From</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Imtiaz Super Market / Electric Co / Person Name"
+                  value={partyName}
+                  onChange={(e) => setPartyName(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              {/* Payment Method & Entered By */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {PAYMENT_METHODS.map((pm) => (
+                      <option key={pm} value={pm}>{pm}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Entered By</label>
+                  <select
+                    value={enteredBy}
+                    onChange={(e) => setEnteredBy(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="Husband">Husband</option>
+                    <option value="Wife">Wife</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Description / Notes */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Description / Remarks</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Monthly Grocery items & household supplies"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
               >
-                {availableAccounts.map((acc) => (
-                  <option key={acc} value={acc}>{acc}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Category & Amount */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                />
-              </div>
-            </div>
-
-            {/* Paid To / Received From Field */}
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Paid to / Received From</label>
-              <input
-                type="text"
-                placeholder="e.g. Imtiaz Super Market / Electric Co / Person Name"
-                value={partyName}
-                onChange={(e) => setPartyName(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-
-            {/* Payment Method & Entered By */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Payment Method</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  {PAYMENT_METHODS.map((pm) => (
-                    <option key={pm} value={pm}>{pm}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Entered By</label>
-                <select
-                  value={enteredBy}
-                  onChange={(e) => setEnteredBy(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="Husband">Husband</option>
-                  <option value="Wife">Wife</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Description / Notes */}
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Description / Remarks</label>
-              <input
-                type="text"
-                placeholder="e.g. Monthly Grocery items & household supplies"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
-            >
-              Record Transaction
-            </button>
-          </form>
+                Record Transaction
+              </button>
+            </form>
+          )}
         </div>
 
         {/* Right Column: Ledger Table & Filters */}
@@ -375,7 +389,7 @@ export default function TransactionsPage() {
                             <p className="text-[10px] text-slate-400">{t.description || '-'}</p>
                           </td>
                           <td className="py-3.5 px-4 text-slate-600">
-                            <p className="font-medium text-slate-700">{t.account_name}</p>
+                            <p className="font-medium text-slate-700">{t.name || t.account_name}</p>
                             <p className="text-[10px] text-slate-400">{t.payment_method}</p>
                           </td>
                           <td className="py-3.5 px-4 text-right">
