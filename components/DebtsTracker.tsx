@@ -1,12 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Supabase Client Config
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '@/lib/supabase';
 
 export interface Debt {
   id: string;
@@ -38,7 +33,7 @@ export default function DebtsTracker() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching debts:', error);
+      console.error('Error fetching debts:', error.message);
     } else {
       setDebts(data || []);
     }
@@ -105,15 +100,15 @@ export default function DebtsTracker() {
     .reduce((sum, d) => sum + Number(d.remaining_balance), 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 my-6">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 my-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Debts & Arrears Tracker</h2>
-          <p className="text-sm text-slate-500">Informal Loans, Udhaar & Kameti Management</p>
+          <h2 className="text-lg font-semibold text-slate-900">Debts & Arrears Tracker</h2>
+          <p className="text-xs text-slate-500">Informal Loans, Udhaar & Kameti Management</p>
         </div>
         <button
           onClick={fetchDebts}
-          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md font-medium transition"
+          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-medium transition"
         >
           Refresh Debts
         </button>
@@ -121,29 +116,29 @@ export default function DebtsTracker() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+        <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
             Money Receivables (Udhaar Diya)
           </p>
-          <p className="text-2xl font-bold text-emerald-700 mt-1">
+          <p className="text-xl font-bold text-emerald-700 mt-1">
             PKR {totalGiven.toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-rose-50 border border-rose-200 rounded-lg p-4">
+        <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-rose-600 uppercase tracking-wider">
             Money Payables (Udhaar Liya)
           </p>
-          <p className="text-2xl font-bold text-rose-700 mt-1">
+          <p className="text-xl font-bold text-rose-700 mt-1">
             PKR {totalTaken.toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
             Active Kameti / Committees
           </p>
-          <p className="text-2xl font-bold text-amber-700 mt-1">
+          <p className="text-xl font-bold text-amber-700 mt-1">
             PKR {totalKameti.toLocaleString()}
           </p>
         </div>
@@ -152,7 +147,7 @@ export default function DebtsTracker() {
       {/* Main Grid: Form + List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Form */}
-        <form onSubmit={handleAddDebt} className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+        <form onSubmit={handleAddDebt} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4 h-fit">
           <h3 className="text-sm font-semibold text-slate-800 border-b pb-2">Add Debt / Loan Entry</h3>
           
           <div>
@@ -160,10 +155,10 @@ export default function DebtsTracker() {
             <input
               type="text"
               required
-              placeholder="e.g. Ali Ahmed / Kameti Name"
+              placeholder="e.g. Mateen / Kameti Name"
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
-              className="w-full px-3 py-2 text-sm border rounded-md focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
 
@@ -172,7 +167,7 @@ export default function DebtsTracker() {
             <select
               value={type}
               onChange={(e) => setType(e.target.value as any)}
-              className="w-full px-3 py-2 text-sm border rounded-md focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none"
             >
               <option value="Given">Udhaar Diya (Given)</option>
               <option value="Taken">Udhaar Liya (Taken)</option>
@@ -185,10 +180,10 @@ export default function DebtsTracker() {
             <input
               type="number"
               required
-              placeholder="e.g. 50000"
+              placeholder="e.g. 20000"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 text-sm border rounded-md focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
 
@@ -198,13 +193,13 @@ export default function DebtsTracker() {
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm border rounded-md focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-md text-sm transition"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm"
           >
             Record Debt Entry
           </button>
@@ -214,13 +209,13 @@ export default function DebtsTracker() {
         <div className="lg:col-span-2 overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="text-xs font-semibold text-slate-500 border-b border-slate-200 bg-slate-50">
-                <th className="py-2.5 px-3">Party Name</th>
-                <th className="py-2.5 px-3">Type</th>
-                <th className="py-2.5 px-3">Balance</th>
-                <th className="py-2.5 px-3">Due Date</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3 text-right">Action</th>
+              <tr className="text-xs font-semibold text-slate-400 border-b border-slate-100 bg-slate-50">
+                <th className="py-3 px-3">Party Name</th>
+                <th className="py-3 px-3">Type</th>
+                <th className="py-3 px-3">Balance</th>
+                <th className="py-3 px-3">Due Date</th>
+                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -237,7 +232,7 @@ export default function DebtsTracker() {
                   <tr key={item.id} className="hover:bg-slate-50">
                     <td className="py-3 px-3 font-medium text-slate-800">{item.person_name}</td>
                     <td className="py-3 px-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
                         item.type === 'Given' ? 'bg-emerald-100 text-emerald-700' :
                         item.type === 'Taken' ? 'bg-rose-100 text-rose-700' :
                         'bg-amber-100 text-amber-700'
@@ -262,7 +257,7 @@ export default function DebtsTracker() {
                       {item.status === 'Active' && (
                         <button
                           onClick={() => handleSettleDebt(item.id)}
-                          className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded font-medium transition"
+                          className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-medium transition"
                         >
                           Mark Settled
                         </button>
