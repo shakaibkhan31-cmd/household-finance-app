@@ -7,7 +7,7 @@ import { Wallet, Plus, Building2, CreditCard, DollarSign } from 'lucide-react';
 export interface Account {
   id: string;
   name: string;
-  type: 'Bank' | 'Wallet' | 'Cash';
+  type: 'Bank' | 'Wallet' | 'Cash' | 'Credit Card';
   account_number?: string;
   current_balance: number;
   created_at?: string;
@@ -19,7 +19,7 @@ export default function AccountsPage() {
 
   // Form State
   const [name, setName] = useState('');
-  const [type, setType] = useState<'Bank' | 'Wallet' | 'Cash'>('Bank');
+  const [type, setType] = useState<'Bank' | 'Wallet' | 'Cash' | 'Credit Card'>('Bank');
   const [accountNumber, setAccountNumber] = useState('');
   const [balance, setBalance] = useState('');
 
@@ -73,14 +73,14 @@ export default function AccountsPage() {
   const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.current_balance), 0);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Accounts & Wallets</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage bank accounts, digital wallets, and physical cash reserves</p>
+          <p className="text-sm text-slate-500 mt-1">Manage bank accounts, digital wallets, credit cards, and cash reserves</p>
         </div>
-        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl text-right">
+        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl text-left md:text-right w-full md:w-auto">
           <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Total Net Liquid Worth</p>
           <p className="text-2xl font-bold text-indigo-900 mt-0.5">PKR {totalBalance.toLocaleString()}</p>
         </div>
@@ -102,10 +102,10 @@ export default function AccountsPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. Meezan Bank / NayaPay / Cash Wallet"
+                placeholder="e.g. Meezan Bank / NayaPay / Visa Card"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
 
@@ -114,10 +114,11 @@ export default function AccountsPage() {
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as any)}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               >
                 <option value="Bank">Bank Account</option>
                 <option value="Wallet">Digital Wallet (Sadapay / Nayapay / Easypaisa)</option>
+                <option value="Credit Card">Credit Card</option>
                 <option value="Cash">Physical Cash</option>
               </select>
             </div>
@@ -129,7 +130,7 @@ export default function AccountsPage() {
                 placeholder="e.g. PK00MEZN0001234..."
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value)}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
 
@@ -141,13 +142,13 @@ export default function AccountsPage() {
                 placeholder="0.00"
                 value={balance}
                 onChange={(e) => setBalance(e.target.value)}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm mt-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
             >
               Add Account
             </button>
@@ -157,12 +158,12 @@ export default function AccountsPage() {
         {/* List: Accounts Cards */}
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
           {loading ? (
-            <div className="col-span-2 text-center py-12 text-slate-400 bg-white rounded-2xl border border-slate-200">
+            <div className="col-span-2 text-center py-12 text-slate-400 bg-white rounded-2xl border border-slate-200 text-xs">
               Loading account portfolio...
             </div>
           ) : accounts.length === 0 ? (
-            <div className="col-span-2 text-center py-12 text-slate-400 bg-white rounded-2xl border border-slate-200">
-              No accounts registered yet. Add your first bank or wallet account on the left.
+            <div className="col-span-2 text-center py-12 text-slate-400 bg-white rounded-2xl border border-slate-200 text-xs">
+              No accounts registered yet. Add your first bank or credit card account on the left.
             </div>
           ) : (
             accounts.map((acc) => (
@@ -171,7 +172,8 @@ export default function AccountsPage() {
                   <div className="flex items-center gap-2.5">
                     <div className="p-2.5 bg-slate-100 text-slate-700 rounded-xl">
                       {acc.type === 'Bank' ? <Building2 className="w-5 h-5 text-blue-600" /> :
-                       acc.type === 'Wallet' ? <CreditCard className="w-5 h-5 text-purple-600" /> :
+                       acc.type === 'Wallet' ? <Wallet className="w-5 h-5 text-purple-600" /> :
+                       acc.type === 'Credit Card' ? <CreditCard className="w-5 h-5 text-rose-600" /> :
                        <DollarSign className="w-5 h-5 text-emerald-600" />}
                     </div>
                     <div>
@@ -188,7 +190,7 @@ export default function AccountsPage() {
                 )}
 
                 <div className="border-t border-slate-100 pt-3">
-                  <p className="text-[11px] text-slate-400">Available Balance</p>
+                  <p className="text-[11px] text-slate-400">Available Balance / Limit</p>
                   <p className="text-lg font-bold text-slate-900 mt-0.5">
                     PKR {Number(acc.current_balance).toLocaleString()}
                   </p>
