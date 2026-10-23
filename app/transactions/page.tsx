@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar } from 'lucide-react';
 
 export interface Transaction {
   id: string;
@@ -22,6 +22,7 @@ const TRANSACTION_TYPES = [
   'Expense',
   'Income Receipt',
   'Transfer',
+  'Loan Given',
   'Loan Received',
   'Loan Repayment',
   'Refund',
@@ -70,6 +71,8 @@ export default function TransactionsPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedAccount, setSelectedAccount] = useState('All');
   const [selectedType, setSelectedType] = useState('All');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     setDate(new Date().toISOString().split('T')[0]);
@@ -191,7 +194,7 @@ export default function TransactionsPage() {
           await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
         }
       } else {
-        // Regular Income or Expense
+        // Regular Income, Expense, or Loans
         const { data: accList } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
         if (accList && accList.length > 0) {
           const acc = accList[0];
@@ -291,7 +294,12 @@ export default function TransactionsPage() {
     const matchesAccount = selectedAccount === 'All' || t.account_name === selectedAccount || t.transfer_to === selectedAccount;
     const matchesType = selectedType === 'All' || t.type === selectedType;
 
-    return matchesSearch && matchesCategory && matchesAccount && matchesType;
+    // Date Range Filter
+    const txDate = t.date;
+    const matchesFromDate = !fromDate || txDate >= fromDate;
+    const matchesToDate = !toDate || txDate <= toDate;
+
+    return matchesSearch && matchesCategory && matchesAccount && matchesType && matchesFromDate && matchesToDate;
   });
 
   return (
@@ -484,40 +492,69 @@ export default function TransactionsPage() {
         <div className="lg:col-span-2 space-y-4">
           
           {/* Search & Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search by party, note, category, account..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
-              />
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search by party, note, category, account..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="All">All Types</option>
+                  {TRANSACTION_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="All">All Categories</option>
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="flex gap-2">
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
-              >
-                <option value="All">All Types</option>
-                {TRANSACTION_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
-              >
-                <option value="All">All Categories</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+            {/* Date Range Filter Bar */}
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+              <Calendar className="w-4 h-4 text-indigo-600" />
+              <span className="font-medium text-[11px] text-slate-500">Date Range:</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              <span className="text-slate-400">to</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {(fromDate || toDate) && (
+                <button
+                  onClick={() => { setFromDate(''); setToDate(''); }}
+                  className="text-[11px] text-rose-600 hover:underline font-medium ml-auto"
+                >
+                  Clear Dates
+                </button>
+              )}
             </div>
           </div>
 
