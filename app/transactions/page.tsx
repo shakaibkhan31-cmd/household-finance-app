@@ -85,9 +85,15 @@ export default function TransactionsPage() {
     } else if (accData && accData.length > 0) {
       const fetchedAccountNames = accData.map((a: { name: string }) => a.name);
       setAvailableAccounts(fetchedAccountNames);
-      if (!accountName) setAccountName(fetchedAccountNames[0]);
-      if (!transferTo && fetchedAccountNames.length > 1) setTransferTo(fetchedAccountNames[1]);
-      else if (!transferTo) setTransferTo(fetchedAccountNames[0]);
+      
+      const firstAcc = fetchedAccountNames[0];
+      if (!accountName) setAccountName(firstAcc);
+      
+      // Ensure Transfer To defaults to a different account if multiple exist
+      if (!transferTo) {
+        const differentAcc = fetchedAccountNames.find(acc => acc !== (accountName || firstAcc));
+        setTransferTo(differentAcc || firstAcc);
+      }
     } else {
       setAvailableAccounts([]);
       setAccountName('');
@@ -240,7 +246,7 @@ export default function TransactionsPage() {
     setDate(t.date);
     setType(t.type);
     setAccountName(t.account_name);
-    setTransferTo(t.transfer_to || availableAccounts[0]);
+    setTransferTo(t.transfer_to || availableAccounts.find(acc => acc !== t.account_name) || availableAccounts[0]);
     setCategory(t.category);
     setAmount(t.amount.toString());
     setPartyName(t.party_name || '');
@@ -335,7 +341,15 @@ export default function TransactionsPage() {
                   <label className="block text-xs font-medium text-slate-700 mb-1">Transaction Type</label>
                   <select
                     value={type}
-                    onChange={(e) => setType(e.target.value)}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      setType(newType);
+                      // If Transfer is selected and transferTo equals accountName, adjust transferTo
+                      if (newType === 'Transfer' && transferTo === accountName) {
+                        const diff = availableAccounts.find(acc => acc !== accountName);
+                        if (diff) setTransferTo(diff);
+                      }
+                    }}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
                   >
                     {TRANSACTION_TYPES.map((t) => (
@@ -352,7 +366,14 @@ export default function TransactionsPage() {
                 </label>
                 <select
                   value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
+                  onChange={(e) => {
+                    const newAcc = e.target.value;
+                    setAccountName(newAcc);
+                    if (newAcc === transferTo) {
+                      const diff = availableAccounts.find(acc => acc !== newAcc);
+                      if (diff) setTransferTo(diff);
+                    }
+                  }}
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                 >
                   {availableAccounts.map((acc) => (
@@ -379,7 +400,7 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              {/* Category & Amount (Category hidden if Transfer) */}
+              {/* Category & Amount */}
               <div className={`grid ${isTransferType ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
                 {!isTransferType && (
                   <div>
@@ -436,7 +457,7 @@ export default function TransactionsPage() {
                 </select>
               </div>
 
-              {/* Description / Notes */}
+              {/* Description / Remarks */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Description / Remarks</label>
                 <input
