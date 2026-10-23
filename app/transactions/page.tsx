@@ -11,7 +11,6 @@ export interface Transaction {
   account_name: string;
   category: string;
   amount: number;
-  payment_method: string;
   party_name: string;
   description: string;
   entered_by: string;
@@ -44,8 +43,6 @@ const CATEGORIES = [
   'Other / Misc'
 ];
 
-const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Debit / Credit Card', 'Digital Wallet'];
-
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
@@ -59,7 +56,6 @@ export default function TransactionsPage() {
   const [accountName, setAccountName] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const [partyName, setPartyName] = useState('');
   const [description, setDescription] = useState('');
   const [enteredBy, setEnteredBy] = useState('Husband');
@@ -127,7 +123,6 @@ export default function TransactionsPage() {
           account_name: accountName,
           category,
           amount: parsedAmount,
-          payment_method: paymentMethod,
           party_name: partyName,
           description,
           entered_by: enteredBy,
@@ -148,7 +143,6 @@ export default function TransactionsPage() {
           account_name: accountName,
           category,
           amount: parsedAmount,
-          payment_method: paymentMethod,
           party_name: partyName,
           description,
           entered_by: enteredBy,
@@ -160,8 +154,8 @@ export default function TransactionsPage() {
         return;
       }
 
-      // AUTO-SYNC WITH DEBTS IF PAYMENT METHOD IS CREDIT CARD
-      if (paymentMethod === 'Debit / Credit Card' || paymentMethod === 'Credit Card') {
+      // AUTO-SYNC WITH DEBTS IF ACCOUNT IS CREDIT CARD
+      if (accountName.toLowerCase().includes('credit card')) {
         const { data: existingDebts } = await supabase
           .from('debts')
           .select('*')
@@ -206,7 +200,6 @@ export default function TransactionsPage() {
     setAccountName(t.account_name);
     setCategory(t.category);
     setAmount(t.amount.toString());
-    setPaymentMethod(t.payment_method);
     setPartyName(t.party_name || '');
     setDescription(t.description || '');
     setEnteredBy(t.entered_by || 'Husband');
@@ -252,7 +245,7 @@ export default function TransactionsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Transactions Ledger</h1>
-        <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, payment modes, and party trails</p>
+        <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, accounts, and party trails</p>
       </div>
 
       {/* Main Grid */}
@@ -312,7 +305,7 @@ export default function TransactionsPage() {
                 <select
                   value={accountName}
                   onChange={(e) => setAccountName(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                 >
                   {availableAccounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -360,32 +353,17 @@ export default function TransactionsPage() {
                 />
               </div>
 
-              {/* Payment Method & Entered By */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Payment Method</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  >
-                    {PAYMENT_METHODS.map((pm) => (
-                      <option key={pm} value={pm}>{pm}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Entered By</label>
-                  <select
-                    value={enteredBy}
-                    onChange={(e) => setEnteredBy(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  >
-                    <option value="Husband">Husband</option>
-                    <option value="Wife">Wife</option>
-                  </select>
-                </div>
+              {/* Entered By */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Entered By</label>
+                <select
+                  value={enteredBy}
+                  onChange={(e) => setEnteredBy(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="Husband">Husband</option>
+                  <option value="Wife">Wife</option>
+                </select>
               </div>
 
               {/* Description / Notes */}
@@ -460,7 +438,7 @@ export default function TransactionsPage() {
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4">Type & Category</th>
                     <th className="py-3 px-4">Party / Note</th>
-                    <th className="py-3 px-4">Account & Method</th>
+                    <th className="py-3 px-4">Account</th>
                     <th className="py-3 px-4 text-right">Amount / Actions</th>
                   </tr>
                 </thead>
@@ -490,8 +468,9 @@ export default function TransactionsPage() {
                             <p className="text-[10px] text-slate-400">{t.description || '-'}</p>
                           </td>
                           <td className="py-3.5 px-4 text-slate-600">
-                            <p className="font-medium text-slate-700">{t.account_name}</p>
-                            <p className="text-[10px] text-slate-400">{t.payment_method}</p>
+                            <span className="font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                              {t.account_name}
+                            </span>
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className={`font-bold flex items-center justify-end gap-1 text-sm ${
