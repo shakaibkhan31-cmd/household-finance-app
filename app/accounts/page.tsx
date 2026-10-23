@@ -49,12 +49,13 @@ export default function AccountsPage() {
     if (!name || !balance) return;
 
     const parsedBalance = parseFloat(balance);
+    const isCash = type === 'Cash';
 
     const { error } = await supabase.from('accounts').insert([
       {
         name,
         type,
-        account_number: accountNumber || null,
+        account_number: isCash ? null : (accountNumber || null),
         current_balance: parsedBalance,
       },
     ]);
@@ -72,6 +73,7 @@ export default function AccountsPage() {
   // Total Portfolio Balance
   const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.current_balance), 0);
   const isCreditCard = type === 'Credit Card';
+  const isCash = type === 'Cash';
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -124,18 +126,21 @@ export default function AccountsPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                {isCreditCard ? 'Card Number (Optional)' : 'Account Number / IBAN (Optional)'}
-              </label>
-              <input
-                type="text"
-                placeholder={isCreditCard ? "e.g. 4532 •••• •••• 8890" : "e.g. PK00MEZN0001234..."}
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-            </div>
+            {/* Conditionally hide Account/Card Number field if Physical Cash is selected */}
+            {!isCash && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  {isCreditCard ? 'Card Number (Optional)' : 'Account Number / IBAN (Optional)'}
+                </label>
+                <input
+                  type="text"
+                  placeholder={isCreditCard ? "e.g. 4532 •••• •••• 8890" : "e.g. PK00MEZN0001234..."}
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
