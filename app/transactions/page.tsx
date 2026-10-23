@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft } from 'lucide-react';
 
 export interface Transaction {
   id: string;
   date: string;
   type: string;
   account_name: string;
+  transfer_to?: string;
   category: string;
   amount: number;
   party_name: string;
@@ -54,6 +55,7 @@ export default function TransactionsPage() {
   // Form State
   const [type, setType] = useState<string>('Expense');
   const [accountName, setAccountName] = useState('');
+  const [transferTo, setTransferTo] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
   const [partyName, setPartyName] = useState('');
@@ -84,9 +86,12 @@ export default function TransactionsPage() {
       const fetchedAccountNames = accData.map((a: { name: string }) => a.name);
       setAvailableAccounts(fetchedAccountNames);
       if (!accountName) setAccountName(fetchedAccountNames[0]);
+      if (!transferTo && fetchedAccountNames.length > 1) setTransferTo(fetchedAccountNames[1]);
+      else if (!transferTo) setTransferTo(fetchedAccountNames[0]);
     } else {
       setAvailableAccounts([]);
       setAccountName('');
+      setTransferTo('');
     }
 
     // 2. Fetch transactions
@@ -112,6 +117,12 @@ export default function TransactionsPage() {
     }
 
     const parsedAmount = parseFloat(amount);
+    const isTransfer = type === 'Transfer';
+
+    if (isTransfer && accountName === transferTo) {
+      alert('Source and Destination accounts cannot be the same for a transfer.');
+      return;
+    }
 
     if (editingId) {
       // UPDATE TRANSACTION
@@ -121,9 +132,10 @@ export default function TransactionsPage() {
           date,
           type,
           account_name: accountName,
-          category,
+          transfer_to: isTransfer ? transferTo : null,
+          category: isTransfer ? 'Internal Transfer' : category,
           amount: parsedAmount,
-          party_name: partyName,
+          party_name: isTransfer ? 'Self Transfer' : partyName,
           description,
           entered_by: enteredBy,
         })
@@ -141,9 +153,10 @@ export default function TransactionsPage() {
           date,
           type,
           account_name: accountName,
-          category,
+          transfer_to: isTransfer ? transferTo : null,
+          category: isTransfer ? 'Internal Transfer' : category,
           amount: parsedAmount,
-          party_name: partyName,
+          party_name: isTransfer ? 'Self Transfer' : partyName,
           description,
           entered_by: enteredBy,
         },
@@ -154,32 +167,41 @@ export default function TransactionsPage() {
         return;
       }
 
-      // AUTO-UPDATE ACCOUNT BALANCE
-      const { data: accList } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('name', accountName)
-        .limit(1);
-
-      if (accList && accList.length > 0) {
-        const acc = accList[0];
-        let currentBal = Number(acc.current_balance || 0);
-        const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
-
-        if (isCredit) {
-          currentBal += parsedAmount;
-        } else {
-          currentBal -= parsedAmount;
+      // AUTO-UPDATE ACCOUNT BALANCES
+      if (isTransfer) {
+        // Deduct from source account
+        const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
+        if (srcAcc && srcAcc.length > 0) {
+          const newBal = Number(srcAcc[0].current_balance || 0) - parsedAmount;
+          await supabase.from('accounts').update({ current_balance: newBal }).eq('id', srcAcc[0].id);
         }
 
-        await supabase
-          .from('accounts')
-          .update({ current_balance: currentBal })
-          .eq('id', acc.id);
+        // Add to destination account
+        const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', transferTo).limit(1);
+        if (destAcc && destAcc.length > 0) {
+          const newBal = Number(destAcc[0].current_balance || 0) + parsedAmount;
+          await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
+        }
+      } else {
+        // Regular Income or Expense
+        const { data: accList } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
+        if (accList && accList.length > 0) {
+          const acc = accList[0];
+          let currentBal = Number(acc.current_balance || 0);
+          const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
+
+          if (isCredit) {
+            currentBal += parsedAmount;
+          } else {
+            currentBal -= parsedAmount;
+          }
+
+          await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+        }
       }
 
       // AUTO-SYNC WITH DEBTS IF ACCOUNT IS CREDIT CARD
-      if (accountName.toLowerCase().includes('credit card')) {
+      if (accountName.toLowerCase().includes('credit card') && !isTransfer) {
         const { data: existingDebts } = await supabase
           .from('debts')
           .select('*')
@@ -190,11 +212,7 @@ export default function TransactionsPage() {
         if (existingDebts && existingDebts.length > 0) {
           const cardDebt = existingDebts[0];
           const newTotal = Number(cardDebt.amount) + parsedAmount;
-
-          await supabase
-            .from('debts')
-            .update({ amount: newTotal })
-            .eq('id', cardDebt.id);
+          await supabase.from('debts').update({ amount: newTotal }).eq('id', cardDebt.id);
         } else {
           await supabase.from('debts').insert([
             {
@@ -222,6 +240,7 @@ export default function TransactionsPage() {
     setDate(t.date);
     setType(t.type);
     setAccountName(t.account_name);
+    setTransferTo(t.transfer_to || availableAccounts[0]);
     setCategory(t.category);
     setAmount(t.amount.toString());
     setPartyName(t.party_name || '');
@@ -249,16 +268,19 @@ export default function TransactionsPage() {
     setDate(new Date().toISOString().split('T')[0]);
   };
 
+  const isTransferType = type === 'Transfer';
+
   // Filtered List Logic
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch = 
       t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.party_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.account_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      t.account_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.transfer_to?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory = selectedCategory === 'All' || t.category === selectedCategory;
-    const matchesAccount = selectedAccount === 'All' || t.account_name === selectedAccount;
+    const matchesAccount = selectedAccount === 'All' || t.account_name === selectedAccount || t.transfer_to === selectedAccount;
     const matchesType = selectedType === 'All' || t.type === selectedType;
 
     return matchesSearch && matchesCategory && matchesAccount && matchesType;
@@ -269,7 +291,7 @@ export default function TransactionsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Transactions Ledger</h1>
-        <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, accounts, and party trails</p>
+        <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, transfers, and party trails</p>
       </div>
 
       {/* Main Grid */}
@@ -325,7 +347,9 @@ export default function TransactionsPage() {
 
               {/* Account Dropdown */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Account</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  {isTransferType ? 'From Account (Source)' : 'Account'}
+                </label>
                 <select
                   value={accountName}
                   onChange={(e) => setAccountName(e.target.value)}
@@ -337,20 +361,40 @@ export default function TransactionsPage() {
                 </select>
               </div>
 
-              {/* Category & Amount */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Conditionally show Transfer To field if type is Transfer */}
+              {isTransferType && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Transfer To (Destination)</label>
                   <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={transferTo}
+                    onChange={(e) => setTransferTo(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-700"
                   >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
+                    {availableAccounts
+                      .filter((acc) => acc !== accountName)
+                      .map((acc) => (
+                        <option key={acc} value={acc}>{acc}</option>
+                      ))}
                   </select>
                 </div>
+              )}
+
+              {/* Category & Amount (Category hidden if Transfer) */}
+              <div className={`grid ${isTransferType ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+                {!isTransferType && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
@@ -365,17 +409,19 @@ export default function TransactionsPage() {
                 </div>
               </div>
 
-              {/* Paid To / Received From Field */}
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Paid to / Received From</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Imtiaz Super Market / Electric Co"
-                  value={partyName}
-                  onChange={(e) => setPartyName(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
+              {/* Paid To / Received From Field (Hidden if Transfer) */}
+              {!isTransferType && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Paid to / Received From</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Imtiaz Super Market / Electric Co"
+                    value={partyName}
+                    onChange={(e) => setPartyName(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+              )}
 
               {/* Entered By */}
               <div>
@@ -478,6 +524,7 @@ export default function TransactionsPage() {
                   ) : (
                     filteredTransactions.map((t) => {
                       const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
+                      const isTransferRow = t.type === 'Transfer';
                       return (
                         <tr key={t.id} className="hover:bg-slate-50/80 transition">
                           <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">{t.date}</td>
@@ -492,18 +539,28 @@ export default function TransactionsPage() {
                             <p className="text-[10px] text-slate-400">{t.description || '-'}</p>
                           </td>
                           <td className="py-3.5 px-4 text-slate-600">
-                            <span className="font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
-                              {t.account_name}
-                            </span>
+                            {isTransferRow ? (
+                              <div className="flex items-center gap-1 font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-lg w-fit">
+                                <span>{t.account_name}</span>
+                                <ArrowRightLeft className="w-3 h-3 text-indigo-600" />
+                                <span>{t.transfer_to}</span>
+                              </div>
+                            ) : (
+                              <span className="font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                                {t.account_name}
+                              </span>
+                            )}
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className={`font-bold flex items-center justify-end gap-1 text-sm ${
-                              isCredit ? 'text-emerald-600' : 'text-slate-800'
+                              isCredit ? 'text-emerald-600' : isTransferRow ? 'text-indigo-600' : 'text-slate-800'
                             }`}>
-                              {isCredit ? (
-                                <ArrowDownLeft className="w-4 h-4 text-emerald-500" />
-                              ) : (
-                                <ArrowUpRight className="w-4 h-4 text-rose-500" />
+                              {!isTransferRow && (
+                                isCredit ? (
+                                  <ArrowDownLeft className="w-4 h-4 text-emerald-500" />
+                                ) : (
+                                  <ArrowUpRight className="w-4 h-4 text-rose-500" />
+                                )
                               )}
                               PKR {Number(t.amount).toLocaleString()}
                             </div>
