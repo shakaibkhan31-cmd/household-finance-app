@@ -104,7 +104,7 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
-  // Add Transaction
+  // Add Transaction & Auto-sync Credit Card Debt
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !accountName) {
@@ -114,6 +114,7 @@ export default function TransactionsPage() {
 
     const parsedAmount = parseFloat(amount);
 
+    // 1. Insert Transaction into Ledger
     const { error } = await supabase.from('transactions').insert([
       {
         date,
@@ -130,12 +131,46 @@ export default function TransactionsPage() {
 
     if (error) {
       alert('Error recording transaction: ' + error.message);
-    } else {
-      setDescription('');
-      setAmount('');
-      setPartyName('');
-      fetchTransactionsAndAccounts();
+      return;
     }
+
+    // 2. AUTO-SYNC WITH DEBTS IF PAYMENT METHOD IS CREDIT CARD
+    if (paymentMethod === 'Debit / Credit Card' || paymentMethod === 'Credit Card') {
+      const { data: existingDebts } = await supabase
+        .from('debts')
+        .select('*')
+        .eq('type', 'Credit Card')
+        .eq('status', 'Active')
+        .limit(1);
+
+      if (existingDebts && existingDebts.length > 0) {
+        const cardDebt = existingDebts[0];
+        const newTotal = Number(cardDebt.amount) + parsedAmount;
+
+        await supabase
+          .from('debts')
+          .update({ amount: newTotal })
+          .eq('id', cardDebt.id);
+      } else {
+        await supabase.from('debts').insert([
+          {
+            person_name: 'Credit Card Outstanding',
+            type: 'Credit Card',
+            direction: 'Taken (Payable)',
+            amount: parsedAmount,
+            due_date: date,
+            status: 'Active',
+            notes: `Auto-created from Transaction: ${description || category}`,
+          },
+        ]);
+      }
+    }
+
+    // Reset Form
+    setDescription('');
+    setAmount('');
+    setPartyName('');
+    fetchTransactionsAndAccounts();
   };
 
   // Filtered List Logic
@@ -154,7 +189,7 @@ export default function TransactionsPage() {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Transactions Ledger</h1>
