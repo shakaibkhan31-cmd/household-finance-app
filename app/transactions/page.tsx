@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Plus, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X } from 'lucide-react';
 
 export interface Transaction {
   id: string;
@@ -51,6 +51,9 @@ export default function TransactionsPage() {
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   // Form State
   const [type, setType] = useState<string>('Expense');
   const [accountName, setAccountName] = useState('');
@@ -84,7 +87,7 @@ export default function TransactionsPage() {
     } else if (accData && accData.length > 0) {
       const fetchedAccountNames = accData.map((a: { name: string }) => a.name);
       setAvailableAccounts(fetchedAccountNames);
-      setAccountName(fetchedAccountNames[0]);
+      if (!accountName) setAccountName(fetchedAccountNames[0]);
     } else {
       setAvailableAccounts([]);
       setAccountName('');
@@ -104,8 +107,8 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
-  // Add Transaction & Auto-sync Credit Card Debt
-  const handleAddTransaction = async (e: React.FormEvent) => {
+  // Add or Update Transaction
+  const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !accountName) {
       alert('Please select an account and enter an amount.');
@@ -114,63 +117,119 @@ export default function TransactionsPage() {
 
     const parsedAmount = parseFloat(amount);
 
-    // 1. Insert Transaction into Ledger
-    const { error } = await supabase.from('transactions').insert([
-      {
-        date,
-        type,
-        account_name: accountName,
-        category,
-        amount: parsedAmount,
-        payment_method: paymentMethod,
-        party_name: partyName,
-        description,
-        entered_by: enteredBy,
-      },
-    ]);
+    if (editingId) {
+      // UPDATE TRANSACTION
+      const { error } = await supabase
+        .from('transactions')
+        .update({
+          date,
+          type,
+          account_name: accountName,
+          category,
+          amount: parsedAmount,
+          payment_method: paymentMethod,
+          party_name: partyName,
+          description,
+          entered_by: enteredBy,
+        })
+        .eq('id', editingId);
 
-    if (error) {
-      alert('Error recording transaction: ' + error.message);
-      return;
-    }
+      if (error) {
+        alert('Error updating transaction: ' + error.message);
+        return;
+      }
+      setEditingId(null);
+    } else {
+      // INSERT TRANSACTION
+      const { error } = await supabase.from('transactions').insert([
+        {
+          date,
+          type,
+          account_name: accountName,
+          category,
+          amount: parsedAmount,
+          payment_method: paymentMethod,
+          party_name: partyName,
+          description,
+          entered_by: enteredBy,
+        },
+      ]);
 
-    // 2. AUTO-SYNC WITH DEBTS IF PAYMENT METHOD IS CREDIT CARD
-    if (paymentMethod === 'Debit / Credit Card' || paymentMethod === 'Credit Card') {
-      const { data: existingDebts } = await supabase
-        .from('debts')
-        .select('*')
-        .eq('type', 'Credit Card')
-        .eq('status', 'Active')
-        .limit(1);
+      if (error) {
+        alert('Error recording transaction: ' + error.message);
+        return;
+      }
 
-      if (existingDebts && existingDebts.length > 0) {
-        const cardDebt = existingDebts[0];
-        const newTotal = Number(cardDebt.amount) + parsedAmount;
-
-        await supabase
+      // AUTO-SYNC WITH DEBTS IF PAYMENT METHOD IS CREDIT CARD
+      if (paymentMethod === 'Debit / Credit Card' || paymentMethod === 'Credit Card') {
+        const { data: existingDebts } = await supabase
           .from('debts')
-          .update({ amount: newTotal })
-          .eq('id', cardDebt.id);
-      } else {
-        await supabase.from('debts').insert([
-          {
-            person_name: 'Credit Card Outstanding',
-            type: 'Credit Card',
-            direction: 'Taken (Payable)',
-            amount: parsedAmount,
-            due_date: date,
-            status: 'Active',
-            notes: `Auto-created from Transaction: ${description || category}`,
-          },
-        ]);
+          .select('*')
+          .eq('type', 'Credit Card')
+          .eq('status', 'Active')
+          .limit(1);
+
+        if (existingDebts && existingDebts.length > 0) {
+          const cardDebt = existingDebts[0];
+          const newTotal = Number(cardDebt.amount) + parsedAmount;
+
+          await supabase
+            .from('debts')
+            .update({ amount: newTotal })
+            .eq('id', cardDebt.id);
+        } else {
+          await supabase.from('debts').insert([
+            {
+              person_name: 'Credit Card Outstanding',
+              type: 'Credit Card',
+              direction: 'Taken (Payable)',
+              amount: parsedAmount,
+              due_date: date,
+              status: 'Active',
+              notes: `Auto-created from Transaction: ${description || category}`,
+            },
+          ]);
+        }
       }
     }
 
     // Reset Form
-    setDescription('');
+    resetForm();
+    fetchTransactionsAndAccounts();
+  };
+
+  // Edit Button Click
+  const handleEditClick = (t: Transaction) => {
+    setEditingId(t.id);
+    setDate(t.date);
+    setType(t.type);
+    setAccountName(t.account_name);
+    setCategory(t.category);
+    setAmount(t.amount.toString());
+    setPaymentMethod(t.payment_method);
+    setPartyName(t.party_name || '');
+    setDescription(t.description || '');
+    setEnteredBy(t.entered_by || 'Husband');
+  };
+
+  // Delete Transaction
+  const handleDeleteTransaction = async (id: string) => {
+    if (!confirm('Kya aap waqai is transaction ko delete karna chahte hain?')) return;
+
+    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    if (error) {
+      alert('Error deleting transaction: ' + error.message);
+    } else {
+      fetchTransactionsAndAccounts();
+    }
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
     setAmount('');
     setPartyName('');
-    fetchTransactionsAndAccounts();
+    setDescription('');
+    setDate(new Date().toISOString().split('T')[0]);
   };
 
   // Filtered List Logic
@@ -199,12 +258,19 @@ export default function TransactionsPage() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Left Column: Transaction Entry Form */}
+        {/* Left Column: Transaction Entry / Edit Form */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-5">
-          <h2 className="text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-indigo-600" />
-            New Ledger Entry
-          </h2>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <Plus className="w-5 h-5 text-indigo-600" />
+              {editingId ? 'Edit Transaction' : 'New Ledger Entry'}
+            </h2>
+            {editingId && (
+              <button onClick={resetForm} className="text-xs text-rose-600 font-medium flex items-center gap-1 hover:underline">
+                <X className="w-3.5 h-3.5" /> Cancel
+              </button>
+            )}
+          </div>
 
           {availableAccounts.length === 0 ? (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
@@ -212,7 +278,7 @@ export default function TransactionsPage() {
               <p>Please go to the <strong>Accounts</strong> page from the sidebar and add your first bank account or wallet before recording transactions.</p>
             </div>
           ) : (
-            <form onSubmit={handleAddTransaction} className="space-y-4">
+            <form onSubmit={handleSaveTransaction} className="space-y-4">
               {/* Date & Type Dropdown */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -240,7 +306,7 @@ export default function TransactionsPage() {
                 </div>
               </div>
 
-              {/* Account Dropdown (Dynamic from Database) */}
+              {/* Account Dropdown */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Account</label>
                 <select
@@ -287,7 +353,7 @@ export default function TransactionsPage() {
                 <label className="block text-xs font-medium text-slate-700 mb-1">Paid to / Received From</label>
                 <input
                   type="text"
-                  placeholder="e.g. Imtiaz Super Market / Electric Co / Person Name"
+                  placeholder="e.g. Imtiaz Super Market / Electric Co"
                   value={partyName}
                   onChange={(e) => setPartyName(e.target.value)}
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -327,7 +393,7 @@ export default function TransactionsPage() {
                 <label className="block text-xs font-medium text-slate-700 mb-1">Description / Remarks</label>
                 <input
                   type="text"
-                  placeholder="e.g. Monthly Grocery items & household supplies"
+                  placeholder="e.g. Monthly Grocery items"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -338,7 +404,7 @@ export default function TransactionsPage() {
                 type="submit"
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
               >
-                Record Transaction
+                {editingId ? 'Update Transaction' : 'Record Transaction'}
               </button>
             </form>
           )}
@@ -395,7 +461,7 @@ export default function TransactionsPage() {
                     <th className="py-3 px-4">Type & Category</th>
                     <th className="py-3 px-4">Party / Note</th>
                     <th className="py-3 px-4">Account & Method</th>
-                    <th className="py-3 px-4 text-right">Amount</th>
+                    <th className="py-3 px-4 text-right">Amount / Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -437,6 +503,20 @@ export default function TransactionsPage() {
                                 <ArrowUpRight className="w-4 h-4 text-rose-500" />
                               )}
                               PKR {Number(t.amount).toLocaleString()}
+                            </div>
+                            <div className="flex items-center justify-end gap-2 mt-1.5">
+                              <button
+                                onClick={() => handleEditClick(t)}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded"
+                              >
+                                <Edit3 className="w-3 h-3" /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(t.id)}
+                                className="text-[10px] text-rose-600 hover:text-rose-800 font-medium flex items-center gap-0.5 bg-rose-50 px-2 py-0.5 rounded"
+                              >
+                                <Trash2 className="w-3 h-3" /> Delete
+                              </button>
                             </div>
                           </td>
                         </tr>
