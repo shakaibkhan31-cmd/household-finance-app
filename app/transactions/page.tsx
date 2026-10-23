@@ -154,6 +154,30 @@ export default function TransactionsPage() {
         return;
       }
 
+      // AUTO-UPDATE ACCOUNT BALANCE
+      const { data: accList } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('name', accountName)
+        .limit(1);
+
+      if (accList && accList.length > 0) {
+        const acc = accList[0];
+        let currentBal = Number(acc.current_balance || 0);
+        const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
+
+        if (isCredit) {
+          currentBal += parsedAmount;
+        } else {
+          currentBal -= parsedAmount;
+        }
+
+        await supabase
+          .from('accounts')
+          .update({ current_balance: currentBal })
+          .eq('id', acc.id);
+      }
+
       // AUTO-SYNC WITH DEBTS IF ACCOUNT IS CREDIT CARD
       if (accountName.toLowerCase().includes('credit card')) {
         const { data: existingDebts } = await supabase
