@@ -40,6 +40,8 @@ const CATEGORIES = [
   'Entertainment & Dining',
   'Maintenance & Repairs',
   'Salary / Business Income',
+  'Support / Gift',
+  'Donation / Charity',
   'Loan / Debt Related',
   'Other / Misc'
 ];
@@ -344,7 +346,6 @@ export default function TransactionsPage() {
                     onChange={(e) => {
                       const newType = e.target.value;
                       setType(newType);
-                      // If Transfer is selected and transferTo equals accountName, adjust transferTo
                       if (newType === 'Transfer' && transferTo === accountName) {
                         const diff = availableAccounts.find(acc => acc !== accountName);
                         if (diff) setTransferTo(diff);
