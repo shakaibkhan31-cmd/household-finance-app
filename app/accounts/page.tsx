@@ -114,7 +114,7 @@ export default function AccountsPage() {
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as any)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
               >
                 <option value="Bank">Bank Account</option>
                 <option value="Wallet">Digital Wallet (Sadapay / Nayapay / Easypaisa)</option>
@@ -124,7 +124,7 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Account Number / IBAN (Optional)</label>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Account Number / IBAN / Card No (Optional)</label>
               <input
                 type="text"
                 placeholder="e.g. PK00MEZN0001234..."
@@ -135,7 +135,10 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Initial / Current Balance (PKR)</label>
+              {/* Conditional Label based on Type */}
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                {type === 'Credit Card' ? 'Credit Limit (PKR)' : 'Initial / Current Balance (PKR)'}
+              </label>
               <input
                 type="number"
                 required
@@ -190,7 +193,9 @@ export default function AccountsPage() {
                 )}
 
                 <div className="border-t border-slate-100 pt-3">
-                  <p className="text-[11px] text-slate-400">Available Balance / Limit</p>
+                  <p className="text-[11px] text-slate-400">
+                    {acc.type === 'Credit Card' ? 'Total Credit Limit' : 'Available Balance'}
+                  </p>
                   <p className="text-lg font-bold text-slate-900 mt-0.5">
                     PKR {Number(acc.current_balance).toLocaleString()}
                   </p>
