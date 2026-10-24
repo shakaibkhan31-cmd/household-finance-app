@@ -154,6 +154,16 @@ export default function TransactionsPage() {
       if (diff) setTransferTo(diff);
     }
 
+    // Auto select categories based on transaction type
+  if (['Loan Given', 'Loan Received', 'Loan Repayment'].includes(newType)) {
+    setCategory('Loan / Debt Related');
+  } else if (newType === 'Income Receipt') {
+    setCategory('Salary / Business Income');
+  } else if (newType === 'Bill Payment') {
+    setCategory('Utilities & Bills');
+  }
+};
+
     // Auto select 'Loan / Debt Related' category for loan transactions
     if (['Loan Given', 'Loan Received', 'Loan Repayment'].includes(newType)) {
       setCategory('Loan / Debt Related');
