@@ -393,6 +393,7 @@ export default function TransactionsPage() {
   const isTransferType = type === 'Transfer';
   const isLoanType = type === 'Loan Given' || type === 'Loan Received';
   const isRepaymentType = type === 'Loan Repayment';
+  const isRefundType = type === 'Refund';
 
   // Filtered List Logic
   const filteredTransactions = transactions.filter((t) => {
@@ -476,7 +477,7 @@ export default function TransactionsPage() {
               {/* Account Dropdown */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  {isTransferType ? 'From Account (Source)' : 'Account'}
+                  {isTransferType ? 'From Account (Source)' : isRefundType ? 'Refund Deposited In' : 'Account'}
                 </label>
                 <select
                   value={accountName}
@@ -540,7 +541,9 @@ export default function TransactionsPage() {
               <div className={`grid ${isTransferType ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
                 {!isTransferType && (
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                      {isRefundType ? 'Expense Category to Offset' : 'Category'}
+                    </label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
@@ -569,10 +572,12 @@ export default function TransactionsPage() {
               {/* Paid To / Received From Field (Hidden if Transfer or Repayment) */}
               {!isTransferType && !isRepaymentType && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Paid to / Received From</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    {isRefundType ? 'Refunded By (Store / Merchant / Person)' : 'Paid to / Received From'}
+                  </label>
                   <input
                     type="text"
-                    placeholder="e.g. Imtiaz Super Market / Electric Co"
+                    placeholder={isRefundType ? 'e.g. Imtiaz Super Market / Daraz' : 'e.g. Imtiaz Super Market / Electric Co'}
                     value={partyName}
                     onChange={(e) => setPartyName(e.target.value)}
                     className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -612,7 +617,7 @@ export default function TransactionsPage() {
                 <label className="block text-xs font-medium text-slate-700 mb-1">Description / Remarks</label>
                 <input
                   type="text"
-                  placeholder="e.g. Monthly Grocery items"
+                  placeholder={isRefundType ? 'e.g. Returned defective item / Order cancellation' : 'e.g. Monthly Grocery items'}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
