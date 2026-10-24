@@ -31,7 +31,7 @@ export default function BillsPage() {
   const [payingBill, setPayingBill] = useState<Bill | null>(null);
   const [selectedAccount, setSelectedAccount] = useState('');
 
-  // Transfer Modal State (For Pay Now & Transfer)
+  // Transfer Modal State (For Pay Now & Transfer - Credit Cards Only)
   const [transferringBill, setTransferringBill] = useState<Bill | null>(null);
   const [sourceAccount, setSourceAccount] = useState('');
   const [targetAccount, setTargetAccount] = useState('');
@@ -162,7 +162,7 @@ export default function BillsPage() {
     }
   };
 
-  // Pay Now & Auto-Record Transfer
+  // Pay Now & Auto-Record Transfer (For Credit Cards)
   const handlePayNowAndTransfer = async () => {
     if (!transferringBill || !sourceAccount || !targetAccount) return;
 
@@ -321,76 +321,82 @@ export default function BillsPage() {
               <p className="text-xs text-slate-400 py-4 text-center">No bill entries found.</p>
             ) : (
               <div className="space-y-3">
-                {bills.map((b) => (
-                  <div
-                    key={b.id}
-                    className={`p-4 rounded-xl border flex items-center justify-between transition ${
-                      b.status === 'Paid'
-                        ? 'bg-slate-50/60 border-slate-200'
-                        : 'bg-white border-amber-200 shadow-xs'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-800 text-sm">
-                          {b.title || 'Untitled Bill'}
-                        </span>
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            b.status === 'Paid'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}
-                        >
-                          {b.status}
-                        </span>
+                {bills.map((b) => {
+                  const isCreditCardBill = b.title.toLowerCase().includes('credit card') || b.title.toLowerCase().includes('card');
+
+                  return (
+                    <div
+                      key={b.id}
+                      className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                        b.status === 'Paid'
+                          ? 'bg-slate-50/60 border-slate-200'
+                          : 'bg-white border-amber-200 shadow-xs'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 text-sm">
+                            {b.title || 'Untitled Bill'}
+                          </span>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              b.status === 'Paid'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {b.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
+                          </span>
+                          {b.notes && <span>{b.notes}</span>}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
-                        </span>
-                        {b.notes && <span>{b.notes}</span>}
+
+                      <div className="text-right space-y-2">
+                        <p className="text-base font-bold text-slate-900">
+                          PKR {Number(b.amount || 0).toLocaleString()}
+                        </p>
+
+                        <div className="flex items-center justify-end gap-2">
+                          {b.status === 'Pending' && (
+                            <>
+                              {/* Mark Paid with Account Modal (For all bills) */}
+                              <button
+                                onClick={() => setPayingBill(b)}
+                                className="text-[11px] text-slate-700 hover:text-slate-900 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                              >
+                                Mark Paid
+                              </button>
+
+                              {/* Pay Now & Transfer (Only for Credit Card bills) */}
+                              {isCreditCardBill && (
+                                <button
+                                  onClick={() => setTransferringBill(b)}
+                                  className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
+                                >
+                                  <CreditCard className="w-3.5 h-3.5" /> Pay Now & Transfer
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Delete Bill Button */}
+                          <button
+                            onClick={() => handleDeleteBill(b.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            title="Delete Bill"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="text-right space-y-2">
-                      <p className="text-base font-bold text-slate-900">
-                        PKR {Number(b.amount || 0).toLocaleString()}
-                      </p>
-
-                      <div className="flex items-center justify-end gap-2">
-                        {b.status === 'Pending' && (
-                          <>
-                            {/* Mark Paid with Account Modal */}
-                            <button
-                              onClick={() => setPayingBill(b)}
-                              className="text-[11px] text-slate-700 hover:text-slate-900 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-                            >
-                              Mark Paid
-                            </button>
-
-                            {/* Pay Now & Record Transfer */}
-                            <button
-                              onClick={() => setTransferringBill(b)}
-                              className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
-                            >
-                              <CreditCard className="w-3.5 h-3.5" /> Pay Now & Transfer
-                            </button>
-                          </>
-                        )}
-
-                        {/* Delete Bill Button */}
-                        <button
-                          onClick={() => handleDeleteBill(b.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                          title="Delete Bill"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -441,7 +447,7 @@ export default function BillsPage() {
         </div>
       )}
 
-      {/* Pay Now & Transfer Modal */}
+      {/* Pay Now & Transfer Modal (Credit Card Only) */}
       {transferringBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
