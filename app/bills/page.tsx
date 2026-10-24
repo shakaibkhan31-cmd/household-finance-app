@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign } from 'lucide-react';
+import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2 } from 'lucide-react';
 
 export interface Bill {
   id: string;
@@ -106,6 +106,22 @@ export default function BillsPage() {
     }
   };
 
+  // Delete Bill
+  const handleDeleteBill = async (billId: string) => {
+    if (!confirm('Kya aap waqai is bill entry ko delete karna chahte hain?')) return;
+
+    const { error } = await supabase
+      .from('bills')
+      .delete()
+      .eq('id', billId);
+
+    if (error) {
+      alert('Error deleting bill: ' + error.message);
+    } else {
+      fetchBillsAndAccounts();
+    }
+  };
+
   // Option 2: Pay Now & Auto-Record Transfer
   const handlePayNowAndTransfer = async () => {
     if (!payingBill || !sourceAccount || !targetAccount) return;
@@ -128,7 +144,7 @@ export default function BillsPage() {
         category: 'Internal Transfer',
         amount: payAmount,
         party_name: 'Credit Card Bill Payment',
-        description: `Bill Payment for ${payingBill.title}`,
+        description: `Bill Payment for ${payingBill.title || 'Bill'}`,
         entered_by: 'Husband',
       },
     ]);
@@ -276,7 +292,9 @@ export default function BillsPage() {
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-800 text-sm">{b.title}</span>
+                        <span className="font-bold text-slate-800 text-sm">
+                          {b.title || 'Untitled Bill'}
+                        </span>
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                             b.status === 'Paid'
@@ -297,28 +315,39 @@ export default function BillsPage() {
 
                     <div className="text-right space-y-2">
                       <p className="text-base font-bold text-slate-900">
-                        PKR {Number(b.amount).toLocaleString()}
+                        PKR {Number(b.amount || 0).toLocaleString()}
                       </p>
 
-                      {b.status === 'Pending' && (
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Option 1: Manual Mark Paid */}
-                          <button
-                            onClick={() => handleMarkAsPaid(b.id)}
-                            className="text-[11px] text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-                          >
-                            Mark Paid
-                          </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {b.status === 'Pending' && (
+                          <>
+                            {/* Option 1: Manual Mark Paid */}
+                            <button
+                              onClick={() => handleMarkAsPaid(b.id)}
+                              className="text-[11px] text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                            >
+                              Mark Paid
+                            </button>
 
-                          {/* Option 2: Pay Now & Record Transfer */}
-                          <button
-                            onClick={() => setPayingBill(b)}
-                            className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" /> Pay Now & Transfer
-                          </button>
-                        </div>
-                      )}
+                            {/* Option 2: Pay Now & Record Transfer */}
+                            <button
+                              onClick={() => setPayingBill(b)}
+                              className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" /> Pay Now & Transfer
+                            </button>
+                          </>
+                        )}
+
+                        {/* Delete Bill Button */}
+                        <button
+                          onClick={() => handleDeleteBill(b.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Delete Bill"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -335,7 +364,7 @@ export default function BillsPage() {
             <div>
               <h3 className="text-lg font-bold text-slate-900">Pay Bill via Account Transfer</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Paying <strong>{payingBill.title}</strong> of <strong>PKR {Number(payingBill.amount).toLocaleString()}</strong>
+                Paying <strong>{payingBill.title || 'Bill'}</strong> of <strong>PKR {Number(payingBill.amount || 0).toLocaleString()}</strong>
               </p>
             </div>
 
