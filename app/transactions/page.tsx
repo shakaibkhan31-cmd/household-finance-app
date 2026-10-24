@@ -65,6 +65,7 @@ export default function TransactionsPage() {
   const [description, setDescription] = useState('');
   const [enteredBy, setEnteredBy] = useState('Husband');
   const [date, setDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,7 +76,9 @@ export default function TransactionsPage() {
   const [toDate, setToDate] = useState('');
 
   useEffect(() => {
-    setDate(new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    setDate(today);
+    setDueDate(today);
     fetchTransactionsAndAccounts();
   }, []);
 
@@ -208,7 +211,7 @@ export default function TransactionsPage() {
         }
       }
 
-      // AUTO-SYNC WITH DEBTS TABLE WITH ERROR HANDLING
+      // AUTO-SYNC WITH DEBTS TABLE WITH CUSTOM DUE DATE
       if (type === 'Loan Given') {
         const { error: debtErr } = await supabase.from('debts').insert([
           {
@@ -216,7 +219,7 @@ export default function TransactionsPage() {
             type: 'Personal Loan',
             direction: 'Given (Receivable)',
             amount: parsedAmount,
-            due_date: date,
+            due_date: dueDate || date,
             status: 'Active',
             notes: description || `Loan Given via ${accountName}`,
           },
@@ -229,7 +232,7 @@ export default function TransactionsPage() {
             type: 'Personal Loan',
             direction: 'Taken (Payable)',
             amount: parsedAmount,
-            due_date: date,
+            due_date: dueDate || date,
             status: 'Active',
             notes: description || `Loan Received in ${accountName}`,
           },
@@ -320,10 +323,13 @@ export default function TransactionsPage() {
     setAmount('');
     setPartyName('');
     setDescription('');
-    setDate(new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    setDate(today);
+    setDueDate(today);
   };
 
   const isTransferType = type === 'Transfer';
+  const isLoanType = type === 'Loan Given' || type === 'Loan Received';
 
   // Filtered List Logic
   const filteredTransactions = transactions.filter((t) => {
@@ -492,6 +498,20 @@ export default function TransactionsPage() {
                     value={partyName}
                     onChange={(e) => setPartyName(e.target.value)}
                     className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Conditionally show Due Date if Loan Given or Loan Received */}
+              {isLoanType && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Loan Due Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
                   />
                 </div>
               )}
