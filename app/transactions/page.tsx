@@ -196,7 +196,6 @@ export default function TransactionsPage() {
           const acc = accList[0];
           let currentBal = Number(acc.current_balance || 0);
           
-          // Loan Given reduces cash/bank, Loan Received increases cash/bank
           const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
 
           if (isCredit) {
@@ -209,9 +208,9 @@ export default function TransactionsPage() {
         }
       }
 
-      // AUTO-SYNC WITH DEBTS TABLE
+      // AUTO-SYNC WITH DEBTS TABLE WITH ERROR HANDLING
       if (type === 'Loan Given') {
-        await supabase.from('debts').insert([
+        const { error: debtErr } = await supabase.from('debts').insert([
           {
             person_name: partyName || 'Unknown Party',
             type: 'Personal Loan',
@@ -222,8 +221,9 @@ export default function TransactionsPage() {
             notes: description || `Loan Given via ${accountName}`,
           },
         ]);
+        if (debtErr) alert('Error syncing with Debts table: ' + debtErr.message);
       } else if (type === 'Loan Received') {
-        await supabase.from('debts').insert([
+        const { error: debtErr } = await supabase.from('debts').insert([
           {
             person_name: partyName || 'Unknown Party',
             type: 'Personal Loan',
@@ -234,8 +234,8 @@ export default function TransactionsPage() {
             notes: description || `Loan Received in ${accountName}`,
           },
         ]);
+        if (debtErr) alert('Error syncing with Debts table: ' + debtErr.message);
       } else if (type === 'Loan Repayment') {
-        // Find active debt matching party if possible and reduce or settle
         const { data: activeDebts } = await supabase
           .from('debts')
           .select('*')
