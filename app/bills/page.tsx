@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2, AlertTriangle } from 'lucide-react';
@@ -22,6 +20,7 @@ export default function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [todayStr, setTodayStr] = useState<string>('');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -43,6 +42,8 @@ export default function BillsPage() {
   const [targetAccount, setTargetAccount] = useState('');
 
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setTodayStr(today);
     fetchBillsAndAccounts();
   }, []);
 
@@ -106,7 +107,6 @@ export default function BillsPage() {
 
   // Open Mark Paid Modal with Overdue Check
   const handleOpenMarkPaidModal = (bill: Bill) => {
-    const todayStr = new Date().toISOString().split('T')[0];
     const isOverdue = bill.status === 'Pending' && bill.due_date < todayStr;
     const totalToPay = isOverdue
       ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
@@ -118,7 +118,6 @@ export default function BillsPage() {
 
   // Open Transfer Modal with Overdue Check
   const handleOpenTransferModal = (bill: Bill) => {
-    const todayStr = new Date().toISOString().split('T')[0];
     const isOverdue = bill.status === 'Pending' && bill.due_date < todayStr;
     const totalToPay = isOverdue
       ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
@@ -132,12 +131,10 @@ export default function BillsPage() {
   const handleConfirmMarkPaid = async () => {
     if (!payingBill || !selectedAccount) return;
 
-    const today = new Date().toISOString().split('T')[0];
-
     // 1. Record Bill Payment Transaction
     const { error: txErr } = await supabase.from('transactions').insert([
       {
-        date: today,
+        date: todayStr,
         type: 'Bill Payment',
         account_name: selectedAccount,
         category: payingBill.category || 'Utilities & Bills',
@@ -204,12 +201,10 @@ export default function BillsPage() {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-
     // 1. Insert Transfer Transaction
     const { error: txErr } = await supabase.from('transactions').insert([
       {
-        date: today,
+        date: todayStr,
         type: 'Transfer',
         account_name: sourceAccount,
         transfer_to: targetAccount,
@@ -269,8 +264,6 @@ export default function BillsPage() {
     alert('Bill paid successfully! Transfer recorded & Credit Card debt synced.');
     fetchBillsAndAccounts();
   };
-
-  const todayStr = new Date().toISOString().split('T')[0];
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -374,7 +367,7 @@ export default function BillsPage() {
                   const isCreditCardBill =
                     b.title.toLowerCase().includes('credit card') || b.title.toLowerCase().includes('card');
 
-                  const isOverdue = b.status === 'Pending' && b.due_date < todayStr;
+                  const isOverdue = b.status === 'Pending' && todayStr && b.due_date < todayStr;
                   const lateFee = Number(b.late_charges || 0);
                   const effectiveAmount = isOverdue
                     ? Number(b.amount || 0) + lateFee
