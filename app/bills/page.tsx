@@ -2,59 +2,54 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Receipt, Plus, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign } from 'lucide-react';
 
 export interface Bill {
   id: string;
   title: string;
   category: string;
-  bill_date: string;
-  due_date: string;
   amount: number;
-  previous_arrears: number;
-  late_charges: number;
-  total_payable: number;
-  notes: string;
-  status: 'Pending' | 'Paid';
-  paid_date?: string;
+  due_date: string;
+  status: string; // 'Pending' or 'Paid'
+  account_name?: string;
+  notes?: string;
   created_at?: string;
 }
 
-const BILL_CATEGORIES = [
-  'Electricity (K-Electric)',
-  'Sui Gas (SSGC)',
-  'Water / Tanker',
-  'Internet / Wifi',
-  'House Rent',
-  'Building Maintenance',
-  'School / Tuition Fees',
-  'Other Utility'
-];
-
 export default function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
+  const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Form State
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState(BILL_CATEGORIES[0]);
-  const [billDate, setBillDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [category, setCategory] = useState('Utilities & Bills');
   const [amount, setAmount] = useState('');
-  const [previousArrears, setPreviousArrears] = useState('0');
-  const [lateCharges, setLateCharges] = useState('0');
+  const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Payment Modal State
+  const [payingBill, setPayingBill] = useState<Bill | null>(null);
+  const [sourceAccount, setSourceAccount] = useState('');
+  const [targetAccount, setTargetAccount] = useState('');
+
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setBillDate(today);
-    setDueDate(today);
-    fetchBills();
+    fetchBillsAndAccounts();
   }, []);
 
-  // Fetch Bills from Supabase
-  const fetchBills = async () => {
+  const fetchBillsAndAccounts = async () => {
     setLoading(true);
+
+    // Fetch Accounts
+    const { data: accData } = await supabase.from('accounts').select('name');
+    if (accData && accData.length > 0) {
+      const names = accData.map((a: { name: string }) => a.name);
+      setAccounts(names);
+      setSourceAccount(names[0]);
+      if (names.length > 1) setTargetAccount(names[1]);
+    }
+
+    // Fetch Bills
     const { data, error } = await supabase
       .from('bills')
       .select('*')
@@ -68,28 +63,22 @@ export default function BillsPage() {
     setLoading(false);
   };
 
-  // Add Bill
+  // Add New Bill
   const handleAddBill = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !amount || !dueDate) return;
-
-    const baseAmount = parseFloat(amount) || 0;
-    const arrears = parseFloat(previousArrears) || 0;
-    const charges = parseFloat(lateCharges) || 0;
-    const calculatedTotal = baseAmount + arrears + charges;
+    if (!title || !amount || !dueDate) {
+      alert('Please fill required fields.');
+      return;
+    }
 
     const { error } = await supabase.from('bills').insert([
       {
         title,
         category,
-        bill_date: billDate,
+        amount: parseFloat(amount),
         due_date: dueDate,
-        amount: baseAmount,
-        previous_arrears: arrears,
-        late_charges: charges,
-        total_payable: calculatedTotal,
-        notes,
         status: 'Pending',
+        notes,
       },
     ]);
 
@@ -98,124 +87,138 @@ export default function BillsPage() {
     } else {
       setTitle('');
       setAmount('');
-      setPreviousArrears('0');
-      setLateCharges('0');
       setNotes('');
-      fetchBills();
+      fetchBillsAndAccounts();
     }
   };
 
-  // Mark Bill as Paid and Auto-record in Transactions Ledger
-  const handleMarkAsPaid = async (bill: Bill) => {
-    const today = new Date().toISOString().split('T')[0];
-
-    // 1. Update Bill status
-    const { error: billError } = await supabase
+  // Option 1: Direct Manual Mark as Paid
+  const handleMarkAsPaid = async (billId: string) => {
+    const { error } = await supabase
       .from('bills')
-      .update({ status: 'Paid', paid_date: today })
-      .eq('id', bill.id);
+      .update({ status: 'Paid' })
+      .eq('id', billId);
 
-    if (billError) {
-      alert('Error updating bill: ' + billError.message);
+    if (error) {
+      alert('Error updating bill status: ' + error.message);
+    } else {
+      fetchBillsAndAccounts();
+    }
+  };
+
+  // Option 2: Pay Now & Auto-Record Transfer
+  const handlePayNowAndTransfer = async () => {
+    if (!payingBill || !sourceAccount || !targetAccount) return;
+
+    if (sourceAccount === targetAccount) {
+      alert('Source and Destination accounts cannot be the same.');
       return;
     }
 
-    // 2. Auto Insert into Transactions Ledger
-    const payableAmount = bill.total_payable || bill.amount;
-    const { error: txError } = await supabase.from('transactions').insert([
+    const payAmount = Number(payingBill.amount);
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Insert Transfer Transaction
+    const { error: txErr } = await supabase.from('transactions').insert([
       {
         date: today,
-        type: 'Bill Payment',
-        account_name: 'Meezan Bank',
-        category: bill.category,
-        amount: payableAmount,
-        payment_method: 'Online Transfer',
-        party_name: bill.title,
-        description: `Bill Payment: ${bill.title} ${bill.notes ? `(${bill.notes})` : ''}`,
+        type: 'Transfer',
+        account_name: sourceAccount,
+        transfer_to: targetAccount,
+        category: 'Internal Transfer',
+        amount: payAmount,
+        party_name: 'Credit Card Bill Payment',
+        description: `Bill Payment for ${payingBill.title}`,
         entered_by: 'Husband',
       },
     ]);
 
-    if (txError) {
-      console.error('Error auto-creating transaction:', txError.message);
+    if (txErr) {
+      alert('Error recording transfer transaction: ' + txErr.message);
+      return;
     }
 
-    fetchBills();
+    // 2. Adjust Source Account Balance (-)
+    const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', sourceAccount).limit(1);
+    if (srcAcc && srcAcc.length > 0) {
+      const newBal = Number(srcAcc[0].current_balance || 0) - payAmount;
+      await supabase.from('accounts').update({ current_balance: newBal }).eq('id', srcAcc[0].id);
+    }
+
+    // 3. Adjust Target Account Balance (+)
+    const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', targetAccount).limit(1);
+    if (destAcc && destAcc.length > 0) {
+      const newBal = Number(destAcc[0].current_balance || 0) + payAmount;
+      await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
+    }
+
+    // 4. Auto-Settle Credit Card Debt in debts table
+    const { data: ccDebts } = await supabase
+      .from('debts')
+      .select('*')
+      .eq('type', 'Credit Card')
+      .eq('status', 'Active')
+      .limit(1);
+
+    if (ccDebts && ccDebts.length > 0) {
+      const targetDebt = ccDebts[0];
+      const updatedDebtAmount = Math.max(0, Number(targetDebt.amount) - payAmount);
+      await supabase
+        .from('debts')
+        .update({
+          amount: updatedDebtAmount,
+          status: updatedDebtAmount === 0 ? 'Settled' : 'Active',
+        })
+        .eq('id', targetDebt.id);
+    }
+
+    // 5. Update Bill Status to Paid
+    await supabase.from('bills').update({ status: 'Paid' }).eq('id', payingBill.id);
+
+    setPayingBill(null);
+    alert('Bill paid successfully! Transfer recorded & Credit Card debt synced.');
+    fetchBillsAndAccounts();
   };
 
-  const pendingBills = bills.filter((b) => b.status === 'Pending');
-  const paidBills = bills.filter((b) => b.status === 'Paid');
-  const totalPendingAmount = pendingBills.reduce(
-    (sum, b) => sum + Number(b.total_payable || b.amount),
-    0
-  );
-
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bills & Payables</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Track monthly utility bills, arrears, late charges, and due dates
-          </p>
-        </div>
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-right">
-          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
-            Total Pending Payable
-          </p>
-          <p className="text-2xl font-bold text-amber-900 mt-0.5">
-            PKR {totalPendingAmount.toLocaleString()}
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Bills & Payables</h1>
+        <p className="text-sm text-slate-500 mt-1">Track upcoming credit card bills, utility payments, and due dates</p>
       </div>
 
-      {/* Main Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left Column: Form to Add New Bill */}
+        {/* Left Column: Add New Bill */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-          <h2 className="text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
+          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
             <Plus className="w-5 h-5 text-indigo-600" />
-            Add Detailed Bill Entry
+            Add New Bill
           </h2>
 
-          <form onSubmit={handleAddBill} className="space-y-3.5">
+          <form onSubmit={handleAddBill} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Bill Title / Service</label>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Bill Title</label>
               <input
                 type="text"
                 required
-                placeholder="e.g. KE K-Electric Bill Oct 2026"
+                placeholder="e.g. HBL Credit Card Bill / KE Electric"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                {BILL_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Dates: Bill Date & Due Date */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Bill Issue Date</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
                 <input
-                  type="date"
+                  type="number"
                   required
-                  value={billDate}
-                  onChange={(e) => setBillDate(e.target.value)}
-                  className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                 />
               </div>
 
@@ -226,61 +229,16 @@ export default function BillsPage() {
                   required
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
-            </div>
-
-            {/* Amounts breakdown */}
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="block text-[11px] font-medium text-slate-700 mb-1">Current Bill</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-slate-700 mb-1">Arrears</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={previousArrears}
-                  onChange={(e) => setPreviousArrears(e.target.value)}
-                  className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-rose-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-slate-700 mb-1">Late Fine</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={lateCharges}
-                  onChange={(e) => setLateCharges(e.target.value)}
-                  className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-amber-600"
-                />
-              </div>
-            </div>
-
-            {/* Total Payable Display */}
-            <div className="p-3 bg-slate-100 rounded-xl flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-600">Calculated Total:</span>
-              <span className="font-bold text-slate-900 text-sm">
-                PKR {((parseFloat(amount) || 0) + (parseFloat(previousArrears) || 0) + (parseFloat(lateCharges) || 0)).toLocaleString()}
-              </span>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Consumer No.</label>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Remarks</label>
               <input
                 type="text"
-                placeholder="e.g. Consumer # 0400012345 / Account # 10023"
+                placeholder="e.g. Oct Statement Bill"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -289,98 +247,151 @@ export default function BillsPage() {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
             >
-              Record Bill
+              Add Bill Entry
             </button>
           </form>
         </div>
 
-        {/* Right Column: Pending & Paid Bills Lists */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Pending Bills */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-500" />
-              Pending Bills ({pendingBills.length})
-            </h3>
+        {/* Right Column: Bills List */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <h2 className="text-base font-semibold text-slate-800">Pending & Paid Bills</h2>
 
             {loading ? (
-              <p className="text-center py-6 text-xs text-slate-400">Loading bills...</p>
-            ) : pendingBills.length === 0 ? (
-              <p className="text-center py-6 text-xs text-slate-400">No pending bills! All clear 🎉</p>
+              <p className="text-xs text-slate-400 py-4 text-center">Loading bills...</p>
+            ) : bills.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4 text-center">No bill entries found.</p>
             ) : (
               <div className="space-y-3">
-                {pendingBills.map((bill) => (
-                  <div key={bill.id} className="flex items-center justify-between p-4 bg-amber-50/40 border border-amber-100 rounded-xl">
+                {bills.map((b) => (
+                  <div
+                    key={b.id}
+                    className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                      b.status === 'Paid'
+                        ? 'bg-slate-50/60 border-slate-200'
+                        : 'bg-white border-amber-200 shadow-xs'
+                    }`}
+                  >
                     <div className="space-y-1">
-                      <h4 className="font-semibold text-slate-800 text-xs">{bill.title}</h4>
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        {bill.category} {bill.notes ? `• ${bill.notes}` : ''}
-                      </p>
-                      
-                      <div className="flex gap-3 text-[10px] font-mono text-slate-500 pt-1">
-                        <span>Issued: {bill.bill_date || 'N/A'}</span>
-                        <span className="text-amber-700 font-semibold flex items-center gap-0.5">
-                          <AlertCircle className="w-3 h-3" /> Due: {bill.due_date}
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800 text-sm">{b.title}</span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            b.status === 'Paid'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {b.status}
                         </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
+                        </span>
+                        {b.notes && <span>{b.notes}</span>}
                       </div>
                     </div>
 
                     <div className="text-right space-y-2">
-                      <p className="font-bold text-slate-900 text-sm">
-                        PKR {Number(bill.total_payable || bill.amount).toLocaleString()}
+                      <p className="text-base font-bold text-slate-900">
+                        PKR {Number(b.amount).toLocaleString()}
                       </p>
-                      {(bill.previous_arrears > 0 || bill.late_charges > 0) && (
-                        <p className="text-[9px] text-slate-400">
-                          Base: {bill.amount} | Arr: {bill.previous_arrears} | Fine: {bill.late_charges}
-                        </p>
+
+                      {b.status === 'Pending' && (
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Option 1: Manual Mark Paid */}
+                          <button
+                            onClick={() => handleMarkAsPaid(b.id)}
+                            className="text-[11px] text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                          >
+                            Mark Paid
+                          </button>
+
+                          {/* Option 2: Pay Now & Record Transfer */}
+                          <button
+                            onClick={() => setPayingBill(b)}
+                            className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" /> Pay Now & Transfer
+                          </button>
+                        </div>
                       )}
-                      <button
-                        onClick={() => handleMarkAsPaid(bill)}
-                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-medium transition shadow-sm flex items-center gap-1 ml-auto"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Mark Paid
-                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Paid History */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-500" />
-              Paid Bills History ({paidBills.length})
-            </h3>
-
-            {paidBills.length === 0 ? (
-              <p className="text-center py-4 text-xs text-slate-400">No paid bills recorded yet.</p>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {paidBills.map((bill) => (
-                  <div key={bill.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-slate-800 text-xs">{bill.title}</p>
-                      <p className="text-[10px] text-slate-400">
-                        Issued: {bill.bill_date} • Paid on: {bill.paid_date || bill.due_date}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-slate-700 text-xs">
-                      PKR {Number(bill.total_payable || bill.amount).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
         </div>
-
       </div>
+
+      {/* Payment Modal for Option 2 */}
+      {payingBill && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Pay Bill via Account Transfer</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Paying <strong>{payingBill.title}</strong> of <strong>PKR {Number(payingBill.amount).toLocaleString()}</strong>
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Pay From (Source Account)
+                </label>
+                <select
+                  value={sourceAccount}
+                  onChange={(e) => setSourceAccount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc} value={acc}>
+                      {acc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Transfer To (Credit Card / Target Account)
+                </label>
+                <select
+                  value={targetAccount}
+                  onChange={(e) => setTargetAccount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-700"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc} value={acc}>
+                      {acc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setPayingBill(null)}
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayNowAndTransfer}
+                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+              >
+                Confirm Payment & Transfer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
