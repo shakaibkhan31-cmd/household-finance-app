@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { syncCreditCardDebt } from '@/lib/financeSync';
 import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2, AlertTriangle } from 'lucide-react';
 
 export interface Bill {
@@ -107,7 +108,7 @@ export default function BillsPage() {
 
   // Open Mark Paid Modal with Overdue Check
   const handleOpenMarkPaidModal = (bill: Bill) => {
-    const isOverdue = bill.status === 'Pending' && bill.due_date < todayStr;
+    const isOverdue = bill.status === 'Pending' && todayStr && bill.due_date < todayStr;
     const totalToPay = isOverdue
       ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
       : Number(bill.amount || 0);
@@ -118,7 +119,7 @@ export default function BillsPage() {
 
   // Open Transfer Modal with Overdue Check
   const handleOpenTransferModal = (bill: Bill) => {
-    const isOverdue = bill.status === 'Pending' && bill.due_date < todayStr;
+    const isOverdue = bill.status === 'Pending' && todayStr && bill.due_date < todayStr;
     const totalToPay = isOverdue
       ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
       : Number(bill.amount || 0);
@@ -192,7 +193,7 @@ export default function BillsPage() {
     }
   };
 
-  // Pay Now & Auto-Record Transfer (For Credit Cards)
+  // Pay Now & Auto-Record Transfer (For Credit Cards with Auto-Sync Debt)
   const handlePayNowAndTransfer = async () => {
     if (!transferringBill || !sourceAccount || !targetAccount) return;
 
@@ -237,24 +238,9 @@ export default function BillsPage() {
       await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
     }
 
-    // 4. Auto-Settle Credit Card Debt in debts table
-    const { data: ccDebts } = await supabase
-      .from('debts')
-      .select('*')
-      .eq('type', 'Credit Card')
-      .eq('status', 'Active')
-      .limit(1);
-
-    if (ccDebts && ccDebts.length > 0) {
-      const targetDebt = ccDebts[0];
-      const updatedDebtAmount = Math.max(0, Number(targetDebt.amount) - transferTotalAmount);
-      await supabase
-        .from('debts')
-        .update({
-          amount: updatedDebtAmount,
-          status: updatedDebtAmount === 0 ? 'Settled' : 'Active',
-        })
-        .eq('id', targetDebt.id);
+    // 4. Auto-Sync / Settle Credit Card Debt in debts table via financeSync helper
+    if (targetAccount.toLowerCase().includes('credit card') || targetAccount.toLowerCase().includes('card')) {
+      await syncCreditCardDebt(targetAccount, -transferTotalAmount);
     }
 
     // 5. Update Bill Status to Paid
