@@ -145,6 +145,21 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
+  // Handle Transaction Type Change with Auto Category Mapping
+  const handleTypeChange = (newType: string) => {
+    setType(newType);
+
+    if (newType === 'Transfer' && transferTo === accountName) {
+      const diff = availableAccounts.find(acc => acc !== accountName);
+      if (diff) setTransferTo(diff);
+    }
+
+    // Auto select 'Loan / Debt Related' category for loan transactions
+    if (['Loan Given', 'Loan Received', 'Loan Repayment'].includes(newType)) {
+      setCategory('Loan / Debt Related');
+    }
+  };
+
   // Add or Update Transaction
   const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,6 +175,18 @@ export default function TransactionsPage() {
     if (isTransfer && accountName === transferTo) {
       alert('Source and Destination accounts cannot be the same for a transfer.');
       return;
+    }
+
+    // Validation: Prevent overpaying loan on repayment
+    if (isRepayment && selectedDebtId) {
+      const targetDebt = activeDebts.find(d => d.id === selectedDebtId);
+      if (targetDebt) {
+        const debtMaxAmount = Number(targetDebt.amount);
+        if (parsedAmount > debtMaxAmount) {
+          alert(`Repayment amount cannot be greater than the outstanding loan balance of PKR ${debtMaxAmount.toLocaleString()}.`);
+          return;
+        }
+      }
     }
 
     // Find party name automatically if Loan Repayment
@@ -432,14 +459,7 @@ export default function TransactionsPage() {
                   <label className="block text-xs font-medium text-slate-700 mb-1">Transaction Type</label>
                   <select
                     value={type}
-                    onChange={(e) => {
-                      const newType = e.target.value;
-                      setType(newType);
-                      if (newType === 'Transfer' && transferTo === accountName) {
-                        const diff = availableAccounts.find(acc => acc !== accountName);
-                        if (diff) setTransferTo(diff);
-                      }
-                    }}
+                    onChange={(e) => handleTypeChange(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
                   >
                     {TRANSACTION_TYPES.map((t) => (
