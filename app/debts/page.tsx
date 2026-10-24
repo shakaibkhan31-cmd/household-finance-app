@@ -67,6 +67,21 @@ export default function DebtsPage() {
     setLoading(false);
   };
 
+  // Handle Debt Type Change with Auto-Direction Logic
+  const handleDebtTypeChange = (newType: string) => {
+    setDebtType(newType);
+
+    if (newType === 'Credit Card') {
+      setDirection('Taken (Payable)');
+      if (!personName) setPersonName('Credit Card Outstanding');
+    } else {
+      if (personName === 'Credit Card Outstanding') {
+        setPersonName('');
+      }
+      setDirection('Given (Receivable)');
+    }
+  };
+
   // Add New Debt
   const handleAddDebt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,10 +169,8 @@ export default function DebtsPage() {
       let currentBal = Number(acc.current_balance || 0);
 
       if (isReceivable) {
-        // Cash/Bank increases when loan given is returned
         currentBal += payAmount;
       } else {
-        // Cash/Bank decreases when loan taken is paid back
         currentBal -= payAmount;
       }
 
@@ -259,7 +272,7 @@ export default function DebtsPage() {
                 <label className="block text-xs font-medium text-slate-700 mb-1">Debt Type</label>
                 <select
                   value={debtType}
-                  onChange={(e) => setDebtType(e.target.value)}
+                  onChange={(e) => handleDebtTypeChange(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   <option value="Personal Loan">Personal Loan</option>
@@ -274,7 +287,8 @@ export default function DebtsPage() {
                 <select
                   value={direction}
                   onChange={(e) => setDirection(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
+                  disabled={debtType === 'Credit Card'}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 disabled:opacity-75 disabled:bg-slate-100"
                 >
                   <option value="Given (Receivable)">Given (Logay)</option>
                   <option value="Taken (Payable)">Taken (Denay)</option>
