@@ -18,6 +18,14 @@ export interface Transaction {
   created_at?: string;
 }
 
+export interface Debt {
+  id: string;
+  person_name: string;
+  direction: string;
+  amount: number;
+  type: string;
+}
+
 const TRANSACTION_TYPES = [
   'Expense',
   'Income Receipt',
@@ -50,6 +58,7 @@ const CATEGORIES = [
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
+  const [activeDebts, setActiveDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Edit State
@@ -59,6 +68,7 @@ export default function TransactionsPage() {
   const [type, setType] = useState<string>('Expense');
   const [accountName, setAccountName] = useState('');
   const [transferTo, setTransferTo] = useState('');
+  const [selectedDebtId, setSelectedDebtId] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
   const [partyName, setPartyName] = useState('');
@@ -82,7 +92,7 @@ export default function TransactionsPage() {
     fetchTransactionsAndAccounts();
   }, []);
 
-  // Fetch Accounts strictly from Supabase 'accounts' table & Transactions
+  // Fetch Accounts strictly from Supabase 'accounts' table, Active Debts & Transactions
   const fetchTransactionsAndAccounts = async () => {
     setLoading(true);
     
@@ -107,7 +117,21 @@ export default function TransactionsPage() {
       setTransferTo('');
     }
 
-    // 2. Fetch transactions
+    // 2. Fetch Active Debts for Repayment Dropdown
+    const { data: debtsData } = await supabase
+      .from('debts')
+      .select('id, person_name, direction, amount, type')
+      .eq('status', 'Active');
+
+    if (debtsData && debtsData.length > 0) {
+      setActiveDebts(debtsData);
+      if (!selectedDebtId) setSelectedDebtId(debtsData[0].id);
+    } else {
+      setActiveDebts([]);
+      setSelectedDebtId('');
+    }
+
+    // 3. Fetch transactions
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -131,10 +155,20 @@ export default function TransactionsPage() {
 
     const parsedAmount = parseFloat(amount);
     const isTransfer = type === 'Transfer';
+    const isRepayment = type === 'Loan Repayment';
 
     if (isTransfer && accountName === transferTo) {
       alert('Source and Destination accounts cannot be the same for a transfer.');
       return;
+    }
+
+    // Find party name automatically if Loan Repayment
+    let finalPartyName = partyName;
+    if (isRepayment && selectedDebtId) {
+      const matchedDebt = activeDebts.find(d => d.id === selectedDebtId);
+      if (matchedDebt) {
+        finalPartyName = matchedDebt.person_name;
+      }
     }
 
     if (editingId) {
@@ -148,7 +182,7 @@ export default function TransactionsPage() {
           transfer_to: isTransfer ? transferTo : null,
           category: isTransfer ? 'Internal Transfer' : category,
           amount: parsedAmount,
-          party_name: isTransfer ? 'Self Transfer' : partyName,
+          party_name: isTransfer ? 'Self Transfer' : finalPartyName,
           description,
           entered_by: enteredBy,
         })
@@ -169,7 +203,7 @@ export default function TransactionsPage() {
           transfer_to: isTransfer ? transferTo : null,
           category: isTransfer ? 'Internal Transfer' : category,
           amount: parsedAmount,
-          party_name: isTransfer ? 'Self Transfer' : partyName,
+          party_name: isTransfer ? 'Self Transfer' : finalPartyName,
           description,
           entered_by: enteredBy,
         },
@@ -211,7 +245,7 @@ export default function TransactionsPage() {
         }
       }
 
-      // AUTO-SYNC WITH DEBTS TABLE WITH CUSTOM DUE DATE
+      // AUTO-SYNC WITH DEBTS TABLE
       if (type === 'Loan Given') {
         const { error: debtErr } = await supabase.from('debts').insert([
           {
@@ -238,23 +272,20 @@ export default function TransactionsPage() {
           },
         ]);
         if (debtErr) alert('Error syncing with Debts table: ' + debtErr.message);
-      } else if (type === 'Loan Repayment') {
-        const { data: activeDebts } = await supabase
-          .from('debts')
-          .select('*')
-          .eq('status', 'Active')
-          .limit(1);
-
-        if (activeDebts && activeDebts.length > 0) {
-          const targetDebt = activeDebts[0];
+      } else if (type === 'Loan Repayment' && selectedDebtId) {
+        // Find specifically selected active debt and adjust amount
+        const targetDebt = activeDebts.find(d => d.id === selectedDebtId);
+        if (targetDebt) {
           const updatedAmount = Math.max(0, Number(targetDebt.amount) - parsedAmount);
-          await supabase
+          const { error: updateErr } = await supabase
             .from('debts')
             .update({ 
               amount: updatedAmount,
               status: updatedAmount === 0 ? 'Settled' : 'Active'
             })
             .eq('id', targetDebt.id);
+
+          if (updateErr) alert('Error updating Debt repayment: ' + updateErr.message);
         }
       }
 
@@ -330,6 +361,7 @@ export default function TransactionsPage() {
 
   const isTransferType = type === 'Transfer';
   const isLoanType = type === 'Loan Given' || type === 'Loan Received';
+  const isRepaymentType = type === 'Loan Repayment';
 
   // Filtered List Logic
   const filteredTransactions = transactions.filter((t) => {
@@ -458,6 +490,28 @@ export default function TransactionsPage() {
                 </div>
               )}
 
+              {/* Conditionally show Select Debt for Repayment */}
+              {isRepaymentType && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Select Loan to Repay</label>
+                  {activeDebts.length === 0 ? (
+                    <p className="text-xs text-rose-500 font-medium p-2 bg-rose-50 rounded-lg">No active loan records found in Debts & Kameti.</p>
+                  ) : (
+                    <select
+                      value={selectedDebtId}
+                      onChange={(e) => setSelectedDebtId(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs bg-amber-50 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-semibold text-amber-900"
+                    >
+                      {activeDebts.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.person_name} ({d.direction}) - PKR {Number(d.amount).toLocaleString()}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
               {/* Category & Amount */}
               <div className={`grid ${isTransferType ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
                 {!isTransferType && (
@@ -488,8 +542,8 @@ export default function TransactionsPage() {
                 </div>
               </div>
 
-              {/* Paid To / Received From Field (Hidden if Transfer) */}
-              {!isTransferType && (
+              {/* Paid To / Received From Field (Hidden if Transfer or Repayment) */}
+              {!isTransferType && !isRepaymentType && (
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Paid to / Received From</label>
                   <input
