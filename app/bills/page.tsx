@@ -11,7 +11,6 @@ export interface Bill {
   amount: number;
   due_date: string;
   status: string; // 'Pending' or 'Paid'
-  account_name?: string;
   notes?: string;
   created_at?: string;
 }
@@ -28,8 +27,12 @@ export default function BillsPage() {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Payment Modal State
+  // Payment Modal State (For Mark Paid with Account Tracking)
   const [payingBill, setPayingBill] = useState<Bill | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState('');
+
+  // Transfer Modal State (For Pay Now & Transfer)
+  const [transferringBill, setTransferringBill] = useState<Bill | null>(null);
   const [sourceAccount, setSourceAccount] = useState('');
   const [targetAccount, setTargetAccount] = useState('');
 
@@ -45,6 +48,7 @@ export default function BillsPage() {
     if (accData && accData.length > 0) {
       const names = accData.map((a: { name: string }) => a.name);
       setAccounts(names);
+      setSelectedAccount(names[0]);
       setSourceAccount(names[0]);
       if (names.length > 1) setTargetAccount(names[1]);
     }
@@ -92,18 +96,54 @@ export default function BillsPage() {
     }
   };
 
-  // Option 1: Direct Manual Mark as Paid
-  const handleMarkAsPaid = async (billId: string) => {
-    const { error } = await supabase
+  // Confirm Mark Paid with Audit Trail & Account Deduction
+  const handleConfirmMarkPaid = async () => {
+    if (!payingBill || !selectedAccount) return;
+
+    const payAmount = Number(payingBill.amount);
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Record Bill Payment Transaction
+    const { error: txErr } = await supabase.from('transactions').insert([
+      {
+        date: today,
+        type: 'Bill Payment',
+        account_name: selectedAccount,
+        category: payingBill.category || 'Utilities & Bills',
+        amount: payAmount,
+        party_name: payingBill.title,
+        description: `Paid bill: ${payingBill.title}`,
+        entered_by: 'Husband',
+      },
+    ]);
+
+    if (txErr) {
+      alert('Error recording transaction: ' + txErr.message);
+      return;
+    }
+
+    // 2. Deduct Amount from Account Balance
+    const { data: accList } = await supabase.from('accounts').select('*').eq('name', selectedAccount).limit(1);
+    if (accList && accList.length > 0) {
+      const acc = accList[0];
+      const newBal = Number(acc.current_balance || 0) - payAmount;
+      await supabase.from('accounts').update({ current_balance: newBal }).eq('id', acc.id);
+    }
+
+    // 3. Update Bill Status to Paid
+    const { error: billErr } = await supabase
       .from('bills')
       .update({ status: 'Paid' })
-      .eq('id', billId);
+      .eq('id', payingBill.id);
 
-    if (error) {
-      alert('Error updating bill status: ' + error.message);
-    } else {
-      fetchBillsAndAccounts();
+    if (billErr) {
+      alert('Error updating bill status: ' + billErr.message);
+      return;
     }
+
+    setPayingBill(null);
+    alert('Bill marked as paid successfully! Transaction ledger and account balance updated.');
+    fetchBillsAndAccounts();
   };
 
   // Delete Bill
@@ -122,16 +162,16 @@ export default function BillsPage() {
     }
   };
 
-  // Option 2: Pay Now & Auto-Record Transfer
+  // Pay Now & Auto-Record Transfer
   const handlePayNowAndTransfer = async () => {
-    if (!payingBill || !sourceAccount || !targetAccount) return;
+    if (!transferringBill || !sourceAccount || !targetAccount) return;
 
     if (sourceAccount === targetAccount) {
       alert('Source and Destination accounts cannot be the same.');
       return;
     }
 
-    const payAmount = Number(payingBill.amount);
+    const payAmount = Number(transferringBill.amount);
     const today = new Date().toISOString().split('T')[0];
 
     // 1. Insert Transfer Transaction
@@ -144,7 +184,7 @@ export default function BillsPage() {
         category: 'Internal Transfer',
         amount: payAmount,
         party_name: 'Credit Card Bill Payment',
-        description: `Bill Payment for ${payingBill.title || 'Bill'}`,
+        description: `Bill Payment for ${transferringBill.title || 'Bill'}`,
         entered_by: 'Husband',
       },
     ]);
@@ -189,9 +229,9 @@ export default function BillsPage() {
     }
 
     // 5. Update Bill Status to Paid
-    await supabase.from('bills').update({ status: 'Paid' }).eq('id', payingBill.id);
+    await supabase.from('bills').update({ status: 'Paid' }).eq('id', transferringBill.id);
 
-    setPayingBill(null);
+    setTransferringBill(null);
     alert('Bill paid successfully! Transfer recorded & Credit Card debt synced.');
     fetchBillsAndAccounts();
   };
@@ -321,17 +361,17 @@ export default function BillsPage() {
                       <div className="flex items-center justify-end gap-2">
                         {b.status === 'Pending' && (
                           <>
-                            {/* Option 1: Manual Mark Paid */}
+                            {/* Mark Paid with Account Modal */}
                             <button
-                              onClick={() => handleMarkAsPaid(b.id)}
-                              className="text-[11px] text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                              onClick={() => setPayingBill(b)}
+                              className="text-[11px] text-slate-700 hover:text-slate-900 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
                             >
                               Mark Paid
                             </button>
 
-                            {/* Option 2: Pay Now & Record Transfer */}
+                            {/* Pay Now & Record Transfer */}
                             <button
-                              onClick={() => setPayingBill(b)}
+                              onClick={() => setTransferringBill(b)}
                               className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
                             >
                               <CreditCard className="w-3.5 h-3.5" /> Pay Now & Transfer
@@ -357,14 +397,58 @@ export default function BillsPage() {
         </div>
       </div>
 
-      {/* Payment Modal for Option 2 */}
+      {/* Mark Paid Modal */}
       {payingBill && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Record Bill Payment</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Marking <strong>{payingBill.title}</strong> (PKR {Number(payingBill.amount).toLocaleString()}) as paid.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Paid From Account</label>
+              <select
+                value={selectedAccount}
+                onChange={(e) => setSelectedAccount(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+              >
+                {accounts.map((acc) => (
+                  <option key={acc} value={acc}>
+                    {acc}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setPayingBill(null)}
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmMarkPaid}
+                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+              >
+                Confirm & Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pay Now & Transfer Modal */}
+      {transferringBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
               <h3 className="text-lg font-bold text-slate-900">Pay Bill via Account Transfer</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Paying <strong>{payingBill.title || 'Bill'}</strong> of <strong>PKR {Number(payingBill.amount || 0).toLocaleString()}</strong>
+                Paying <strong>{transferringBill.title || 'Bill'}</strong> of <strong>PKR {Number(transferringBill.amount || 0).toLocaleString()}</strong>
               </p>
             </div>
 
@@ -406,7 +490,7 @@ export default function BillsPage() {
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setPayingBill(null)}
+                onClick={() => setTransferringBill(null)}
                 className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
               >
                 Cancel
