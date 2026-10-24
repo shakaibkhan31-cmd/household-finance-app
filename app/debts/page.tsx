@@ -2,446 +2,480 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { HandCoins, Plus, CheckCircle, Users, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle } from 'lucide-react';
 
 export interface Debt {
   id: string;
   person_name: string;
-  type: string;
-  direction: 'Given (Receivable)' | 'Taken (Payable)';
+  type: string; // 'Personal Loan', 'Credit Card', etc.
+  direction: string; // 'Given (Receivable)' or 'Taken (Payable)'
   amount: number;
   due_date: string;
-  status: 'Active' | 'Settled';
-  notes: string;
+  status: string; // 'Active' or 'Settled'
+  notes?: string;
   created_at?: string;
 }
-
-export interface Kameti {
-  id: string;
-  title: string;
-  monthly_amount: number;
-  total_pool: number;
-  my_turn_month: string;
-  status: 'Active' | 'Completed';
-  created_at?: string;
-}
-
-const DEBT_TYPES = [
-  'Personal Loan',
-  'Family / Friend Loan',
-  'Credit Card',
-  'Business Loan',
-  'Installment / Finance',
-  'Borrowed Cash',
-  'Other'
-];
 
 export default function DebtsPage() {
-  const [activeTab, setActiveTab] = useState<'debts' | 'kameti'>('debts');
-  
-  // Debts State
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [accounts, setAccounts] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Form State
   const [personName, setPersonName] = useState('');
-  const [debtType, setDebtType] = useState(DEBT_TYPES[0]);
-  const [direction, setDirection] = useState<'Given (Receivable)' | 'Taken (Payable)'>('Given (Receivable)');
-  const [debtAmount, setDebtAmount] = useState('');
-  const [debtDueDate, setDebtDueDate] = useState('');
-  const [debtNotes, setDebtNotes] = useState('');
+  const [debtType, setDebtType] = useState('Personal Loan');
+  const [direction, setDirection] = useState('Given (Receivable)');
+  const [amount, setAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [notes, setNotes] = useState('');
 
-  // Kameti State
-  const [kametis, setKametis] = useState<Kameti[]>([]);
-  const [kametiTitle, setKametiTitle] = useState('');
-  const [monthlyAmount, setMonthlyAmount] = useState('');
-  const [totalPool, setTotalPool] = useState('');
-  const [myTurnMonth, setMyTurnMonth] = useState('');
-
-  const [loading, setLoading] = useState(true);
+  // Settlement Modal State
+  const [settlingDebt, setSettlingDebt] = useState<Debt | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [settlementAmount, setSettlementAmount] = useState('');
+  const [settlementDate, setSettlementDate] = useState('');
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    setDebtDueDate(today);
-    fetchData();
-  }, [activeTab]);
+    setDueDate(today);
+    setSettlementDate(today);
+    fetchDebtsAndAccounts();
+  }, []);
 
-  const fetchData = async () => {
+  const fetchDebtsAndAccounts = async () => {
     setLoading(true);
-    if (activeTab === 'debts') {
-      const { data, error } = await supabase.from('debts').select('*').order('due_date', { ascending: true });
-      if (!error) setDebts(data || []);
+
+    // Fetch Accounts
+    const { data: accData } = await supabase.from('accounts').select('name');
+    if (accData && accData.length > 0) {
+      const names = accData.map((a: { name: string }) => a.name);
+      setAccounts(names);
+      setSelectedAccount(names[0]);
+    }
+
+    // Fetch Debts
+    const { data, error } = await supabase
+      .from('debts')
+      .select('*')
+      .order('due_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching debts:', error.message);
     } else {
-      const { data, error } = await supabase.from('kametis').select('*').order('created_at', { ascending: false });
-      if (!error) setKametis(data || []);
+      setDebts(data || []);
     }
     setLoading(false);
   };
 
-  // Add Debt
+  // Add New Debt
   const handleAddDebt = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!personName || !debtAmount) return;
+    if (!personName || !amount || !dueDate) {
+      alert('Please fill required fields.');
+      return;
+    }
 
     const { error } = await supabase.from('debts').insert([
       {
         person_name: personName,
         type: debtType,
-        direction: direction,
-        amount: parseFloat(debtAmount),
-        due_date: debtDueDate,
+        direction,
+        amount: parseFloat(amount),
+        due_date: dueDate,
         status: 'Active',
-        notes: debtNotes,
+        notes,
       },
     ]);
 
     if (error) {
-      alert('Error adding debt: ' + error.message);
+      alert('Error adding debt record: ' + error.message);
     } else {
       setPersonName('');
-      setDebtAmount('');
-      setDebtNotes('');
-      fetchData();
+      setAmount('');
+      setNotes('');
+      fetchDebtsAndAccounts();
     }
   };
 
-  // Add Kameti
-  const handleAddKameti = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!kametiTitle || !monthlyAmount || !totalPool) return;
+  // Open Settlement Modal
+  const handleOpenSettlementModal = (debt: Debt) => {
+    setSettlingDebt(debt);
+    setSettlementAmount(debt.amount.toString());
+  };
 
-    const { error } = await supabase.from('kametis').insert([
+  // Process Settlement & Record Transaction
+  const handleConfirmSettlement = async () => {
+    if (!settlingDebt || !selectedAccount || !settlementAmount) {
+      alert('Please select an account and enter settlement amount.');
+      return;
+    }
+
+    const payAmount = parseFloat(settlementAmount);
+    if (isNaN(payAmount) || payAmount <= 0) {
+      alert('Please enter a valid amount.');
+      return;
+    }
+
+    if (payAmount > settlingDebt.amount) {
+      alert(`Settlement amount cannot exceed the active balance of PKR ${settlingDebt.amount.toLocaleString()}.`);
+      return;
+    }
+
+    const isReceivable = settlingDebt.direction.includes('Given') || settlingDebt.direction.includes('Receivable');
+
+    // 1. Record Loan Repayment Transaction in Transactions Table
+    const { error: txErr } = await supabase.from('transactions').insert([
       {
-        title: kametiTitle,
-        monthly_amount: parseFloat(monthlyAmount),
-        total_pool: parseFloat(totalPool),
-        my_turn_month: myTurnMonth || 'N/A',
-        status: 'Active',
+        date: settlementDate,
+        type: 'Loan Repayment',
+        account_name: selectedAccount,
+        category: 'Loan / Debt Related',
+        amount: payAmount,
+        party_name: settlingDebt.person_name,
+        description: `Settlement for ${settlingDebt.type} (${settlingDebt.direction})`,
+        entered_by: 'Husband',
       },
     ]);
 
-    if (error) {
-      alert('Error adding kameti: ' + error.message);
-    } else {
-      setKametiTitle('');
-      setMonthlyAmount('');
-      setTotalPool('');
-      setMyTurnMonth('');
-      fetchData();
+    if (txErr) {
+      alert('Error recording repayment transaction: ' + txErr.message);
+      return;
     }
+
+    // 2. Update Account Balance
+    const { data: accList } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('name', selectedAccount)
+      .limit(1);
+
+    if (accList && accList.length > 0) {
+      const acc = accList[0];
+      let currentBal = Number(acc.current_balance || 0);
+
+      if (isReceivable) {
+        // Cash/Bank increases when loan given is returned
+        currentBal += payAmount;
+      } else {
+        // Cash/Bank decreases when loan taken is paid back
+        currentBal -= payAmount;
+      }
+
+      await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+    }
+
+    // 3. Update Debt Balance & Status
+    const remainingDebt = Math.max(0, settlingDebt.amount - payAmount);
+    const { error: debtErr } = await supabase
+      .from('debts')
+      .update({
+        amount: remainingDebt,
+        status: remainingDebt === 0 ? 'Settled' : 'Active',
+      })
+      .eq('id', settlingDebt.id);
+
+    if (debtErr) {
+      alert('Error updating debt record: ' + debtErr.message);
+      return;
+    }
+
+    setSettlingDebt(null);
+    alert('Settlement successfully recorded! Transaction ledger and account balance updated.');
+    fetchDebtsAndAccounts();
   };
 
-  // Settle Debt
-  const handleSettleDebt = async (id: string) => {
-    const { error } = await supabase.from('debts').update({ status: 'Settled' }).eq('id', id);
-    if (!error) fetchData();
-  };
+  // Calculations
+  const totalReceivable = debts
+    .filter((d) => d.status === 'Active' && (d.direction.includes('Given') || d.direction.includes('Receivable')))
+    .reduce((sum, d) => sum + Number(d.amount), 0);
 
-  const totalReceivable = debts.filter(d => d.direction === 'Given (Receivable)' && d.status === 'Active').reduce((s, d) => s + Number(d.amount), 0);
-  const totalPayable = debts.filter(d => d.direction === 'Taken (Payable)' && d.status === 'Active').reduce((s, d) => s + Number(d.amount), 0);
+  const totalPayable = debts
+    .filter((d) => d.status === 'Active' && (d.direction.includes('Taken') || d.direction.includes('Payable')))
+    .reduce((sum, d) => sum + Number(d.amount), 0);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Debts & Kameti Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Track personal loans, lendings, borrowings, and rotating savings circles</p>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Debts & Kameti Management</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Track personal loans, lendings, borrowings, and rotating savings circles
+        </p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
+              Total Receivable (Logay)
+            </p>
+            <p className="text-2xl font-bold text-emerald-900 mt-1">
+              PKR {totalReceivable.toLocaleString()}
+            </p>
+          </div>
+          <ArrowDownLeft className="w-8 h-8 text-emerald-600 bg-emerald-100 p-1.5 rounded-xl" />
         </div>
 
-        {/* Tabs Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <button
-            onClick={() => setActiveTab('debts')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
-              activeTab === 'debts' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Loans & Debts
-          </button>
-          <button
-            onClick={() => setActiveTab('kameti')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
-              activeTab === 'kameti' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Kameti Circles
-          </button>
+        <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-rose-800 uppercase tracking-wider">
+              Total Payable (Denay)
+            </p>
+            <p className="text-2xl font-bold text-rose-900 mt-1">
+              PKR {totalPayable.toLocaleString()}
+            </p>
+          </div>
+          <ArrowUpRight className="w-8 h-8 text-rose-600 bg-rose-100 p-1.5 rounded-xl" />
         </div>
       </div>
 
-      {activeTab === 'debts' ? (
-        <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Total Receivable (Logay)</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1">PKR {totalReceivable.toLocaleString()}</p>
-              </div>
-              <ArrowDownLeft className="w-8 h-8 text-emerald-600" />
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Add Loan Record Form */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
+          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Plus className="w-5 h-5 text-indigo-600" />
+            Add Loan Record
+          </h2>
+
+          <form onSubmit={handleAddDebt} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Person / Institution Name
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Ali / Meezan Bank / Friend"
+                value={personName}
+                onChange={(e) => setPersonName(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
             </div>
 
-            <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl flex items-center justify-between">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Total Payable (Denay)</p>
-                <p className="text-2xl font-bold text-rose-900 mt-1">PKR {totalPayable.toLocaleString()}</p>
-              </div>
-              <ArrowUpRight className="w-8 h-8 text-rose-600" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Form */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-              <h2 className="text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-indigo-600" />
-                Add Loan Record
-              </h2>
-
-              <form onSubmit={handleAddDebt} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Person / Institution Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Ali / Meezan Bank / Friend"
-                    value={personName}
-                    onChange={(e) => setPersonName(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Debt Type</label>
-                    <select
-                      value={debtType}
-                      onChange={(e) => setDebtType(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                    >
-                      {DEBT_TYPES.map((dt) => (
-                        <option key={dt} value={dt}>{dt}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Direction</label>
-                    <select
-                      value={direction}
-                      onChange={(e) => setDirection(e.target.value as any)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                    >
-                      <option value="Given (Receivable)">Given (Logay)</option>
-                      <option value="Taken (Payable)">Taken (Denay)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="0"
-                      value={debtAmount}
-                      onChange={(e) => setDebtAmount(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={debtDueDate}
-                      onChange={(e) => setDebtDueDate(e.target.value)}
-                      className="w-full px-2 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Remarks</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Monthly installment details or agreement note"
-                    value={debtNotes}
-                    onChange={(e) => setDebtNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
+                <label className="block text-xs font-medium text-slate-700 mb-1">Debt Type</label>
+                <select
+                  value={debtType}
+                  onChange={(e) => setDebtType(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
-                  Save Loan Record
-                </button>
-              </form>
+                  <option value="Personal Loan">Personal Loan</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Kameti">Kameti</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Direction</label>
+                <select
+                  value={direction}
+                  onChange={(e) => setDirection(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
+                >
+                  <option value="Given (Receivable)">Given (Logay)</option>
+                  <option value="Taken (Payable)">Taken (Denay)</option>
+                </select>
+              </div>
             </div>
 
-            {/* List */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-              <h2 className="text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                <HandCoins className="w-5 h-5 text-indigo-600" />
-                Active Loans & Debts Ledger
-              </h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                />
+              </div>
 
-              {loading ? (
-                <p className="text-center py-8 text-xs text-slate-400">Loading records...</p>
-              ) : debts.length === 0 ? (
-                <p className="text-center py-8 text-xs text-slate-400">No debt records found.</p>
-              ) : (
-                <div className="space-y-3">
-                  {debts.map((d) => (
-                    <div key={d.id} className={`p-4 rounded-xl border flex items-center justify-between ${
-                      d.status === 'Settled' ? 'bg-slate-50 opacity-60 border-slate-200' : 'bg-white border-slate-200 shadow-sm'
-                    }`}>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
+                <input
+                  type="date"
+                  required
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Remarks</label>
+              <input
+                type="text"
+                placeholder="e.g. Monthly installment details or agreement"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
+            >
+              Add Debt Entry
+            </button>
+          </form>
+        </div>
+
+        {/* Right Column: Debts Ledger */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <h2 className="text-base font-semibold text-slate-800">Active Loans & Debts Ledger</h2>
+
+            {loading ? (
+              <p className="text-xs text-slate-400 py-4 text-center">Loading debt records...</p>
+            ) : debts.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4 text-center">No active debt records found.</p>
+            ) : (
+              <div className="space-y-3">
+                {debts.map((d) => {
+                  const isReceivable = d.direction.includes('Given') || d.direction.includes('Receivable');
+                  const isSettled = d.status === 'Settled';
+
+                  return (
+                    <div
+                      key={d.id}
+                      className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                        isSettled
+                          ? 'bg-slate-50/60 border-slate-200 opacity-75'
+                          : isReceivable
+                          ? 'bg-emerald-50/30 border-emerald-100'
+                          : 'bg-rose-50/30 border-rose-100'
+                      }`}
+                    >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-slate-900 text-xs">{d.person_name}</h4>
-                          <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-medium">
+                          <span className="font-bold text-slate-800 text-sm">{d.person_name}</span>
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">
                             {d.type}
                           </span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
-                            d.direction?.includes('Given') ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                          }`}>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
+                              isReceivable
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-rose-100 text-rose-700'
+                            }`}
+                          >
                             {d.direction}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500">{d.notes || 'No remarks'}</p>
-                        <p className="text-[10px] font-mono text-slate-400">Due: {d.due_date}</p>
+                        <p className="text-xs text-slate-500">{d.notes || 'No remarks'}</p>
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          Due: {d.due_date} {isSettled && '• (Settled)'}
+                        </p>
                       </div>
 
                       <div className="text-right space-y-2">
-                        <p className="font-bold text-slate-900 text-sm">PKR {Number(d.amount).toLocaleString()}</p>
-                        {d.status === 'Active' ? (
+                        <p
+                          className={`text-base font-bold ${
+                            isSettled
+                              ? 'text-slate-400 line-through'
+                              : isReceivable
+                              ? 'text-emerald-700'
+                              : 'text-rose-700'
+                          }`}
+                        >
+                          PKR {Number(d.amount).toLocaleString()}
+                        </p>
+
+                        {!isSettled && (
                           <button
-                            onClick={() => handleSettleDebt(d.id)}
-                            className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-medium transition"
+                            onClick={() => handleOpenSettlementModal(d)}
+                            className="text-[11px] text-white bg-slate-900 hover:bg-slate-800 font-medium px-3 py-1 rounded-lg transition shadow-xs"
                           >
                             Mark Settled
                           </button>
-                        ) : (
-                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
-                            Settled ✓
-                          </span>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Kameti Form */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-            <h2 className="text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-indigo-600" />
-              Add Kameti Circle
-            </h2>
-
-            <form onSubmit={handleAddKameti} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Kameti Title / Committee Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Family Monthly Kameti 50k"
-                  value={kametiTitle}
-                  onChange={(e) => setKametiTitle(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Monthly Contribution (PKR)</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="e.g. 10000"
-                  value={monthlyAmount}
-                  onChange={(e) => setMonthlyAmount(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Total Pool / Committee Amount (PKR)</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="e.g. 200000"
-                  value={totalPool}
-                  onChange={(e) => setTotalPool(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">My Turn / Collection Month</label>
-                <input
-                  type="text"
-                  placeholder="e.g. December 2026 / Month 5"
-                  value={myTurnMonth}
-                  onChange={(e) => setMyTurnMonth(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
-              >
-                Create Kameti Circle
-              </button>
-            </form>
-          </div>
-
-          {/* Kameti List */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            <h2 className="text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-600" />
-              Active Kameti Circles
-            </h2>
-
-            {loading ? (
-              <p className="text-center py-8 text-xs text-slate-400">Loading kametis...</p>
-            ) : kametis.length === 0 ? (
-              <p className="text-center py-8 text-xs text-slate-400">No kameti circles registered yet.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {kametis.map((k) => (
-                  <div key={k.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-slate-800 text-sm">{k.title}</h3>
-                      <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full">
-                        {k.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                        <p className="text-[10px] text-slate-400">Monthly Installment</p>
-                        <p className="font-bold text-slate-800">PKR {Number(k.monthly_amount).toLocaleString()}</p>
-                      </div>
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                        <p className="text-[10px] text-slate-400">Total Pool</p>
-                        <p className="font-bold text-slate-900">PKR {Number(k.total_pool).toLocaleString()}</p>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
-                      <span>My Turn: <strong>{k.my_turn_month}</strong></span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Settlement Transaction Modal */}
+      {settlingDebt && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Record Debt Settlement</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Settling loan for <strong>{settlingDebt.person_name}</strong> ({settlingDebt.direction})
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  {settlingDebt.direction.includes('Given') || settlingDebt.direction.includes('Receivable')
+                    ? 'Received In Account'
+                    : 'Paid From Account'}
+                </label>
+                <select
+                  value={selectedAccount}
+                  onChange={(e) => setSelectedAccount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc} value={acc}>
+                      {acc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Settlement Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={settlementDate}
+                    onChange={(e) => setSettlementDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                  <input
+                    type="number"
+                    required
+                    value={settlementAmount}
+                    onChange={(e) => setSettlementAmount(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setSettlingDebt(null)}
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSettlement}
+                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+              >
+                Confirm & Record Settlement
+              </button>
+            </div>
           </div>
         </div>
       )}
