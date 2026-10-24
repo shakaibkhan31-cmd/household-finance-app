@@ -161,10 +161,13 @@ export default function BillsPage() {
       await supabase.from('accounts').update({ current_balance: newBal }).eq('id', acc.id);
     }
 
-    // 3. Update Bill Status to Paid
+    // 3. Update Bill Status to Paid and update amount to actual paid settlement amount
     const { error: billErr } = await supabase
       .from('bills')
-      .update({ status: 'Paid' })
+      .update({
+        status: 'Paid',
+        amount: payingTotalAmount,
+      })
       .eq('id', payingBill.id);
 
     if (billErr) {
@@ -243,8 +246,14 @@ export default function BillsPage() {
       await syncCreditCardDebt(targetAccount, -transferTotalAmount);
     }
 
-    // 5. Update Bill Status to Paid
-    await supabase.from('bills').update({ status: 'Paid' }).eq('id', transferringBill.id);
+    // 5. Update Bill Status to Paid and update amount to actual paid settlement amount
+    await supabase
+      .from('bills')
+      .update({
+        status: 'Paid',
+        amount: transferTotalAmount,
+      })
+      .eq('id', transferringBill.id);
 
     setTransferringBill(null);
     alert('Bill paid successfully! Transfer recorded & Credit Card debt synced.');
@@ -392,7 +401,7 @@ export default function BillsPage() {
                           <span className="flex items-center gap-1 font-mono">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
                           </span>
-                          {lateFee > 0 && (
+                          {lateFee > 0 && b.status === 'Pending' && (
                             <span className="text-rose-600 font-medium">
                               Late Fee: PKR {lateFee.toLocaleString()}
                             </span>
