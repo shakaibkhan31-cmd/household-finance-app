@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2, AlertTriangle } from 'lucide-react';
 
 export interface Bill {
   id: string;
   title: string;
   category: string;
   amount: number;
+  late_charges?: number;
   due_date: string;
   status: string; // 'Pending' or 'Paid'
   notes?: string;
@@ -24,15 +25,18 @@ export default function BillsPage() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Utilities & Bills');
   const [amount, setAmount] = useState('');
+  const [lateCharges, setLateCharges] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
 
   // Payment Modal State (For Mark Paid with Account Tracking)
   const [payingBill, setPayingBill] = useState<Bill | null>(null);
+  const [payingTotalAmount, setPayingTotalAmount] = useState<number>(0);
   const [selectedAccount, setSelectedAccount] = useState('');
 
   // Transfer Modal State (For Pay Now & Transfer - Credit Cards Only)
   const [transferringBill, setTransferringBill] = useState<Bill | null>(null);
+  const [transferTotalAmount, setTransferTotalAmount] = useState<number>(0);
   const [sourceAccount, setSourceAccount] = useState('');
   const [targetAccount, setTargetAccount] = useState('');
 
@@ -80,6 +84,7 @@ export default function BillsPage() {
         title,
         category,
         amount: parseFloat(amount),
+        late_charges: lateCharges ? parseFloat(lateCharges) : 0,
         due_date: dueDate,
         status: 'Pending',
         notes,
@@ -91,16 +96,40 @@ export default function BillsPage() {
     } else {
       setTitle('');
       setAmount('');
+      setLateCharges('');
       setNotes('');
       fetchBillsAndAccounts();
     }
+  };
+
+  // Open Mark Paid Modal with Overdue Check
+  const handleOpenMarkPaidModal = (bill: Bill) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isOverdue = bill.status === 'Pending' && bill.due_date < todayStr;
+    const totalToPay = isOverdue
+      ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
+      : Number(bill.amount || 0);
+
+    setPayingBill(bill);
+    setPayingTotalAmount(totalToPay);
+  };
+
+  // Open Transfer Modal with Overdue Check
+  const handleOpenTransferModal = (bill: Bill) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isOverdue = bill.status === 'Pending' && bill.due_date < todayStr;
+    const totalToPay = isOverdue
+      ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
+      : Number(bill.amount || 0);
+
+    setTransferringBill(bill);
+    setTransferTotalAmount(totalToPay);
   };
 
   // Confirm Mark Paid with Audit Trail & Account Deduction
   const handleConfirmMarkPaid = async () => {
     if (!payingBill || !selectedAccount) return;
 
-    const payAmount = Number(payingBill.amount);
     const today = new Date().toISOString().split('T')[0];
 
     // 1. Record Bill Payment Transaction
@@ -110,9 +139,11 @@ export default function BillsPage() {
         type: 'Bill Payment',
         account_name: selectedAccount,
         category: payingBill.category || 'Utilities & Bills',
-        amount: payAmount,
+        amount: payingTotalAmount,
         party_name: payingBill.title,
-        description: `Paid bill: ${payingBill.title}`,
+        description: `Paid bill: ${payingBill.title} ${
+          payingTotalAmount > Number(payingBill.amount) ? '(Includes Late Fee)' : ''
+        }`,
         entered_by: 'Husband',
       },
     ]);
@@ -126,7 +157,7 @@ export default function BillsPage() {
     const { data: accList } = await supabase.from('accounts').select('*').eq('name', selectedAccount).limit(1);
     if (accList && accList.length > 0) {
       const acc = accList[0];
-      const newBal = Number(acc.current_balance || 0) - payAmount;
+      const newBal = Number(acc.current_balance || 0) - payingTotalAmount;
       await supabase.from('accounts').update({ current_balance: newBal }).eq('id', acc.id);
     }
 
@@ -171,7 +202,6 @@ export default function BillsPage() {
       return;
     }
 
-    const payAmount = Number(transferringBill.amount);
     const today = new Date().toISOString().split('T')[0];
 
     // 1. Insert Transfer Transaction
@@ -182,9 +212,11 @@ export default function BillsPage() {
         account_name: sourceAccount,
         transfer_to: targetAccount,
         category: 'Internal Transfer',
-        amount: payAmount,
+        amount: transferTotalAmount,
         party_name: 'Credit Card Bill Payment',
-        description: `Bill Payment for ${transferringBill.title || 'Bill'}`,
+        description: `Bill Payment for ${transferringBill.title || 'Bill'} ${
+          transferTotalAmount > Number(transferringBill.amount) ? '(Includes Late Fee)' : ''
+        }`,
         entered_by: 'Husband',
       },
     ]);
@@ -197,14 +229,14 @@ export default function BillsPage() {
     // 2. Adjust Source Account Balance (-)
     const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', sourceAccount).limit(1);
     if (srcAcc && srcAcc.length > 0) {
-      const newBal = Number(srcAcc[0].current_balance || 0) - payAmount;
+      const newBal = Number(srcAcc[0].current_balance || 0) - transferTotalAmount;
       await supabase.from('accounts').update({ current_balance: newBal }).eq('id', srcAcc[0].id);
     }
 
     // 3. Adjust Target Account Balance (+)
     const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', targetAccount).limit(1);
     if (destAcc && destAcc.length > 0) {
-      const newBal = Number(destAcc[0].current_balance || 0) + payAmount;
+      const newBal = Number(destAcc[0].current_balance || 0) + transferTotalAmount;
       await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
     }
 
@@ -218,7 +250,7 @@ export default function BillsPage() {
 
     if (ccDebts && ccDebts.length > 0) {
       const targetDebt = ccDebts[0];
-      const updatedDebtAmount = Math.max(0, Number(targetDebt.amount) - payAmount);
+      const updatedDebtAmount = Math.max(0, Number(targetDebt.amount) - transferTotalAmount);
       await supabase
         .from('debts')
         .update({
@@ -235,6 +267,8 @@ export default function BillsPage() {
     alert('Bill paid successfully! Transfer recorded & Credit Card debt synced.');
     fetchBillsAndAccounts();
   };
+
+  const todayStr = new Date().toISOString().split('T')[0];
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -291,6 +325,19 @@ export default function BillsPage() {
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Late Charges (PKR) <span className="text-slate-400 font-normal">(Applied after due date)</span>
+              </label>
+              <input
+                type="number"
+                placeholder="e.g. 850"
+                value={lateCharges}
+                onChange={(e) => setLateCharges(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-semibold text-rose-700"
+              />
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Remarks</label>
               <input
                 type="text"
@@ -322,7 +369,14 @@ export default function BillsPage() {
             ) : (
               <div className="space-y-3">
                 {bills.map((b) => {
-                  const isCreditCardBill = b.title.toLowerCase().includes('credit card') || b.title.toLowerCase().includes('card');
+                  const isCreditCardBill =
+                    b.title.toLowerCase().includes('credit card') || b.title.toLowerCase().includes('card');
+
+                  const isOverdue = b.status === 'Pending' && b.due_date < todayStr;
+                  const lateFee = Number(b.late_charges || 0);
+                  const effectiveAmount = isOverdue
+                    ? Number(b.amount || 0) + lateFee
+                    : Number(b.amount || 0);
 
                   return (
                     <div
@@ -330,6 +384,8 @@ export default function BillsPage() {
                       className={`p-4 rounded-xl border flex items-center justify-between transition ${
                         b.status === 'Paid'
                           ? 'bg-slate-50/60 border-slate-200'
+                          : isOverdue
+                          ? 'bg-rose-50/40 border-rose-200 shadow-xs'
                           : 'bg-white border-amber-200 shadow-xs'
                       }`}
                     >
@@ -342,31 +398,50 @@ export default function BillsPage() {
                             className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                               b.status === 'Paid'
                                 ? 'bg-emerald-100 text-emerald-700'
+                                : isOverdue
+                                ? 'bg-rose-100 text-rose-700 font-bold'
                                 : 'bg-amber-100 text-amber-700'
                             }`}
                           >
-                            {b.status}
+                            {b.status === 'Paid' ? 'Paid' : isOverdue ? 'Overdue (Late Fee Applied)' : 'Pending'}
                           </span>
                         </div>
+
                         <div className="flex items-center gap-4 text-xs text-slate-500">
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 font-mono">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
                           </span>
+                          {lateFee > 0 && (
+                            <span className="text-rose-600 font-medium">
+                              Late Fee: PKR {lateFee.toLocaleString()}
+                            </span>
+                          )}
                           {b.notes && <span>{b.notes}</span>}
                         </div>
                       </div>
 
                       <div className="text-right space-y-2">
-                        <p className="text-base font-bold text-slate-900">
-                          PKR {Number(b.amount || 0).toLocaleString()}
-                        </p>
+                        <div>
+                          <p
+                            className={`text-base font-bold ${
+                              isOverdue ? 'text-rose-700' : 'text-slate-900'
+                            }`}
+                          >
+                            PKR {effectiveAmount.toLocaleString()}
+                          </p>
+                          {isOverdue && lateFee > 0 && (
+                            <p className="text-[10px] text-rose-500 line-through">
+                              Base: PKR {Number(b.amount).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
 
                         <div className="flex items-center justify-end gap-2">
                           {b.status === 'Pending' && (
                             <>
-                              {/* Mark Paid with Account Modal (For all bills) */}
+                              {/* Mark Paid with Account Modal */}
                               <button
-                                onClick={() => setPayingBill(b)}
+                                onClick={() => handleOpenMarkPaidModal(b)}
                                 className="text-[11px] text-slate-700 hover:text-slate-900 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
                               >
                                 Mark Paid
@@ -375,7 +450,7 @@ export default function BillsPage() {
                               {/* Pay Now & Transfer (Only for Credit Card bills) */}
                               {isCreditCardBill && (
                                 <button
-                                  onClick={() => setTransferringBill(b)}
+                                  onClick={() => handleOpenTransferModal(b)}
                                   className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
                                 >
                                   <CreditCard className="w-3.5 h-3.5" /> Pay Now & Transfer
@@ -410,8 +485,14 @@ export default function BillsPage() {
             <div>
               <h3 className="text-lg font-bold text-slate-900">Record Bill Payment</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Marking <strong>{payingBill.title}</strong> (PKR {Number(payingBill.amount).toLocaleString()}) as paid.
+                Marking <strong>{payingBill.title}</strong> as paid.
               </p>
+              <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs flex justify-between items-center">
+                <span className="text-slate-600">Total Settlement Amount:</span>
+                <span className="font-bold text-indigo-900 text-sm">
+                  PKR {payingTotalAmount.toLocaleString()}
+                </span>
+              </div>
             </div>
 
             <div>
@@ -454,8 +535,14 @@ export default function BillsPage() {
             <div>
               <h3 className="text-lg font-bold text-slate-900">Pay Bill via Account Transfer</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Paying <strong>{transferringBill.title || 'Bill'}</strong> of <strong>PKR {Number(transferringBill.amount || 0).toLocaleString()}</strong>
+                Paying <strong>{transferringBill.title || 'Bill'}</strong>
               </p>
+              <div className="mt-2 p-2.5 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs flex justify-between items-center">
+                <span className="text-indigo-800 font-medium">Transfer Amount:</span>
+                <span className="font-bold text-indigo-950 text-sm">
+                  PKR {transferTotalAmount.toLocaleString()}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-3">
