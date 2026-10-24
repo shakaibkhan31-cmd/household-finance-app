@@ -94,7 +94,6 @@ export default function TransactionsPage() {
       const firstAcc = fetchedAccountNames[0];
       if (!accountName) setAccountName(firstAcc);
       
-      // Ensure Transfer To defaults to a different account if multiple exist
       if (!transferTo) {
         const differentAcc = fetchedAccountNames.find(acc => acc !== (accountName || firstAcc));
         setTransferTo(differentAcc || firstAcc);
@@ -180,25 +179,24 @@ export default function TransactionsPage() {
 
       // AUTO-UPDATE ACCOUNT BALANCES
       if (isTransfer) {
-        // Deduct from source account
         const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
         if (srcAcc && srcAcc.length > 0) {
           const newBal = Number(srcAcc[0].current_balance || 0) - parsedAmount;
           await supabase.from('accounts').update({ current_balance: newBal }).eq('id', srcAcc[0].id);
         }
 
-        // Add to destination account
         const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', transferTo).limit(1);
         if (destAcc && destAcc.length > 0) {
           const newBal = Number(destAcc[0].current_balance || 0) + parsedAmount;
           await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
         }
       } else {
-        // Regular Income, Expense, or Loans
         const { data: accList } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
         if (accList && accList.length > 0) {
           const acc = accList[0];
           let currentBal = Number(acc.current_balance || 0);
+          
+          // Loan Given reduces cash/bank, Loan Received increases cash/bank
           const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
 
           if (isCredit) {
@@ -208,6 +206,52 @@ export default function TransactionsPage() {
           }
 
           await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+        }
+      }
+
+      // AUTO-SYNC WITH DEBTS TABLE
+      if (type === 'Loan Given') {
+        await supabase.from('debts').insert([
+          {
+            person_name: partyName || 'Unknown Party',
+            type: 'Personal Loan',
+            direction: 'Given (Receivable)',
+            amount: parsedAmount,
+            due_date: date,
+            status: 'Active',
+            notes: description || `Loan Given via ${accountName}`,
+          },
+        ]);
+      } else if (type === 'Loan Received') {
+        await supabase.from('debts').insert([
+          {
+            person_name: partyName || 'Unknown Party',
+            type: 'Personal Loan',
+            direction: 'Taken (Payable)',
+            amount: parsedAmount,
+            due_date: date,
+            status: 'Active',
+            notes: description || `Loan Received in ${accountName}`,
+          },
+        ]);
+      } else if (type === 'Loan Repayment') {
+        // Find active debt matching party if possible and reduce or settle
+        const { data: activeDebts } = await supabase
+          .from('debts')
+          .select('*')
+          .eq('status', 'Active')
+          .limit(1);
+
+        if (activeDebts && activeDebts.length > 0) {
+          const targetDebt = activeDebts[0];
+          const updatedAmount = Math.max(0, Number(targetDebt.amount) - parsedAmount);
+          await supabase
+            .from('debts')
+            .update({ 
+              amount: updatedAmount,
+              status: updatedAmount === 0 ? 'Settled' : 'Active'
+            })
+            .eq('id', targetDebt.id);
         }
       }
 
@@ -294,7 +338,6 @@ export default function TransactionsPage() {
     const matchesAccount = selectedAccount === 'All' || t.account_name === selectedAccount || t.transfer_to === selectedAccount;
     const matchesType = selectedType === 'All' || t.type === selectedType;
 
-    // Date Range Filter
     const txDate = t.date;
     const matchesFromDate = !fromDate || txDate >= fromDate;
     const matchesToDate = !toDate || txDate <= toDate;
