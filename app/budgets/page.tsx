@@ -54,7 +54,7 @@ export default function BudgetsPage() {
     if (bErr) console.error('Error fetching budgets:', bErr.message);
     else setBudgets(bData || []);
 
-    // 2. Fetch Transactions (Current Month filtering can be applied if needed, or all expenses)
+    // 2. Fetch Transactions
     const { data: tData, error: tErr } = await supabase.from('transactions').select('*');
     if (tErr) console.error('Error fetching transactions:', tErr.message);
     else setTransactions(tData || []);
@@ -111,10 +111,18 @@ export default function BudgetsPage() {
     else fetchBudgetsAndTransactions();
   };
 
-  // Calculate actual spending per category from transactions (Expense / Bill types)
+  // Get Current Year-Month string (e.g., "2026-10")
+  const currentYearMonth = new Date().toISOString().slice(0, 7);
+
+  // Calculate actual spending per category strictly for the Current Month
   const spendingMap: { [key: string]: number } = {};
   transactions.forEach((t) => {
-    if (t.type === 'Expense' || t.type === 'Bill Payment') {
+    // Check if transaction belongs to current month and is an expense/bill payment
+    if (
+      (t.type === 'Expense' || t.type === 'Bill Payment') &&
+      t.date &&
+      t.date.startsWith(currentYearMonth)
+    ) {
       const cat = t.category || 'Other / Misc';
       spendingMap[cat] = (spendingMap[cat] || 0) + Number(t.amount);
     }
@@ -137,7 +145,7 @@ export default function BudgetsPage() {
             <p className="text-xl font-bold text-indigo-950 mt-0.5">PKR {totalBudgetLimit.toLocaleString()}</p>
           </div>
           <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex-1 md:w-44">
-            <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Total Spent</p>
+            <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Spent This Month</p>
             <p className="text-xl font-bold text-rose-950 mt-0.5">PKR {totalSpent.toLocaleString()}</p>
           </div>
         </div>
@@ -191,7 +199,7 @@ export default function BudgetsPage() {
         {/* Right Column: Budgets Progress List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <h2 className="text-base font-semibold text-slate-800">Category Budgets & Progress</h2>
+            <h2 className="text-base font-semibold text-slate-800">Category Budgets & Progress (Current Month)</h2>
 
             {loading ? (
               <p className="text-xs text-slate-400 py-4 text-center">Loading budgets...</p>
@@ -243,7 +251,7 @@ export default function BudgetsPage() {
                       </div>
 
                       <div className="flex justify-between text-xs text-slate-600">
-                        <span>Spent: <strong className="text-slate-900">PKR {spent.toLocaleString()}</strong></span>
+                        <span>Spent This Month: <strong className="text-slate-900">PKR {spent.toLocaleString()}</strong></span>
                         <span>Limit: <strong className="text-slate-900">PKR {limit.toLocaleString()}</strong></span>
                       </div>
 
