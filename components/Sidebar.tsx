@@ -10,6 +10,7 @@ import {
   HandCoins, 
   ArrowLeftRight,
   TrendingUp,
+  PieChart,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -21,6 +22,7 @@ const navItems = [
   { name: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
   { name: 'Accounts', href: '/accounts', icon: Wallet },
   { name: 'Income & Receivables', href: '/receivables', icon: TrendingUp },
+  { name: 'Budgets', href: '/budgets', icon: PieChart },
   { name: 'Bills & Payables', href: '/bills', icon: Receipt },
   { name: 'Debts & Kameti', href: '/debts', icon: HandCoins },
 ];
