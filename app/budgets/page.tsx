@@ -33,6 +33,7 @@ export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [currentYearMonth, setCurrentYearMonth] = useState<string>('');
 
   // Form State
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -43,6 +44,9 @@ export default function BudgetsPage() {
   const [editLimit, setEditLimit] = useState('');
 
   useEffect(() => {
+    // Set current year-month on client side
+    const yearMonth = new Date().toISOString().slice(0, 7);
+    setCurrentYearMonth(yearMonth);
     fetchBudgetsAndTransactions();
   }, []);
 
@@ -111,22 +115,20 @@ export default function BudgetsPage() {
     else fetchBudgetsAndTransactions();
   };
 
-  // Get Current Year-Month string (e.g., "2026-10")
-  const currentYearMonth = new Date().toISOString().slice(0, 7);
-
   // Calculate actual spending per category strictly for the Current Month
   const spendingMap: { [key: string]: number } = {};
-  transactions.forEach((t) => {
-    // Check if transaction belongs to current month and is an expense/bill payment
-    if (
-      (t.type === 'Expense' || t.type === 'Bill Payment') &&
-      t.date &&
-      t.date.startsWith(currentYearMonth)
-    ) {
-      const cat = t.category || 'Other / Misc';
-      spendingMap[cat] = (spendingMap[cat] || 0) + Number(t.amount);
-    }
-  });
+  if (currentYearMonth) {
+    transactions.forEach((t) => {
+      if (
+        (t.type === 'Expense' || t.type === 'Bill Payment') &&
+        t.date &&
+        t.date.startsWith(currentYearMonth)
+      ) {
+        const cat = t.category || 'Other / Misc';
+        spendingMap[cat] = (spendingMap[cat] || 0) + Number(t.amount);
+      }
+    });
+  }
 
   const totalBudgetLimit = budgets.reduce((sum, b) => sum + Number(b.monthly_limit), 0);
   const totalSpent = Object.values(spendingMap).reduce((sum, amt) => sum + amt, 0);
