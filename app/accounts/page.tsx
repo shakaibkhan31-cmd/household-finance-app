@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Wallet, Plus, Building2, CreditCard, DollarSign } from 'lucide-react';
+import { Wallet, Plus, Building2, CreditCard, DollarSign, Edit3, X } from 'lucide-react';
 
 export interface Account {
   id: string;
@@ -10,6 +10,7 @@ export interface Account {
   type: 'Bank' | 'Wallet' | 'Cash' | 'Credit Card';
   account_number?: string;
   current_balance: number;
+  credit_limit?: number;
   created_at?: string;
 }
 
@@ -17,13 +18,18 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Form State
+  // Form State (Add)
   const [name, setName] = useState('');
   const [type, setType] = useState<'Bank' | 'Wallet' | 'Cash' | 'Credit Card'>('Bank');
   const [accountNumber, setAccountNumber] = useState('');
   const [balance, setBalance] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
 
-  // Fetch Accounts
+  // Edit State
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editBalance, setEditBalance] = useState('');
+  const [editCreditLimit, setEditCreditLimit] = useState('');
+
   const fetchAccounts = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -43,12 +49,12 @@ export default function AccountsPage() {
     fetchAccounts();
   }, []);
 
-  // Add New Account
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !balance) return;
 
     const parsedBalance = parseFloat(balance);
+    const parsedLimit = type === 'Credit Card' && creditLimit ? parseFloat(creditLimit) : 0;
     const isCash = type === 'Cash';
 
     const { error } = await supabase.from('accounts').insert([
@@ -57,6 +63,7 @@ export default function AccountsPage() {
         type,
         account_number: isCash ? null : (accountNumber || null),
         current_balance: parsedBalance,
+        credit_limit: parsedLimit,
       },
     ]);
 
@@ -66,11 +73,44 @@ export default function AccountsPage() {
       setName('');
       setAccountNumber('');
       setBalance('');
+      setCreditLimit('');
       fetchAccounts();
     }
   };
 
-  // Total Portfolio Balance
+  const handleOpenEdit = (acc: Account) => {
+    setEditingAccount(acc);
+    setEditBalance(acc.current_balance.toString());
+    setEditCreditLimit(acc.credit_limit ? acc.credit_limit.toString() : '');
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccount) return;
+
+    const updatePayload: any = {
+      current_balance: parseFloat(editBalance),
+    };
+
+    if (editingAccount.type === 'Credit Card') {
+      updatePayload.credit_limit = parseFloat(editCreditLimit || '0');
+    }
+
+    const { error } = await supabase
+      .from('accounts')
+      .update(updatePayload)
+      .eq('id', editingAccount.id);
+
+    if (error) {
+      alert('Error updating account: ' + error.message);
+    } else {
+      setEditingAccount(null);
+      setEditBalance('');
+      setEditCreditLimit('');
+      fetchAccounts();
+    }
+  };
+
   const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.current_balance), 0);
   const isCreditCard = type === 'Credit Card';
   const isCash = type === 'Cash';
@@ -105,7 +145,7 @@ export default function AccountsPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. Meezan Bank / NayaPay / Visa Card"
+                placeholder="e.g. Meezan Bank / HBL Credit Card"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -120,13 +160,12 @@ export default function AccountsPage() {
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
               >
                 <option value="Bank">Bank Account</option>
-                <option value="Wallet">Digital Wallet (Sadapay / Nayapay / Easypaisa)</option>
+                <option value="Wallet">Digital Wallet</option>
                 <option value="Credit Card">Credit Card</option>
                 <option value="Cash">Physical Cash</option>
               </select>
             </div>
 
-            {/* Conditionally hide Account/Card Number field if Physical Cash is selected */}
             {!isCash && (
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -142,9 +181,23 @@ export default function AccountsPage() {
               </div>
             )}
 
+            {isCreditCard && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Credit Limit (PKR)</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="300000"
+                  value={creditLimit}
+                  onChange={(e) => setCreditLimit(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-900"
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                {isCreditCard ? 'Credit Limit (PKR)' : 'Initial / Current Balance (PKR)'}
+                {isCreditCard ? 'Initial Outstanding Liability (PKR)' : 'Initial / Current Balance (PKR)'}
               </label>
               <input
                 type="number"
@@ -177,7 +230,7 @@ export default function AccountsPage() {
             </div>
           ) : (
             accounts.map((acc) => (
-              <div key={acc.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div key={acc.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3 relative group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2.5 bg-slate-100 text-slate-700 rounded-xl">
@@ -191,6 +244,14 @@ export default function AccountsPage() {
                       <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{acc.type}</p>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => handleOpenEdit(acc)}
+                    className="text-xs text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition flex items-center gap-1 font-medium"
+                    title="Edit Account Details"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Edit
+                  </button>
                 </div>
 
                 {acc.account_number && (
@@ -199,20 +260,93 @@ export default function AccountsPage() {
                   </p>
                 )}
 
-                <div className="border-t border-slate-100 pt-3">
-                  <p className="text-[11px] text-slate-400">
-                    {acc.type === 'Credit Card' ? 'Credit Limit' : 'Available Balance'}
-                  </p>
-                  <p className="text-lg font-bold text-slate-900 mt-0.5">
-                    PKR {Number(acc.current_balance).toLocaleString()}
-                  </p>
-                </div>
+                {acc.type === 'Credit Card' ? (
+                  <div className="border-t border-slate-100 pt-3 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[11px] text-slate-400">Credit Limit</p>
+                      <p className="text-sm font-bold text-slate-900 mt-0.5">
+                        PKR {Number(acc.credit_limit || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-slate-400">Outstanding</p>
+                      <p className="text-sm font-bold text-rose-600 mt-0.5">
+                        PKR {Number(acc.current_balance).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="text-[11px] text-slate-400">Available Balance</p>
+                    <p className="text-lg font-bold text-slate-900 mt-0.5">
+                      PKR {Number(acc.current_balance).toLocaleString()}
+                    </p>
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
 
       </div>
+
+      {/* Edit Modal */}
+      {editingAccount && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900">Edit Account — {editingAccount.name}</h3>
+              <button onClick={() => setEditingAccount(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateAccount} className="space-y-4">
+              {editingAccount.type === 'Credit Card' && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Credit Limit (PKR)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editCreditLimit}
+                    onChange={(e) => setEditCreditLimit(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  {editingAccount.type === 'Credit Card' ? 'Outstanding Liability (PKR)' : 'Current Balance (PKR)'}
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={editBalance}
+                  onChange={(e) => setEditBalance(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingAccount(null)}
+                  className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
