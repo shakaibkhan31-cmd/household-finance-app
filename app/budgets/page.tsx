@@ -26,7 +26,8 @@ const CATEGORIES = [
   'Healthcare & Medical',
   'Dining Out',
   'Education',
-  'Other / Misc'
+  'Misc',
+  'Other'
 ];
 
 export default function BudgetsPage() {
@@ -37,6 +38,7 @@ export default function BudgetsPage() {
 
   // Form State
   const [category, setCategory] = useState(CATEGORIES[0]);
+  const [customCategory, setCustomCategory] = useState('');
   const [monthlyLimit, setMonthlyLimit] = useState('');
 
   // Edit State
@@ -44,7 +46,6 @@ export default function BudgetsPage() {
   const [editLimit, setEditLimit] = useState('');
 
   useEffect(() => {
-    // Set current year-month on client side
     const yearMonth = new Date().toISOString().slice(0, 7);
     setCurrentYearMonth(yearMonth);
     fetchBudgetsAndTransactions();
@@ -69,12 +70,17 @@ export default function BudgetsPage() {
   // Add or Update Budget
   const handleSaveBudget = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!monthlyLimit) return;
+    const finalCategory = category === 'Other' ? customCategory.trim() : category;
+    
+    if (!finalCategory || !monthlyLimit) {
+      alert('Please provide category and limit.');
+      return;
+    }
 
     const { error } = await supabase.from('budgets').upsert(
       [
         {
-          category,
+          category: finalCategory,
           monthly_limit: parseFloat(monthlyLimit),
         },
       ],
@@ -85,6 +91,8 @@ export default function BudgetsPage() {
       alert('Error saving budget: ' + error.message);
     } else {
       setMonthlyLimit('');
+      setCustomCategory('');
+      setCategory(CATEGORIES[0]);
       fetchBudgetsAndTransactions();
     }
   };
@@ -124,7 +132,7 @@ export default function BudgetsPage() {
         t.date &&
         t.date.startsWith(currentYearMonth)
       ) {
-        const cat = t.category || 'Other / Misc';
+        const cat = t.category || 'Other';
         spendingMap[cat] = (spendingMap[cat] || 0) + Number(t.amount);
       }
     });
@@ -176,6 +184,20 @@ export default function BudgetsPage() {
                 ))}
               </select>
             </div>
+
+            {category === 'Other' && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Custom Category Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Subscription / Maintenance"
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Monthly Limit (PKR)</label>
