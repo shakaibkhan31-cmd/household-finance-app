@@ -378,11 +378,48 @@ export default function TransactionsPage() {
     setEnteredBy(t.entered_by || 'Husband');
   };
 
-  // Delete Transaction
-  const handleDeleteTransaction = async (id: string) => {
-    if (!confirm('Kya aap waqai is transaction ko delete karna chahte hain?')) return;
+  // Delete Transaction with Account Balance Reversal
+  const handleDeleteTransaction = async (t: Transaction) => {
+    if (!confirm('Kya aap waqai is transaction ko delete karna chahte hain? Account balance wapas adjust ho jayega.')) return;
 
-    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    const txAmount = Number(t.amount);
+    const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
+    const isTransfer = t.type === 'Transfer';
+
+    // 1. Reverse Account Balance Impact
+    if (isTransfer && t.transfer_to) {
+      // Revert Source (-) -> Add back
+      const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+      if (srcAcc && srcAcc.length > 0) {
+        const restoredBal = Number(srcAcc[0].current_balance || 0) + txAmount;
+        await supabase.from('accounts').update({ current_balance: restoredBal }).eq('id', srcAcc[0].id);
+      }
+      // Revert Target (+) -> Deduct back
+      const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
+      if (destAcc && destAcc.length > 0) {
+        const reducedBal = Number(destAcc[0].current_balance || 0) - txAmount;
+        await supabase.from('accounts').update({ current_balance: reducedBal }).eq('id', destAcc[0].id);
+      }
+    } else {
+      const { data: accList } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+      if (accList && accList.length > 0) {
+        const acc = accList[0];
+        let currentBal = Number(acc.current_balance || 0);
+
+        if (isCredit) {
+          // Income thi to delete hone par minus hogi
+          currentBal -= txAmount;
+        } else {
+          // Expense/Bill/Repayment thi to delete hone par plus hogi
+          currentBal += txAmount;
+        }
+
+        await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+      }
+    }
+
+    // 2. Delete Transaction Record from Supabase
+    const { error } = await supabase.from('transactions').delete().eq('id', t.id);
     if (error) {
       alert('Error deleting transaction: ' + error.message);
     } else {
@@ -835,7 +872,7 @@ export default function TransactionsPage() {
                                 <Edit3 className="w-3 h-3" /> Edit
                               </button>
                               <button
-                                onClick={() => handleDeleteTransaction(t.id)}
+                                onClick={() => handleDeleteTransaction(t)}
                                 className="text-[10px] text-rose-600 hover:text-rose-800 font-medium flex items-center gap-0.5 bg-rose-50 px-2 py-0.5 rounded"
                               >
                                 <Trash2 className="w-3 h-3" /> Delete

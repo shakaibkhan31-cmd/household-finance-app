@@ -180,14 +180,46 @@ export default function BillsPage() {
     fetchBillsAndAccounts();
   };
 
-  // Delete Bill
-  const handleDeleteBill = async (billId: string) => {
+  // Delete Bill with Account Balance Reversal (if bill was Paid)
+  const handleDeleteBill = async (bill: Bill) => {
     if (!confirm('Kya aap waqai is bill entry ko delete karna chahte hain?')) return;
 
+    // Agar bill 'Paid' tha, toh iska matlab pehle account se amount deduct hui thi. 
+    // Delete hone par woh amount wapas account mein add (revert) honi chahiye.
+    if (bill.status === 'Paid') {
+      // Hum transactions table se is bill ki payment dhoond kar account pata laga sakte hain ya default account use kar sakte hain
+      // Behtar tareeqay ke liye hum recent transaction check kar sakte hain, ya user se account puchen ya sabhi accounts mein check karein.
+      // Yahan hum transactions table mein party_name ya description match karke account name nikal rahe hain:
+      const { data: txData } = await supabase
+        .from('transactions')
+        .select('*')
+        .ilike('party_name', `%${bill.title}%`)
+        .order('date', { ascending: false })
+        .limit(1);
+
+      if (txData && txData.length > 0) {
+        const tx = txData[0];
+        const accName = tx.account_name;
+        const paidAmount = Number(tx.amount || bill.amount);
+
+        // Account balance wapas plus (restore) karna
+        const { data: accList } = await supabase.from('accounts').select('*').eq('name', accName).limit(1);
+        if (accList && accList.length > 0) {
+          const acc = accList[0];
+          const restoredBal = Number(acc.current_balance || 0) + paidAmount;
+          await supabase.from('accounts').update({ current_balance: restoredBal }).eq('id', acc.id);
+        }
+
+        // Associated transaction bhi delete kar dein taake ledger clean rahe
+        await supabase.from('transactions').delete().eq('id', tx.id);
+      }
+    }
+
+    // Bill record delete karna
     const { error } = await supabase
       .from('bills')
       .delete()
-      .eq('id', billId);
+      .eq('id', bill.id);
 
     if (error) {
       alert('Error deleting bill: ' + error.message);
@@ -334,7 +366,7 @@ export default function BillsPage() {
                 placeholder="e.g. Oct Statement Bill"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none"
               />
             </div>
 
@@ -451,7 +483,7 @@ export default function BillsPage() {
 
                           {/* Delete Bill Button */}
                           <button
-                            onClick={() => handleDeleteBill(b.id)}
+                            onClick={() => handleDeleteBill(b)}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
                             title="Delete Bill"
                           >
