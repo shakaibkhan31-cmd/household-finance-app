@@ -74,7 +74,7 @@ export default function BillsPage() {
     if (error) {
       console.error('Error fetching bills:', error.message);
     } else {
-      setBills(data ||[cite: 3]);
+      setBills(data || []);
     }
     setLoading(false);
   };
@@ -174,7 +174,6 @@ export default function BillsPage() {
       return;
     }
 
-    // If recurring, automatically generate next month's bill
     if (payingBill.is_recurring) {
       const nextDate = new Date(payingBill.due_date);
       nextDate.setMonth(nextDate.getMonth() + 1);
@@ -306,7 +305,6 @@ export default function BillsPage() {
     fetchBillsAndAccounts();
   };
 
-  // Calculations for Summary Tiles
   const totalPendingAmount = bills
     .filter((b) => b.status === 'Pending')
     .reduce((sum, b) => sum + Number(b.amount), 0);
@@ -319,7 +317,6 @@ export default function BillsPage() {
     .filter((b) => b.status === 'Pending' && todayStr && b.due_date < todayStr)
     .reduce((sum, b) => sum + Number(b.amount) + Number(b.late_charges || 0), 0);
 
-  // Filtered Bills
   const filteredBills = bills.filter((b) => {
     const isOverdue = b.status === 'Pending' && todayStr && b.due_date < todayStr;
     if (filterStatus === 'pending' && (b.status !== 'Pending' || isOverdue)) return false;
@@ -332,13 +329,11 @@ export default function BillsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Bills & Payables</h1>
         <p className="text-sm text-slate-500 mt-1">Track upcoming bills, recurring payments, and overdue alerts</p>
       </div>
 
-      {/* Summary Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl flex items-center justify-between">
           <div>
@@ -358,7 +353,6 @@ export default function BillsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Add New Bill */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
           <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
             <Plus className="w-5 h-5 text-indigo-600" />
@@ -414,7 +408,6 @@ export default function BillsPage() {
               />
             </div>
 
-            {/* Recurring Checkbox */}
             <div className="flex items-center gap-2 pt-1">
               <input
                 type="checkbox"
@@ -448,11 +441,8 @@ export default function BillsPage() {
           </form>
         </div>
 
-        {/* Right Column: Filter, Search & Bills List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-            
-            {/* Search & Status Filters */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-3 pb-2 border-b border-slate-100">
               <div className="relative w-full md:w-64">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -595,7 +585,6 @@ export default function BillsPage() {
         </div>
       </div>
 
-      {/* Mark Paid Modal */}
       {payingBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -629,7 +618,6 @@ export default function BillsPage() {
         </div>
       )}
 
-      {/* Transfer Modal */}
       {transferringBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
