@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users } from 'lucide-react';
+import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users, Wallet } from 'lucide-react';
 
 export interface Debt {
   id: string;
@@ -53,10 +53,17 @@ export default function DebtsPage() {
   const [settlementAmount, setSettlementAmount] = useState('');
   const [settlementDate, setSettlementDate] = useState('');
 
+  // Kameti Action Modal State (Pay Installment / Receive Payout)
+  const [kametiActionModal, setKametiActionModal] = useState<{ kameti: Kameti; actionType: 'pay' | 'receive' } | null>(null);
+  const [kametiAccount, setKametiAccount] = useState('');
+  const [kametiActionAmount, setKametiActionAmount] = useState('');
+  const [kametiActionDate, setKametiActionDate] = useState('');
+
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     setDueDate(today);
     setSettlementDate(today);
+    setKametiActionDate(today);
     fetchData();
   }, []);
 
@@ -69,6 +76,7 @@ export default function DebtsPage() {
       const names = accData.map((a: { name: string }) => a.name);
       setAccounts(names);
       setSelectedAccount(names[0]);
+      setKametiAccount(names[0]);
     }
 
     // Fetch Debts
@@ -160,12 +168,72 @@ export default function DebtsPage() {
     }
   };
 
-  // Settle Kameti
-  const handleSettleKameti = async (id: string) => {
-    if (!confirm('Kya aap is Kameti ko Completed/Settled mark karna chahte hain?')) return;
-    const { error } = await supabase.from('kametis').update({ status: 'Completed' }).eq('id', id);
-    if (error) alert('Error updating Kameti: ' + error.message);
-    else fetchData();
+  // Open Kameti Action Modal
+  const handleOpenKametiAction = (kameti: Kameti, actionType: 'pay' | 'receive') => {
+    setKametiActionModal({ kameti, actionType });
+    setKametiActionAmount(actionType === 'pay' ? kameti.monthly_installment.toString() : kameti.total_pool_amount.toString());
+  };
+
+  // Confirm Kameti Pay / Receive Action
+  const handleConfirmKametiAction = async () => {
+    if (!kametiActionModal || !kametiAccount || !kametiActionAmount) {
+      alert('Please select an account and enter amount.');
+      return;
+    }
+
+    const { kameti, actionType } = kametiActionModal;
+    const amountVal = parseFloat(kametiActionAmount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      alert('Please enter a valid amount.');
+      return;
+    }
+
+    const isPay = actionType === 'pay';
+    const txType = isPay ? 'Expense' : 'Income';
+    const txCategory = 'Kameti / Savings Circle';
+    const partyName = `Kameti: ${kameti.committee_name}`;
+    const description = isPay ? `Monthly installment paid for ${kameti.committee_name}` : `Full payout received for ${kameti.committee_name}`;
+
+    // 1. Insert Transaction Record
+    const { error: txErr } = await supabase.from('transactions').insert([
+      {
+        date: kametiActionDate,
+        type: txType,
+        account_name: kametiAccount,
+        category: txCategory,
+        amount: amountVal,
+        party_name: partyName,
+        description: description,
+        entered_by: 'Husband',
+      },
+    ]);
+
+    if (txErr) {
+      alert('Error recording transaction trail: ' + txErr.message);
+      return;
+    }
+
+    // 2. Update Account Balance
+    const { data: accList } = await supabase.from('accounts').select('*').eq('name', kametiAccount).limit(1);
+    if (accList && accList.length > 0) {
+      const acc = accList[0];
+      let currentBal = Number(acc.current_balance || 0);
+      if (isPay) {
+        currentBal -= amountVal;
+      } else {
+        currentBal += amountVal;
+      }
+      await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+    }
+
+    // If receive payout, optionally mark completed
+    if (!isPay) {
+      await supabase.from('kametis').update({ status: 'Completed' }).eq('id', kameti.id);
+    }
+
+    setKametiActionModal(null);
+    alert(isPay ? 'Installment successfully paid and recorded in transactions!' : 'Payout successfully received and recorded in transactions!');
+    fetchData();
   };
 
   // Open Settlement Modal
@@ -247,8 +315,6 @@ export default function DebtsPage() {
   const totalPayable = debts
     .filter((d) => d.status === 'Active' && (d.direction.includes('Taken') || d.direction.includes('Payable')))
     .reduce((sum, d) => sum + Number(d.amount), 0);
-
-  const activeKametis = kametis.filter((k) => k.status === 'Active');
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -585,12 +651,20 @@ export default function DebtsPage() {
                         </div>
 
                         {!isCompleted && (
-                          <button
-                            onClick={() => handleSettleKameti(k.id)}
-                            className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold px-3 py-1 rounded-lg transition"
-                          >
-                            Mark Completed
-                          </button>
+                          <div className="flex gap-1.5 justify-end">
+                            <button
+                              onClick={() => handleOpenKametiAction(k, 'pay')}
+                              className="text-[11px] text-white bg-indigo-600 hover:bg-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition"
+                            >
+                              + Pay Installment
+                            </button>
+                            <button
+                              onClick={() => handleOpenKametiAction(k, 'receive')}
+                              className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg transition"
+                            >
+                              Receive Payout
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -601,6 +675,80 @@ export default function DebtsPage() {
           </div>
         </div>
       </div>
+
+      {/* Kameti Pay / Receive Modal */}
+      {kametiActionModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">
+                {kametiActionModal.actionType === 'pay' ? 'Pay Monthly Installment' : 'Receive Kameti Payout'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Circle: <strong>{kametiActionModal.kameti.committee_name}</strong>
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  {kametiActionModal.actionType === 'pay' ? 'Paid From Account' : 'Received In Account'}
+                </label>
+                <select
+                  value={kametiAccount}
+                  onChange={(e) => setKametiAccount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc} value={acc}>
+                      {acc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={kametiActionDate}
+                    onChange={(e) => setKametiActionDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                  <input
+                    type="number"
+                    required
+                    value={kametiActionAmount}
+                    onChange={(e) => setKametiActionAmount(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setKametiActionModal(null)}
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmKametiAction}
+                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+              >
+                Confirm & Sync Ledger
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settlement Transaction Modal */}
       {settlingDebt && (
