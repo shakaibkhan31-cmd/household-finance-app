@@ -62,6 +62,7 @@ export default function TransactionsPage() {
   const [activeDebts, setActiveDebts] = useState<Debt[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState<boolean>(true);
+  const [currentMonthPrefix, setCurrentMonthPrefix] = useState<string>('');
 
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -99,6 +100,7 @@ export default function TransactionsPage() {
     const today = new Date().toISOString().split('T')[0];
     setDate(today);
     setDueDate(today);
+    setCurrentMonthPrefix(today.slice(0, 7));
     fetchDataAndSync();
   }, []);
 
@@ -552,14 +554,17 @@ export default function TransactionsPage() {
   });
 
   // Monthly KPI Calculations
-  const currentMonthPrefix = new Date().toISOString().slice(0, 7);
-  const monthlyExpenses = transactions
-    .filter((t) => t.date.startsWith(currentMonthPrefix) && (t.type === 'Expense' || t.type === 'Bill Payment'))
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+  const monthlyExpenses = currentMonthPrefix
+    ? transactions
+        .filter((t) => t.date && t.date.startsWith(currentMonthPrefix) && (t.type === 'Expense' || t.type === 'Bill Payment'))
+        .reduce((sum, t) => sum + Number(t.amount), 0)
+    : 0;
 
-  const monthlyIncome = transactions
-    .filter((t) => t.date.startsWith(currentMonthPrefix) && (t.type === 'Income Receipt'))
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+  const monthlyIncome = currentMonthPrefix
+    ? transactions
+        .filter((t) => t.date && t.date.startsWith(currentMonthPrefix) && (t.type === 'Income Receipt'))
+        .reduce((sum, t) => sum + Number(t.amount), 0)
+    : 0;
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
