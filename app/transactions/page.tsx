@@ -38,7 +38,7 @@ const TRANSACTION_TYPES = [
   'Bill Payment'
 ];
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   'Groceries & Food',
   'Utilities & Bills',
   'Rent & Housing',
@@ -52,13 +52,15 @@ const CATEGORIES = [
   'Support / Gift',
   'Donation / Charity',
   'Loan / Debt Related',
-  'Other / Misc'
+  'Misc',
+  'Other'
 ];
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [activeDebts, setActiveDebts] = useState<Debt[]>([]);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Edit State
@@ -69,7 +71,7 @@ export default function TransactionsPage() {
   const [accountName, setAccountName] = useState('');
   const [transferTo, setTransferTo] = useState('');
   const [selectedDebtId, setSelectedDebtId] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [amount, setAmount] = useState('');
   const [partyName, setPartyName] = useState('');
   const [description, setDescription] = useState('');
@@ -90,11 +92,11 @@ export default function TransactionsPage() {
     const today = new Date().toISOString().split('T')[0];
     setDate(today);
     setDueDate(today);
-    fetchTransactionsAndAccounts();
+    fetchDataAndSync();
   }, []);
 
-  // Fetch Accounts strictly from Supabase 'accounts' table, Active Debts & Transactions
-  const fetchTransactionsAndAccounts = async () => {
+  // Fetch Accounts, Active Debts, Transactions, and Dynamic Categories from Budgets table
+  const fetchDataAndSync = async () => {
     setLoading(true);
     
     // 1. Fetch real accounts from Supabase
@@ -118,7 +120,18 @@ export default function TransactionsPage() {
       setTransferTo('');
     }
 
-    // 2. Fetch Active Debts for Repayment Dropdown
+    // 2. Fetch Categories dynamically from Budgets table
+    const { data: bData } = await supabase.from('budgets').select('category');
+    if (bData && bData.length > 0) {
+      const budgetCats = bData.map((b: { category: string }) => b.category);
+      const combinedCats = Array.from(new Set([...budgetCats, ...DEFAULT_CATEGORIES]));
+      setCategories(combinedCats);
+      if (!category) setCategory(combinedCats[0]);
+    } else {
+      setCategories(DEFAULT_CATEGORIES);
+    }
+
+    // 3. Fetch Active Debts for Repayment Dropdown
     const { data: debtsData } = await supabase
       .from('debts')
       .select('id, person_name, direction, amount, type')
@@ -132,7 +145,7 @@ export default function TransactionsPage() {
       setSelectedDebtId('');
     }
 
-    // 3. Fetch transactions
+    // 4. Fetch transactions
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -163,7 +176,7 @@ export default function TransactionsPage() {
     } else if (newType === 'Bill Payment') {
       setCategory('Utilities & Bills');
     } else if (newType === 'Adjustment') {
-      setCategory('Other / Misc');
+      setCategory('Other');
     }
   };
 
@@ -314,7 +327,6 @@ export default function TransactionsPage() {
         ]);
         if (debtErr) alert('Error syncing with Debts table: ' + debtErr.message);
       } else if (type === 'Loan Repayment' && selectedDebtId) {
-        // Find specifically selected active debt and adjust amount
         const targetDebt = activeDebts.find(d => d.id === selectedDebtId);
         if (targetDebt) {
           const updatedAmount = Math.max(0, Number(targetDebt.amount) - parsedAmount);
@@ -361,7 +373,7 @@ export default function TransactionsPage() {
 
     // Reset Form
     resetForm();
-    fetchTransactionsAndAccounts();
+    fetchDataAndSync();
   };
 
   // Edit Button Click
@@ -386,15 +398,12 @@ export default function TransactionsPage() {
     const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
     const isTransfer = t.type === 'Transfer';
 
-    // 1. Reverse Account Balance Impact
     if (isTransfer && t.transfer_to) {
-      // Revert Source (-) -> Add back
       const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
       if (srcAcc && srcAcc.length > 0) {
         const restoredBal = Number(srcAcc[0].current_balance || 0) + txAmount;
         await supabase.from('accounts').update({ current_balance: restoredBal }).eq('id', srcAcc[0].id);
       }
-      // Revert Target (+) -> Deduct back
       const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
       if (destAcc && destAcc.length > 0) {
         const reducedBal = Number(destAcc[0].current_balance || 0) - txAmount;
@@ -407,10 +416,8 @@ export default function TransactionsPage() {
         let currentBal = Number(acc.current_balance || 0);
 
         if (isCredit) {
-          // Income thi to delete hone par minus hogi
           currentBal -= txAmount;
         } else {
-          // Expense/Bill/Repayment thi to delete hone par plus hogi
           currentBal += txAmount;
         }
 
@@ -418,12 +425,11 @@ export default function TransactionsPage() {
       }
     }
 
-    // 2. Delete Transaction Record from Supabase
     const { error } = await supabase.from('transactions').delete().eq('id', t.id);
     if (error) {
       alert('Error deleting transaction: ' + error.message);
     } else {
-      fetchTransactionsAndAccounts();
+      fetchDataAndSync();
     }
   };
 
@@ -468,7 +474,7 @@ export default function TransactionsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Transactions Ledger</h1>
-        <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, transfers, and party trails</p>
+        <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, transfers, and dynamically synced budget categories</p>
       </div>
 
       {/* Main Grid */}
@@ -616,19 +622,19 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              {/* Category & Amount */}
+              {/* Category & Amount (Synced with Budgets) */}
               <div className={`grid ${isTransferType ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
                 {!isTransferType && (
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">
-                      {isRefundType ? 'Expense Category to Offset' : 'Category'}
+                      {isRefundType ? 'Expense Category to Offset' : 'Category (Synced)'}
                     </label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                     >
-                      {CATEGORIES.map((cat) => (
+                      {categories.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -764,7 +770,7 @@ export default function TransactionsPage() {
                   className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
                 >
                   <option value="All">All Categories</option>
-                  {CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
