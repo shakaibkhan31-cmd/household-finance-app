@@ -11,6 +11,7 @@ import {
   ArrowLeftRight,
   TrendingUp,
   PieChart,
+  Target,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -23,6 +24,7 @@ const navItems = [
   { name: 'Accounts', href: '/accounts', icon: Wallet },
   { name: 'Income & Receivables', href: '/receivables', icon: TrendingUp },
   { name: 'Budgets', href: '/budgets', icon: PieChart },
+  { name: 'Goals', href: '/goals', icon: Target },
   { name: 'Bills & Payables', href: '/bills', icon: Receipt },
   { name: 'Debts & Kameti', href: '/debts', icon: HandCoins },
 ];
