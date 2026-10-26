@@ -42,6 +42,7 @@ export default function DebtsPage() {
   const [kametis, setKametis] = useState<Kameti[]>([]);
   const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [todayStr, setTodayStr] = useState('');
 
   // Debt Form State
   const [personName, setPersonName] = useState('');
@@ -76,6 +77,7 @@ export default function DebtsPage() {
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
+    setTodayStr(today);
     setDueDate(today);
     setSettlementDate(today);
     setKametiActionDate(today);
@@ -237,7 +239,6 @@ export default function DebtsPage() {
     setSettlementAmount(debt.amount.toString());
   };
 
-  // Partial Settlement Confirmation
   const handleConfirmSettlement = async () => {
     if (!settlingDebt || !selectedAccount || !settlementAmount) {
       alert('Please select an account and enter settlement amount.');
@@ -319,10 +320,8 @@ export default function DebtsPage() {
     .filter((k) => k.status === 'Active')
     .reduce((sum, k) => sum + Number(k.total_pool_amount), 0);
 
-  // Due soon alerts (within next 5 days)
-  const todayStr = new Date().toISOString().split('T')[0];
   const upcomingDebts = debts.filter((d) => {
-    if (d.status !== 'Active') return false;
+    if (d.status !== 'Active' || !todayStr) return false;
     const dueTime = new Date(d.due_date).getTime();
     const nowTime = new Date(todayStr).getTime();
     const diffDays = (dueTime - nowTime) / (1000 * 3600 * 24);
