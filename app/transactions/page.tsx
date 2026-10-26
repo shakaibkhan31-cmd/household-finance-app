@@ -583,22 +583,22 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
       {/* Header & Monthly KPI Summary */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Transactions Ledger</h1>
-          <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, transfers, and dynamically synced budget categories</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Transactions Ledger</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Excel-style detailed records, transfers, and dynamically synced budget categories</p>
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
-          <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-2xl flex-1 md:w-40">
-            <p className="text-[11px] font-semibold text-rose-800 uppercase tracking-wider">This Month Expense</p>
-            <p className="text-lg font-bold text-rose-950 mt-0.5">PKR {monthlyExpenses.toLocaleString()}</p>
+          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-3.5 rounded-2xl flex-1 md:w-40">
+            <p className="text-[11px] font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">This Month Expense</p>
+            <p className="text-lg font-bold text-rose-950 dark:text-rose-200 mt-0.5">PKR {monthlyExpenses.toLocaleString()}</p>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl flex-1 md:w-40">
-            <p className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">This Month Income</p>
-            <p className="text-lg font-bold text-emerald-950 mt-0.5">PKR {monthlyIncome.toLocaleString()}</p>
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-3.5 rounded-2xl flex-1 md:w-40">
+            <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">This Month Income</p>
+            <p className="text-lg font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {monthlyIncome.toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -607,21 +607,21 @@ export default function TransactionsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column: Transaction Entry / Edit Form */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-indigo-600" />
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+              <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               {editingId ? 'Edit Transaction' : 'New Ledger Entry'}
             </h2>
             {editingId && (
-              <button onClick={resetForm} className="text-xs text-rose-600 font-medium flex items-center gap-1 hover:underline">
+              <button onClick={resetForm} className="text-xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1 hover:underline">
                 <X className="w-3.5 h-3.5" /> Cancel
               </button>
             )}
           </div>
 
           {availableAccounts.length === 0 ? (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-2">
               <p className="font-semibold">No Accounts Found!</p>
               <p>Please go to the <strong>Accounts</strong> page from the sidebar and add your first bank account or wallet before recording transactions.</p>
             </div>
@@ -630,22 +630,22 @@ export default function TransactionsPage() {
               {/* Date & Type Dropdown */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
                   <input
                     type="date"
                     required
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Transaction Type</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Transaction Type</label>
                   <select
                     value={type}
                     onChange={(e) => handleTypeChange(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                   >
                     {TRANSACTION_TYPES.map((t) => (
                       <option key={t} value={t}>{t}</option>
@@ -656,8 +656,8 @@ export default function TransactionsPage() {
 
               {/* Adjustment Mode Options */}
               {isAdjustmentType && (
-                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
-                  <label className="block text-xs font-semibold text-amber-900">Adjustment Action</label>
+                <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl space-y-2">
+                  <label className="block text-xs font-semibold text-amber-900 dark:text-amber-300">Adjustment Action</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -665,7 +665,7 @@ export default function TransactionsPage() {
                       className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition ${
                         adjustmentDirection === 'add'
                           ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-white text-slate-700 border border-slate-200'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                       }`}
                     >
                       + Add Balance
@@ -676,7 +676,7 @@ export default function TransactionsPage() {
                       className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition ${
                         adjustmentDirection === 'subtract'
                           ? 'bg-rose-600 text-white shadow-xs'
-                          : 'bg-white text-slate-700 border border-slate-200'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                       }`}
                     >
                       - Deduct Balance
@@ -687,7 +687,7 @@ export default function TransactionsPage() {
 
               {/* Account Dropdown */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                   {isTransferType ? 'From Account (Source)' : isRefundType ? 'Refund Deposited In' : 'Account'}
                 </label>
                 <select
@@ -700,7 +700,7 @@ export default function TransactionsPage() {
                       if (diff) setTransferTo(diff);
                     }
                   }}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                 >
                   {availableAccounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -711,11 +711,11 @@ export default function TransactionsPage() {
               {/* Conditionally show Transfer To field if type is Transfer */}
               {isTransferType && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Transfer To (Destination)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Transfer To (Destination)</label>
                   <select
                     value={transferTo}
                     onChange={(e) => setTransferTo(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-700"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                   >
                     {availableAccounts
                       .filter((acc) => acc !== accountName)
@@ -729,14 +729,14 @@ export default function TransactionsPage() {
               {/* Conditionally show Select Debt for Repayment */}
               {isRepaymentType && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Select Loan to Repay</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Select Loan to Repay</label>
                   {activeDebts.length === 0 ? (
-                    <p className="text-xs text-rose-500 font-medium p-2 bg-rose-50 rounded-lg">No active loan records found in Debts & Kameti.</p>
+                    <p className="text-xs text-rose-500 dark:text-rose-400 font-medium p-2 bg-rose-50 dark:bg-rose-950/40 rounded-lg">No active loan records found in Debts & Kameti.</p>
                   ) : (
                     <select
                       value={selectedDebtId}
                       onChange={(e) => setSelectedDebtId(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs bg-amber-50 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-semibold text-amber-900"
+                      className="w-full px-3.5 py-2 text-xs bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-semibold text-amber-900 dark:text-amber-200"
                     >
                       {activeDebts.map((d) => (
                         <option key={d.id} value={d.id}>
@@ -752,13 +752,13 @@ export default function TransactionsPage() {
               <div className={`grid ${isTransferType ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
                 {!isTransferType && (
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                       {isRefundType ? 'Expense Category to Offset' : 'Category (Synced)'}
                     </label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                     >
                       {categories.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
@@ -768,14 +768,14 @@ export default function TransactionsPage() {
                 )}
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
                   <input
                     type="number"
                     required
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                   />
                 </div>
               </div>
@@ -783,7 +783,7 @@ export default function TransactionsPage() {
               {/* Paid To / Received From Field */}
               {!isTransferType && !isRepaymentType && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     {isRefundType
                       ? 'Refunded By (Store / Merchant / Person)'
                       : isAdjustmentType
@@ -801,7 +801,7 @@ export default function TransactionsPage() {
                     }
                     value={partyName}
                     onChange={(e) => setPartyName(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
               )}
@@ -809,24 +809,24 @@ export default function TransactionsPage() {
               {/* Conditionally show Due Date if Loan Given or Loan Received */}
               {isLoanType && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Loan Due Date</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Loan Due Date</label>
                   <input
                     type="date"
                     required
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                   />
                 </div>
               )}
 
               {/* Entered By */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Entered By</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Entered By</label>
                 <select
                   value={enteredBy}
                   onChange={(e) => setEnteredBy(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   <option value="Husband">Husband</option>
                   <option value="Wife">Wife</option>
@@ -835,7 +835,7 @@ export default function TransactionsPage() {
 
               {/* Description / Remarks */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Description / Remarks</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description / Remarks</label>
                 <input
                   type="text"
                   placeholder={
@@ -847,7 +847,7 @@ export default function TransactionsPage() {
                   }
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
@@ -865,7 +865,7 @@ export default function TransactionsPage() {
         <div className="lg:col-span-2 space-y-4">
           
           {/* Search & Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
             <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -874,7 +874,7 @@ export default function TransactionsPage() {
                   placeholder="Search by party, note, category, account..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
@@ -882,7 +882,7 @@ export default function TransactionsPage() {
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none"
                 >
                   <option value="All">All Types</option>
                   {TRANSACTION_TYPES.map((t) => (
@@ -893,7 +893,7 @@ export default function TransactionsPage() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none"
                 >
                   <option value="All">All Categories</option>
                   {categories.map((cat) => (
@@ -903,7 +903,7 @@ export default function TransactionsPage() {
 
                 <button
                   onClick={exportToCSV}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 transition shadow-xs"
+                  className="px-3 py-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 transition shadow-xs"
                 >
                   <Download className="w-3.5 h-3.5" /> CSV
                 </button>
@@ -911,26 +911,26 @@ export default function TransactionsPage() {
             </div>
 
             {/* Date Range Filter Bar */}
-            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
-              <Calendar className="w-4 h-4 text-indigo-600" />
-              <span className="font-medium text-[11px] text-slate-500">Date Range:</span>
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+              <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="font-medium text-[11px] text-slate-500 dark:text-slate-400">Date Range:</span>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500"
+                className="px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500"
               />
               <span className="text-slate-400">to</span>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500"
+                className="px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500"
               />
               {(fromDate || toDate) && (
                 <button
                   onClick={() => { setFromDate(''); setToDate(''); }}
-                  className="text-[11px] text-rose-600 hover:underline font-medium ml-auto"
+                  className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-medium ml-auto"
                 >
                   Clear Dates
                 </button>
@@ -939,8 +939,8 @@ export default function TransactionsPage() {
 
             {/* Bulk Selection Banner */}
             {selectedIds.length > 0 && (
-              <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 p-2.5 rounded-xl text-xs">
-                <span className="font-semibold text-indigo-900">{selectedIds.length} transaction(s) selected</span>
+              <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-2.5 rounded-xl text-xs">
+                <span className="font-semibold text-indigo-900 dark:text-indigo-300">{selectedIds.length} transaction(s) selected</span>
                 <button
                   onClick={handleBulkDelete}
                   className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition"
@@ -952,15 +952,15 @@ export default function TransactionsPage() {
           </div>
 
           {/* Transactions Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 text-[11px] font-semibold text-slate-500 border-b border-slate-200 uppercase tracking-wider">
+                  <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">
                       <button onClick={toggleSelectAll}>
                         {selectedIds.length > 0 && selectedIds.length === paginatedTransactions.length ? (
-                          <CheckSquare className="w-4 h-4 text-indigo-600" />
+                          <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         ) : (
                           <Square className="w-4 h-4 text-slate-400" />
                         )}
@@ -973,7 +973,7 @@ export default function TransactionsPage() {
                     <th className="py-3 px-4 text-right">Amount / Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                   {loading ? (
                     <tr>
                       <td colSpan={6} className="text-center py-8 text-slate-400">Loading transactions...</td>
@@ -989,39 +989,39 @@ export default function TransactionsPage() {
                       const isSelected = selectedIds.includes(t.id);
 
                       return (
-                        <tr key={t.id} className={`hover:bg-slate-50/80 transition ${isSelected ? 'bg-indigo-50/40' : ''}`}>
+                        <tr key={t.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : ''}`}>
                           <td className="py-3.5 px-3 text-center">
                             <button onClick={() => toggleSelectOne(t.id)}>
-                              {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+                              {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> : <Square className="w-4 h-4 text-slate-400" />}
                             </button>
                           </td>
-                          <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">{t.date}</td>
+                          <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-mono text-[11px]">{t.date}</td>
                           <td className="py-3.5 px-4">
-                            <span className="font-semibold text-slate-800 text-[11px] block">{t.type}</span>
-                            <span className="inline-block mt-0.5 text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">
+                            <span className="font-semibold text-slate-800 dark:text-white text-[11px] block">{t.type}</span>
+                            <span className="inline-block mt-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md font-medium">
                               {t.category || 'General'}
                             </span>
                           </td>
                           <td className="py-3.5 px-4">
-                            <p className="font-semibold text-indigo-900">{t.party_name || 'N/A'}</p>
-                            <p className="text-[10px] text-slate-400">{t.description || '-'}</p>
+                            <p className="font-semibold text-indigo-900 dark:text-indigo-300">{t.party_name || 'N/A'}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500">{t.description || '-'}</p>
                           </td>
-                          <td className="py-3.5 px-4 text-slate-600">
+                          <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                             {isTransferRow ? (
-                              <div className="flex items-center gap-1 font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-lg w-fit">
+                              <div className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg w-fit">
                                 <span>{t.account_name}</span>
-                                <ArrowRightLeft className="w-3 h-3 text-indigo-600" />
+                                <ArrowRightLeft className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                                 <span>{t.transfer_to}</span>
                               </div>
                             ) : (
-                              <span className="font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                              <span className="font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
                                 {t.account_name}
                               </span>
                             )}
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className={`font-bold flex items-center justify-end gap-1 text-sm ${
-                              isCredit ? 'text-emerald-600' : isTransferRow ? 'text-indigo-600' : 'text-slate-800'
+                              isCredit ? 'text-emerald-600 dark:text-emerald-400' : isTransferRow ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'
                             }`}>
                               {!isTransferRow && (
                                 isCredit ? (
@@ -1035,13 +1035,13 @@ export default function TransactionsPage() {
                             <div className="flex items-center justify-end gap-2 mt-1.5">
                               <button
                                 onClick={() => handleEditClick(t)}
-                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded"
+                                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium flex items-center gap-0.5 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded"
                               >
                                 <Edit3 className="w-3 h-3" /> Edit
                               </button>
                               <button
                                 onClick={() => handleDeleteTransaction(t)}
-                                className="text-[10px] text-rose-600 hover:text-rose-800 font-medium flex items-center gap-0.5 bg-rose-50 px-2 py-0.5 rounded"
+                                className="text-[10px] text-rose-600 dark:text-rose-400 hover:text-rose-800 font-medium flex items-center gap-0.5 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded"
                               >
                                 <Trash2 className="w-3 h-3" /> Delete
                               </button>
@@ -1056,20 +1056,20 @@ export default function TransactionsPage() {
             </div>
 
             {/* Pagination Controls Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+            <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
               <span>Showing page <strong>{currentPage}</strong> of <strong>{totalPages}</strong></span>
               <div className="flex gap-2">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-white border border-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
                 >
                   <ChevronLeft className="w-4 h-4" /> Previous
                 </button>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-white border border-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
                 >
                   Next <ChevronRight className="w-4 h-4" />
                 </button>
