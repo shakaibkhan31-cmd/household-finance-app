@@ -538,6 +538,9 @@ export default function BillsPage() {
                           {lateFee > 0 && b.status === 'Pending' && (
                             <span className="text-rose-600 font-medium">Late Fee: PKR {lateFee.toLocaleString()}</span>
                           )}
+                          {b.notes && (
+                            <span className="text-slate-600 italic">• {b.notes}</span>
+                          )}
                         </div>
                       </div>
 
