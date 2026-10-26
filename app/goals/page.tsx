@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, Target, CheckCircle2, Trash2, Edit3, X, TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Target, CheckCircle2, Trash2, Edit3, X, TrendingUp, Calendar, DollarSign, Building2 } from 'lucide-react';
 
 export interface Goal {
   id: string;
@@ -26,6 +26,7 @@ const GOAL_CATEGORIES = [
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Form State
@@ -40,19 +41,32 @@ export default function GoalsPage() {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [fundGoal, setFundGoal] = useState<Goal | null>(null);
   const [fundAmountInput, setFundAmountInput] = useState('');
+  const [sourceAccount, setSourceAccount] = useState('');
+  const [fundDate, setFundDate] = useState('');
 
   useEffect(() => {
-    fetchGoals();
+    const today = new Date().toISOString().split('T')[0];
+    setFundDate(today);
+    fetchGoalsAndAccounts();
   }, []);
 
-  const fetchGoals = async () => {
+  const fetchGoalsAndAccounts = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('goals').select('*').order('created_at', { ascending: false });
-    if (error) {
-      console.error('Error fetching goals:', error.message);
-    } else {
-      setGoals(data || []);
+
+    // 1. Fetch Goals
+    const { data: gData, error: gError } = await supabase.from('goals').select('*').order('created_at', { ascending: false });
+    if (gError) console.error('Error fetching goals:', gError.message);
+    else setGoals(gData || []);
+
+    // 2. Fetch Accounts for fund deduction
+    const { data: accData, error: accError } = await supabase.from('accounts').select('name');
+    if (accError) console.error('Error fetching accounts:', accError.message);
+    else if (accData && accData.length > 0) {
+      const accNames = accData.map((a: { name: string }) => a.name);
+      setAvailableAccounts(accNames);
+      setSourceAccount(accNames[0]);
     }
+
     setLoading(false);
   };
 
@@ -78,7 +92,7 @@ export default function GoalsPage() {
       alert('Error saving goal: ' + error.message);
     } else {
       resetForm();
-      fetchGoals();
+      fetchGoalsAndAccounts();
     }
   };
 
@@ -101,35 +115,68 @@ export default function GoalsPage() {
       alert('Error updating goal: ' + error.message);
     } else {
       setEditingGoal(null);
-      fetchGoals();
+      fetchGoalsAndAccounts();
     }
   };
 
+  // Add Funds with Transaction Trail & Account Balance Deduction
   const handleAddFunds = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fundGoal || !fundAmountInput) return;
+    if (!fundGoal || !fundAmountInput || !sourceAccount) {
+      alert('Please select an account and enter deposit amount.');
+      return;
+    }
 
-    const newTotal = Number(fundGoal.current_amount || 0) + parseFloat(fundAmountInput);
+    const depositAmount = parseFloat(fundAmountInput);
+    const newTotal = Number(fundGoal.current_amount || 0) + depositAmount;
 
-    const { error } = await supabase
+    // 1. Update Goal Current Amount
+    const { error: goalErr } = await supabase
       .from('goals')
       .update({ current_amount: newTotal })
       .eq('id', fundGoal.id);
 
-    if (error) {
-      alert('Error adding funds to goal: ' + error.message);
-    } else {
-      setFundGoal(null);
-      setFundAmountInput('');
-      fetchGoals();
+    if (goalErr) {
+      alert('Error updating goal: ' + goalErr.message);
+      return;
     }
+
+    // 2. Insert Transaction Record for Ledger Trail
+    const { error: txErr } = await supabase.from('transactions').insert([
+      {
+        date: fundDate,
+        type: 'Expense',
+        account_name: sourceAccount,
+        category: 'Savings & Investment',
+        amount: depositAmount,
+        party_name: `Goal: ${fundGoal.title}`,
+        description: `Savings allocation towards goal: ${fundGoal.title}`,
+      },
+    ]);
+
+    if (txErr) {
+      alert('Goal updated, but error recording transaction trail: ' + txErr.message);
+    }
+
+    // 3. Deduct from Source Account Balance
+    const { data: accList } = await supabase.from('accounts').select('*').eq('name', sourceAccount).limit(1);
+    if (accList && accList.length > 0) {
+      const acc = accList[0];
+      const updatedBal = Number(acc.current_balance || 0) - depositAmount;
+      await supabase.from('accounts').update({ current_balance: updatedBal }).eq('id', acc.id);
+    }
+
+    // Reset Modal State
+    setFundGoal(null);
+    setFundAmountInput('');
+    fetchGoalsAndAccounts();
   };
 
   const handleDeleteGoal = async (id: string) => {
     if (!confirm('Kya aap is financial goal ko delete karna chahte hain?')) return;
     const { error } = await supabase.from('goals').delete().eq('id', id);
     if (error) alert('Error deleting goal: ' + error.message);
-    else fetchGoals();
+    else fetchGoalsAndAccounts();
   };
 
   const resetForm = () => {
@@ -150,7 +197,7 @@ export default function GoalsPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Financial Goals & Targets</h1>
-          <p className="text-sm text-slate-500 mt-1">Set long-term savings goals and track your milestone achievements</p>
+          <p className="text-sm text-slate-500 mt-1">Set long-term savings goals and track milestone achievements with transaction trails</p>
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
@@ -179,7 +226,7 @@ export default function GoalsPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. Emergency Fund / New Laptop"
+                placeholder="e.g. Emergency Fund / Laptop"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900"
@@ -347,7 +394,7 @@ export default function GoalsPage() {
         </div>
       </div>
 
-      {/* Add Funds Modal */}
+      {/* Add Funds Modal with Account Selection & Transaction Trail */}
       {fundGoal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -360,7 +407,31 @@ export default function GoalsPage() {
 
             <form onSubmit={handleAddFunds} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Additional Saved Amount (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Deposit Date</label>
+                <input
+                  type="date"
+                  required
+                  value={fundDate}
+                  onChange={(e) => setFundDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Source Account (Deduct Balance From)</label>
+                <select
+                  value={sourceAccount}
+                  onChange={(e) => setSourceAccount(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                >
+                  {availableAccounts.map((acc) => (
+                    <option key={acc} value={acc}>{acc}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Deposit Amount (PKR)</label>
                 <input
                   type="number"
                   required
@@ -383,7 +454,7 @@ export default function GoalsPage() {
                   type="submit"
                   className="flex-1 py-2.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs"
                 >
-                  Deposit Funds
+                  Deposit & Record Trail
                 </button>
               </div>
             </form>
