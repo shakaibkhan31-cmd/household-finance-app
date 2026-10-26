@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar, Download, CheckSquare, Square, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface Transaction {
   id: string;
@@ -87,6 +87,13 @@ export default function TransactionsPage() {
   const [selectedType, setSelectedType] = useState('All');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  // Bulk Selection State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -433,6 +440,81 @@ export default function TransactionsPage() {
     }
   };
 
+  // Bulk Delete Selected Transactions
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Kya aap waqai selected ${selectedIds.length} transactions ko delete karna chahte hain?`)) return;
+
+    for (const id of selectedIds) {
+      const t = transactions.find(item => item.id === id);
+      if (t) {
+        const txAmount = Number(t.amount);
+        const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
+        const isTransfer = t.type === 'Transfer';
+
+        if (isTransfer && t.transfer_to) {
+          const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+          if (srcAcc && srcAcc.length > 0) {
+            const restoredBal = Number(srcAcc[0].current_balance || 0) + txAmount;
+            await supabase.from('accounts').update({ current_balance: restoredBal }).eq('id', srcAcc[0].id);
+          }
+          const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
+          if (destAcc && destAcc.length > 0) {
+            const reducedBal = Number(destAcc[0].current_balance || 0) - txAmount;
+            await supabase.from('accounts').update({ current_balance: reducedBal }).eq('id', destAcc[0].id);
+          }
+        } else {
+          const { data: accList } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+          if (accList && accList.length > 0) {
+            const acc = accList[0];
+            let currentBal = Number(acc.current_balance || 0);
+
+            if (isCredit) {
+              currentBal -= txAmount;
+            } else {
+              currentBal += txAmount;
+            }
+
+            await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+          }
+        }
+      }
+    }
+
+    const { error } = await supabase.from('transactions').delete().in('id', selectedIds);
+    if (error) {
+      alert('Error performing bulk delete: ' + error.message);
+    } else {
+      setSelectedIds([]);
+      fetchDataAndSync();
+    }
+  };
+
+  // Export Filtered Transactions to CSV
+  const exportToCSV = () => {
+    const headers = ['Date', 'Type', 'Category', 'Party Name', 'Account', 'Transfer To', 'Amount (PKR)', 'Entered By', 'Description'];
+    const rows = filteredTransactions.map(t => [
+      t.date,
+      t.type,
+      t.category,
+      `"${t.party_name || ''}"`,
+      t.account_name,
+      t.transfer_to || '',
+      t.amount,
+      t.entered_by || '',
+      `"${t.description || ''}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `transactions_ledger_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const resetForm = () => {
     setEditingId(null);
     setAmount('');
@@ -469,12 +551,51 @@ export default function TransactionsPage() {
     return matchesSearch && matchesCategory && matchesAccount && matchesType && matchesFromDate && matchesToDate;
   });
 
+  // Monthly KPI Calculations
+  const currentMonthPrefix = new Date().toISOString().slice(0, 7);
+  const monthlyExpenses = transactions
+    .filter((t) => t.date.startsWith(currentMonthPrefix) && (t.type === 'Expense' || t.type === 'Bill Payment'))
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const monthlyIncome = transactions
+    .filter((t) => t.date.startsWith(currentMonthPrefix) && (t.type === 'Income Receipt'))
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
+  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === paginatedTransactions.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(paginatedTransactions.map(t => t.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Transactions Ledger</h1>
-        <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, transfers, and dynamically synced budget categories</p>
+      {/* Header & Monthly KPI Summary */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Transactions Ledger</h1>
+          <p className="text-sm text-slate-500 mt-1">Excel-style detailed records, transfers, and dynamically synced budget categories</p>
+        </div>
+
+        <div className="flex gap-3 w-full md:w-auto">
+          <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-2xl flex-1 md:w-40">
+            <p className="text-[11px] font-semibold text-rose-800 uppercase tracking-wider">This Month Expense</p>
+            <p className="text-lg font-bold text-rose-950 mt-0.5">PKR {monthlyExpenses.toLocaleString()}</p>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl flex-1 md:w-40">
+            <p className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">This Month Income</p>
+            <p className="text-lg font-bold text-emerald-950 mt-0.5">PKR {monthlyIncome.toLocaleString()}</p>
+          </div>
+        </div>
       </div>
 
       {/* Main Grid */}
@@ -774,6 +895,13 @@ export default function TransactionsPage() {
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+
+                <button
+                  onClick={exportToCSV}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 transition shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" /> CSV
+                </button>
               </div>
             </div>
 
@@ -803,6 +931,19 @@ export default function TransactionsPage() {
                 </button>
               )}
             </div>
+
+            {/* Bulk Selection Banner */}
+            {selectedIds.length > 0 && (
+              <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 p-2.5 rounded-xl text-xs">
+                <span className="font-semibold text-indigo-900">{selectedIds.length} transaction(s) selected</span>
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition"
+                >
+                  Delete Selected
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Transactions Table */}
@@ -811,6 +952,15 @@ export default function TransactionsPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-[11px] font-semibold text-slate-500 border-b border-slate-200 uppercase tracking-wider">
+                    <th className="py-3 px-3 w-10 text-center">
+                      <button onClick={toggleSelectAll}>
+                        {selectedIds.length > 0 && selectedIds.length === paginatedTransactions.length ? (
+                          <CheckSquare className="w-4 h-4 text-indigo-600" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-400" />
+                        )}
+                      </button>
+                    </th>
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4">Type & Category</th>
                     <th className="py-3 px-4">Party / Note</th>
@@ -821,18 +971,25 @@ export default function TransactionsPage() {
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-400">Loading transactions...</td>
+                      <td colSpan={6} className="text-center py-8 text-slate-400">Loading transactions...</td>
                     </tr>
-                  ) : filteredTransactions.length === 0 ? (
+                  ) : paginatedTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-400">No transactions match your query.</td>
+                      <td colSpan={6} className="text-center py-8 text-slate-400">No transactions match your query.</td>
                     </tr>
                   ) : (
-                    filteredTransactions.map((t) => {
+                    paginatedTransactions.map((t) => {
                       const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
                       const isTransferRow = t.type === 'Transfer';
+                      const isSelected = selectedIds.includes(t.id);
+
                       return (
-                        <tr key={t.id} className="hover:bg-slate-50/80 transition">
+                        <tr key={t.id} className={`hover:bg-slate-50/80 transition ${isSelected ? 'bg-indigo-50/40' : ''}`}>
+                          <td className="py-3.5 px-3 text-center">
+                            <button onClick={() => toggleSelectOne(t.id)}>
+                              {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+                            </button>
+                          </td>
                           <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">{t.date}</td>
                           <td className="py-3.5 px-4">
                             <span className="font-semibold text-slate-800 text-[11px] block">{t.type}</span>
@@ -891,6 +1048,27 @@ export default function TransactionsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination Controls Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+              <span>Showing page <strong>{currentPage}</strong> of <strong>{totalPages}</strong></span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 bg-white border border-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 bg-white border border-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
