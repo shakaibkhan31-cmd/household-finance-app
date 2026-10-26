@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users, Wallet } from 'lucide-react';
+import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users, Wallet, History } from 'lucide-react';
 
 export interface Debt {
   id: string;
@@ -24,6 +24,16 @@ export interface Kameti {
   my_turn_month: string;
   status: string;
   notes?: string;
+}
+
+export interface Transaction {
+  id: string;
+  date: string;
+  type: string;
+  account_name: string;
+  amount: number;
+  party_name: string;
+  description: string;
 }
 
 export default function DebtsPage() {
@@ -48,7 +58,7 @@ export default function DebtsPage() {
   const [myTurnMonth, setMyTurnMonth] = useState('');
   const [kametiNotes, setKametiNotes] = useState('');
 
-  // Settlement Modal State
+  // Partial Settlement Modal State
   const [settlingDebt, setSettlingDebt] = useState<Debt | null>(null);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [settlementAmount, setSettlementAmount] = useState('');
@@ -59,6 +69,10 @@ export default function DebtsPage() {
   const [kametiAccount, setKametiAccount] = useState('');
   const [kametiActionAmount, setKametiActionAmount] = useState('');
   const [kametiActionDate, setKametiActionDate] = useState('');
+
+  // History Modal State
+  const [historyModalItem, setHistoryModalItem] = useState<{ title: string; type: 'debt' | 'kameti' } | null>(null);
+  const [itemTransactions, setItemTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -223,6 +237,7 @@ export default function DebtsPage() {
     setSettlementAmount(debt.amount.toString());
   };
 
+  // Partial Settlement Confirmation
   const handleConfirmSettlement = async () => {
     if (!settlingDebt || !selectedAccount || !settlementAmount) {
       alert('Please select an account and enter settlement amount.');
@@ -250,7 +265,7 @@ export default function DebtsPage() {
         category: 'Loan / Debt Related',
         amount: payAmount,
         party_name: settlingDebt.person_name,
-        description: `Settlement for ${settlingDebt.type} (${settlingDebt.direction})`,
+        description: `Partial/Full settlement for ${settlingDebt.type} (${settlingDebt.direction})`,
         entered_by: 'Husband',
       },
     ]);
@@ -280,6 +295,18 @@ export default function DebtsPage() {
     fetchData();
   };
 
+  const openHistoryModal = async (title: string, type: 'debt' | 'kameti') => {
+    setHistoryModalItem({ title, type });
+    const searchKeyword = type === 'debt' ? title : `Kameti: ${title}`;
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .ilike('party_name', `%${searchKeyword}%`)
+      .order('date', { ascending: false });
+
+    setItemTransactions(data || []);
+  };
+
   const totalReceivable = debts
     .filter((d) => d.status === 'Active' && (d.direction.includes('Given') || d.direction.includes('Receivable')))
     .reduce((sum, d) => sum + Number(d.amount), 0);
@@ -292,18 +319,27 @@ export default function DebtsPage() {
     .filter((k) => k.status === 'Active')
     .reduce((sum, k) => sum + Number(k.total_pool_amount), 0);
 
+  // Due soon alerts (within next 5 days)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const upcomingDebts = debts.filter((d) => {
+    if (d.status !== 'Active') return false;
+    const dueTime = new Date(d.due_date).getTime();
+    const nowTime = new Date(todayStr).getTime();
+    const diffDays = (dueTime - nowTime) / (1000 * 3600 * 24);
+    return diffDays >= 0 && diffDays <= 5;
+  });
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Header & Sub-Navigation Tabs */}
+      {/* Header & Tabs */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Debts & Kameti Management</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Track personal loans, lendings, borrowings, and rotating savings circles
+            Track personal loans, partial installments, and rotating savings circles
           </p>
         </div>
 
-        {/* Tab Switcher */}
         <div className="flex bg-slate-100 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('debts')}
@@ -324,10 +360,19 @@ export default function DebtsPage() {
         </div>
       </div>
 
+      {/* Due Soon Alert Banner */}
+      {upcomingDebts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="text-xs text-amber-900">
+            <span className="font-bold">Payment Due Soon:</span> You have {upcomingDebts.length} active debt/loan payment(s) due within the next 5 days. Check the ledger below.
+          </div>
+        </div>
+      )}
+
       {/* TAB 1: LOANS & DEBTS VIEW */}
       {activeTab === 'debts' && (
         <div className="space-y-6">
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl flex items-center justify-between">
               <div>
@@ -347,7 +392,6 @@ export default function DebtsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Form */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
               <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
                 <Plus className="w-5 h-5 text-indigo-600" />
@@ -440,7 +484,6 @@ export default function DebtsPage() {
               </form>
             </div>
 
-            {/* Right Ledger */}
             <div className="lg:col-span-2 space-y-4">
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                 <h2 className="text-base font-semibold text-slate-800">Active Loans & Debts Ledger</h2>
@@ -482,14 +525,23 @@ export default function DebtsPage() {
                             <p className={`text-base font-bold ${isSettled ? 'text-slate-400 line-through' : isReceivable ? 'text-emerald-700' : 'text-rose-700'}`}>
                               PKR {Number(d.amount).toLocaleString()}
                             </p>
-                            {!isSettled && (
+                            <div className="flex items-center gap-1.5 justify-end">
                               <button
-                                onClick={() => handleOpenSettlementModal(d)}
-                                className="text-[11px] text-white bg-slate-900 hover:bg-slate-800 font-medium px-3 py-1 rounded-lg transition shadow-xs"
+                                onClick={() => openHistoryModal(d.person_name, 'debt')}
+                                className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                                title="View History Trail"
                               >
-                                Mark Settled
+                                <History className="w-4 h-4" />
                               </button>
-                            )}
+                              {!isSettled && (
+                                <button
+                                  onClick={() => handleOpenSettlementModal(d)}
+                                  className="text-[11px] text-white bg-slate-900 hover:bg-slate-800 font-medium px-3 py-1 rounded-lg transition shadow-xs"
+                                >
+                                  Settle / Pay
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -505,7 +557,6 @@ export default function DebtsPage() {
       {/* TAB 2: KAMETI CIRCLES VIEW */}
       {activeTab === 'kametis' && (
         <div className="space-y-6">
-          {/* Kameti Summary Tile */}
           <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Total Active Kameti Pools</p>
@@ -515,7 +566,6 @@ export default function DebtsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Kameti Form */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
               <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
                 <Plus className="w-5 h-5 text-indigo-600" />
@@ -592,7 +642,6 @@ export default function DebtsPage() {
               </form>
             </div>
 
-            {/* Right Kameti Ledger */}
             <div className="lg:col-span-2 space-y-4">
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                 <h2 className="text-base font-semibold text-slate-800">Active Kameti Circles</h2>
@@ -626,22 +675,31 @@ export default function DebtsPage() {
                               <p className="text-base font-bold text-slate-900">PKR {Number(k.total_pool_amount).toLocaleString()}</p>
                             </div>
 
-                            {!isCompleted && (
-                              <div className="flex gap-1.5 justify-end">
-                                <button
-                                  onClick={() => handleOpenKametiAction(k, 'pay')}
-                                  className="text-[11px] text-white bg-indigo-600 hover:bg-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition"
-                                >
-                                  + Pay Installment
-                                </button>
-                                <button
-                                  onClick={() => handleOpenKametiAction(k, 'receive')}
-                                  className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg transition"
-                                >
-                                  Receive Payout
-                                </button>
-                              </div>
-                            )}
+                            <div className="flex gap-1.5 justify-end">
+                              <button
+                                onClick={() => openHistoryModal(k.committee_name, 'kameti')}
+                                className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                                title="View Installment History"
+                              >
+                                <History className="w-4 h-4" />
+                              </button>
+                              {!isCompleted && (
+                                <>
+                                  <button
+                                    onClick={() => handleOpenKametiAction(k, 'pay')}
+                                    className="text-[11px] text-white bg-indigo-600 hover:bg-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition"
+                                  >
+                                    + Pay
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenKametiAction(k, 'receive')}
+                                    className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg transition"
+                                  >
+                                    Receive
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -650,6 +708,44 @@ export default function DebtsPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Trail Modal */}
+      {historyModalItem && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Transaction History Trail</h3>
+                <p className="text-xs text-slate-500">{historyModalItem.title}</p>
+              </div>
+              <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600">×</button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto space-y-2">
+              {itemTransactions.length === 0 ? (
+                <p className="text-xs text-slate-400 py-6 text-center">No transaction records found for this item.</p>
+              ) : (
+                itemTransactions.map((tx) => (
+                  <div key={tx.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-semibold text-slate-800">{tx.description}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">{tx.date} • {tx.account_name}</p>
+                    </div>
+                    <p className="font-bold text-indigo-700">PKR {Number(tx.amount).toLocaleString()}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              onClick={() => setHistoryModalItem(null)}
+              className="w-full py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition mt-2"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
@@ -723,13 +819,15 @@ export default function DebtsPage() {
         </div>
       )}
 
-      {/* Settlement Transaction Modal */}
+      {/* Partial Settlement Modal */}
       {settlingDebt && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Record Debt Settlement</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Settling loan for <strong>{settlingDebt.person_name}</strong> ({settlingDebt.direction})</p>
+              <h3 className="text-lg font-bold text-slate-900">Settle / Pay Loan Balance</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                For <strong>{settlingDebt.person_name}</strong> (Active Balance: PKR {settlingDebt.amount.toLocaleString()})
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -750,7 +848,7 @@ export default function DebtsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Settlement Date</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
                   <input
                     type="date"
                     required
@@ -760,13 +858,13 @@ export default function DebtsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Payment Amount (PKR)</label>
                   <input
                     type="number"
                     required
                     value={settlementAmount}
                     onChange={(e) => setSettlementAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-emerald-800"
                   />
                 </div>
               </div>
@@ -783,7 +881,7 @@ export default function DebtsPage() {
                 onClick={handleConfirmSettlement}
                 className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
               >
-                Confirm & Record Settlement
+                Confirm Payment
               </button>
             </div>
           </div>
