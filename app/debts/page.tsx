@@ -80,10 +80,10 @@ export default function DebtsPage() {
     }
 
     const { data: debtData } = await supabase.from('debts').select('*').order('due_date', { ascending: true });
-    setDebts(debtData ||[cite: 1]);
+    setDebts(debtData || []);
 
     const { data: kametiData } = await supabase.from('kametis').select('*').order('created_at', { ascending: false });
-    setKametis(kametiData ||[cite: 1]);
+    setKametis(kametiData || []);
 
     setLoading(false);
   };
