@@ -17,9 +17,13 @@ export default function Header() {
     const dayStr = now.toLocaleDateString('en-US', { weekday: 'long' });
     setCurrentDateTime({ dateStr, dayStr });
 
-    // Check user preference or HTML class
-    const isDark = document.documentElement.classList.contains('dark');
+    // Check initial dark mode state from DOM / localStorage
+    const savedTheme = localStorage.getItem('theme');
+    const isDark = savedTheme === 'dark' || document.documentElement.classList.contains('dark');
     setIsDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    }
   }, []);
 
   const toggleTheme = () => {
