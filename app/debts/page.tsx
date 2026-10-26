@@ -2,32 +2,50 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle } from 'lucide-react';
+import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users } from 'lucide-react';
 
 export interface Debt {
   id: string;
   person_name: string;
-  type: string; // 'Personal Loan', 'Credit Card', etc.
-  direction: string; // 'Given (Receivable)' or 'Taken (Payable)'
+  type: string; 
+  direction: string; 
   amount: number;
   due_date: string;
-  status: string; // 'Active' or 'Settled'
+  status: string; 
   notes?: string;
   created_at?: string;
 }
 
+export interface Kameti {
+  id: string;
+  committee_name: string;
+  total_pool_amount: number;
+  monthly_installment: number;
+  my_turn_month: string;
+  status: string;
+  notes?: string;
+}
+
 export default function DebtsPage() {
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [kametis, setKametis] = useState<Kameti[]>([]);
   const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Form State
+  // Debt Form State
   const [personName, setPersonName] = useState('');
   const [debtType, setDebtType] = useState('Personal Loan');
   const [direction, setDirection] = useState('Given (Receivable)');
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Kameti Form State
+  const [committeeName, setCommitteeName] = useState('');
+  const [totalPoolAmount, setTotalPoolAmount] = useState('');
+  const [monthlyInstallment, setMonthlyInstallment] = useState('');
+  const [myTurnMonth, setMyTurnMonth] = useState('');
+  const [kametiNotes, setKametiNotes] = useState('');
 
   // Settlement Modal State
   const [settlingDebt, setSettlingDebt] = useState<Debt | null>(null);
@@ -39,10 +57,10 @@ export default function DebtsPage() {
     const today = new Date().toISOString().split('T')[0];
     setDueDate(today);
     setSettlementDate(today);
-    fetchDebtsAndAccounts();
+    fetchData();
   }, []);
 
-  const fetchDebtsAndAccounts = async () => {
+  const fetchData = async () => {
     setLoading(true);
 
     // Fetch Accounts
@@ -54,35 +72,34 @@ export default function DebtsPage() {
     }
 
     // Fetch Debts
-    const { data, error } = await supabase
+    const { data: debtData } = await supabase
       .from('debts')
       .select('*')
       .order('due_date', { ascending: true });
+    setDebts(debtData || []);
 
-    if (error) {
-      console.error('Error fetching debts:', error.message);
-    } else {
-      setDebts(data || []);
-    }
+    // Fetch Kametis
+    const { data: kametiData } = await supabase
+      .from('kametis')
+      .select('*')
+      .order('created_at', { ascending: false });
+    setKametis(kametiData || []);
+
     setLoading(false);
   };
 
-  // Handle Debt Type Change with Auto-Direction Logic
   const handleDebtTypeChange = (newType: string) => {
     setDebtType(newType);
-
     if (newType === 'Credit Card') {
       setDirection('Taken (Payable)');
       if (!personName) setPersonName('Credit Card Outstanding');
     } else {
-      if (personName === 'Credit Card Outstanding') {
-        setPersonName('');
-      }
+      if (personName === 'Credit Card Outstanding') setPersonName('');
       setDirection('Given (Receivable)');
     }
   };
 
-  // Add New Debt
+  // Add Debt
   const handleAddDebt = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!personName || !amount || !dueDate) {
@@ -108,8 +125,47 @@ export default function DebtsPage() {
       setPersonName('');
       setAmount('');
       setNotes('');
-      fetchDebtsAndAccounts();
+      fetchData();
     }
+  };
+
+  // Add Kameti
+  const handleAddKameti = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!committeeName || !totalPoolAmount || !monthlyInstallment) {
+      alert('Please fill required Kameti fields.');
+      return;
+    }
+
+    const { error } = await supabase.from('kametis').insert([
+      {
+        committee_name: committeeName,
+        total_pool_amount: parseFloat(totalPoolAmount),
+        monthly_installment: parseFloat(monthlyInstallment),
+        my_turn_month: myTurnMonth || 'TBD',
+        status: 'Active',
+        notes: kametiNotes,
+      },
+    ]);
+
+    if (error) {
+      alert('Error adding Kameti record: ' + error.message);
+    } else {
+      setCommitteeName('');
+      setTotalPoolAmount('');
+      setMonthlyInstallment('');
+      setMyTurnMonth('');
+      setKametiNotes('');
+      fetchData();
+    }
+  };
+
+  // Settle Kameti
+  const handleSettleKameti = async (id: string) => {
+    if (!confirm('Kya aap is Kameti ko Completed/Settled mark karna chahte hain?')) return;
+    const { error } = await supabase.from('kametis').update({ status: 'Completed' }).eq('id', id);
+    if (error) alert('Error updating Kameti: ' + error.message);
+    else fetchData();
   };
 
   // Open Settlement Modal
@@ -118,7 +174,7 @@ export default function DebtsPage() {
     setSettlementAmount(debt.amount.toString());
   };
 
-  // Process Settlement & Record Transaction
+  // Process Settlement
   const handleConfirmSettlement = async () => {
     if (!settlingDebt || !selectedAccount || !settlementAmount) {
       alert('Please select an account and enter settlement amount.');
@@ -132,13 +188,12 @@ export default function DebtsPage() {
     }
 
     if (payAmount > settlingDebt.amount) {
-      alert(`Settlement amount cannot exceed the active balance of PKR ${settlingDebt.amount.toLocaleString()}.`);
+      alert(`Settlement amount cannot exceed active balance of PKR ${settlingDebt.amount.toLocaleString()}.`);
       return;
     }
 
     const isReceivable = settlingDebt.direction.includes('Given') || settlingDebt.direction.includes('Receivable');
 
-    // 1. Record Loan Repayment Transaction in Transactions Table
     const { error: txErr } = await supabase.from('transactions').insert([
       {
         date: settlementDate,
@@ -157,7 +212,6 @@ export default function DebtsPage() {
       return;
     }
 
-    // 2. Update Account Balance
     const { data: accList } = await supabase
       .from('accounts')
       .select('*')
@@ -167,19 +221,14 @@ export default function DebtsPage() {
     if (accList && accList.length > 0) {
       const acc = accList[0];
       let currentBal = Number(acc.current_balance || 0);
-
-      if (isReceivable) {
-        currentBal += payAmount;
-      } else {
-        currentBal -= payAmount;
-      }
+      if (isReceivable) currentBal += payAmount;
+      else currentBal -= payAmount;
 
       await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
     }
 
-    // 3. Update Debt Balance & Status
     const remainingDebt = Math.max(0, settlingDebt.amount - payAmount);
-    const { error: debtErr } = await supabase
+    await supabase
       .from('debts')
       .update({
         amount: remainingDebt,
@@ -187,17 +236,10 @@ export default function DebtsPage() {
       })
       .eq('id', settlingDebt.id);
 
-    if (debtErr) {
-      alert('Error updating debt record: ' + debtErr.message);
-      return;
-    }
-
     setSettlingDebt(null);
-    alert('Settlement successfully recorded! Transaction ledger and account balance updated.');
-    fetchDebtsAndAccounts();
+    fetchData();
   };
 
-  // Calculations
   const totalReceivable = debts
     .filter((d) => d.status === 'Active' && (d.direction.includes('Given') || d.direction.includes('Receivable')))
     .reduce((sum, d) => sum + Number(d.amount), 0);
@@ -206,13 +248,15 @@ export default function DebtsPage() {
     .filter((d) => d.status === 'Active' && (d.direction.includes('Taken') || d.direction.includes('Payable')))
     .reduce((sum, d) => sum + Number(d.amount), 0);
 
+  const activeKametis = kametis.filter((k) => k.status === 'Active');
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Debts & Kameti Management</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Track personal loans, lendings, borrowings, and rotating savings circles
+          Track personal loans, lendings, borrowings, and rotating savings circles (Kameti)
         </p>
       </div>
 
@@ -243,7 +287,7 @@ export default function DebtsPage() {
         </div>
       </div>
 
-      {/* Main Grid */}
+      {/* Main Grid for Debts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Add Loan Record Form */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
@@ -260,7 +304,7 @@ export default function DebtsPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. Ali / Meezan Bank / Friend"
+                placeholder="e.g. Ali / Meezan Bank"
                 value={personName}
                 onChange={(e) => setPersonName(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -277,7 +321,6 @@ export default function DebtsPage() {
                 >
                   <option value="Personal Loan">Personal Loan</option>
                   <option value="Credit Card">Credit Card</option>
-                  <option value="Kameti">Kameti</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -325,7 +368,7 @@ export default function DebtsPage() {
               <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Remarks</label>
               <input
                 type="text"
-                placeholder="e.g. Monthly installment details or agreement"
+                placeholder="e.g. Agreement details"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -408,6 +451,145 @@ export default function DebtsPage() {
                             className="text-[11px] text-white bg-slate-900 hover:bg-slate-800 font-medium px-3 py-1 rounded-lg transition shadow-xs"
                           >
                             Mark Settled
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* KAMETI SECTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4 border-t border-slate-200">
+        {/* Left Form for Kameti */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
+          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Users className="w-5 h-5 text-indigo-600" />
+            Add Kameti Circle
+          </h2>
+
+          <form onSubmit={handleAddKameti} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Committee Name / Organizer</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Family Kameti / Office Circle"
+                value={committeeName}
+                onChange={(e) => setCommitteeName(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Total Pool (PKR)</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="e.g. 100000"
+                  value={totalPoolAmount}
+                  onChange={(e) => setTotalPoolAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Monthly Installment</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="e.g. 10000"
+                  value={monthlyInstallment}
+                  onChange={(e) => setMonthlyInstallment(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-900"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">My Turn / Payout Month</label>
+              <input
+                type="text"
+                placeholder="e.g. November 2026"
+                value={myTurnMonth}
+                onChange={(e) => setMyTurnMonth(e.target.value)}
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Remarks / Notes</label>
+              <input
+                type="text"
+                placeholder="e.g. 10 members total"
+                value={kametiNotes}
+                onChange={(e) => setKametiNotes(e.target.value)}
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
+            >
+              Add Kameti Circle
+            </button>
+          </form>
+        </div>
+
+        {/* Right Ledger for Kameti */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <h2 className="text-base font-semibold text-slate-800">Active Kameti Circles</h2>
+
+            {kametis.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4 text-center">No active Kameti circles recorded.</p>
+            ) : (
+              <div className="space-y-3">
+                {kametis.map((k) => {
+                  const isCompleted = k.status === 'Completed';
+                  return (
+                    <div 
+                      key={k.id}
+                      className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                        isCompleted ? 'bg-slate-50 opacity-75' : 'bg-indigo-50/30 border-indigo-100'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 text-sm">{k.committee_name}</span>
+                          <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-semibold">
+                            Turn: {k.my_turn_month}
+                          </span>
+                          {isCompleted && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-medium">
+                              Completed
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">{k.notes || 'No remarks'}</p>
+                        <p className="text-[11px] text-slate-600 font-medium">
+                          Monthly Installment: <strong className="text-indigo-900">PKR {Number(k.monthly_installment).toLocaleString()}</strong>
+                        </p>
+                      </div>
+
+                      <div className="text-right space-y-2">
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Pool</p>
+                          <p className="text-base font-bold text-slate-900">PKR {Number(k.total_pool_amount).toLocaleString()}</p>
+                        </div>
+
+                        {!isCompleted && (
+                          <button
+                            onClick={() => handleSettleKameti(k.id)}
+                            className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold px-3 py-1 rounded-lg transition"
+                          >
+                            Mark Completed
                           </button>
                         )}
                       </div>
