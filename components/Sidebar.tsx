@@ -19,8 +19,21 @@ import {
   X,
   UserCheck
 } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 
-const navSections = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  badgeKey?: string;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
   {
     title: 'Overview',
     items: [
@@ -58,14 +71,12 @@ export default function Sidebar() {
   }, []);
 
   const fetchSidebarBadges = async () => {
-    // Fetch pending or overdue bills count
     const { count: billCount } = await supabase
       .from('bills')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'Pending');
     if (billCount !== null) setPendingBillsCount(billCount);
 
-    // Fetch active debts count
     const { count: debtCount } = await supabase
       .from('debts')
       .select('*', { count: 'exact', head: true })
