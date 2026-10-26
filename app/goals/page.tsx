@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, Target, CheckCircle2, Trash2, Edit3, X, TrendingUp, Calendar, DollarSign, Building2 } from 'lucide-react';
+import { Plus, Target, CheckCircle2, Trash2, Edit3, X, TrendingUp, Calendar, DollarSign, Building2, ArrowRightLeft } from 'lucide-react';
 
 export interface Goal {
   id: string;
@@ -42,6 +42,7 @@ export default function GoalsPage() {
   const [fundGoal, setFundGoal] = useState<Goal | null>(null);
   const [fundAmountInput, setFundAmountInput] = useState('');
   const [sourceAccount, setSourceAccount] = useState('');
+  const [destinationAccount, setDestinationAccount] = useState('');
   const [fundDate, setFundDate] = useState('');
 
   useEffect(() => {
@@ -58,13 +59,14 @@ export default function GoalsPage() {
     if (gError) console.error('Error fetching goals:', gError.message);
     else setGoals(gData || []);
 
-    // 2. Fetch Accounts for fund deduction
+    // 2. Fetch Accounts
     const { data: accData, error: accError } = await supabase.from('accounts').select('name');
     if (accError) console.error('Error fetching accounts:', accError.message);
     else if (accData && accData.length > 0) {
       const accNames = accData.map((a: { name: string }) => a.name);
       setAvailableAccounts(accNames);
       setSourceAccount(accNames[0]);
+      setDestinationAccount(accNames[1] || accNames[0]);
     }
 
     setLoading(false);
@@ -119,11 +121,11 @@ export default function GoalsPage() {
     }
   };
 
-  // Add Funds with Transaction Trail & Account Balance Deduction
+  // Add Funds with Complete Transfer Trail & Both Accounts Update
   const handleAddFunds = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fundGoal || !fundAmountInput || !sourceAccount) {
-      alert('Please select an account and enter deposit amount.');
+      alert('Please select accounts and enter deposit amount.');
       return;
     }
 
@@ -141,16 +143,17 @@ export default function GoalsPage() {
       return;
     }
 
-    // 2. Insert Transaction Record for Ledger Trail
+    // 2. Insert Transaction Record for Transfer Trail
     const { error: txErr } = await supabase.from('transactions').insert([
       {
         date: fundDate,
-        type: 'Expense',
+        type: 'Transfer',
         account_name: sourceAccount,
+        transfer_to: destinationAccount || sourceAccount,
         category: 'Savings & Investment',
         amount: depositAmount,
-        party_name: `Goal: ${fundGoal.title}`,
-        description: `Savings allocation towards goal: ${fundGoal.title}`,
+        party_name: `Goal Allocation: ${fundGoal.title}`,
+        description: `Savings transfer towards goal: ${fundGoal.title}`,
       },
     ]);
 
@@ -159,11 +162,21 @@ export default function GoalsPage() {
     }
 
     // 3. Deduct from Source Account Balance
-    const { data: accList } = await supabase.from('accounts').select('*').eq('name', sourceAccount).limit(1);
-    if (accList && accList.length > 0) {
-      const acc = accList[0];
-      const updatedBal = Number(acc.current_balance || 0) - depositAmount;
-      await supabase.from('accounts').update({ current_balance: updatedBal }).eq('id', acc.id);
+    const { data: srcList } = await supabase.from('accounts').select('*').eq('name', sourceAccount).limit(1);
+    if (srcList && srcList.length > 0) {
+      const srcAcc = srcList[0];
+      const updatedSrcBal = Number(srcAcc.current_balance || 0) - depositAmount;
+      await supabase.from('accounts').update({ current_balance: updatedSrcBal }).eq('id', srcAcc.id);
+    }
+
+    // 4. Add to Destination Account Balance (if different)
+    if (destinationAccount && destinationAccount !== sourceAccount) {
+      const { data: destList } = await supabase.from('accounts').select('*').eq('name', destinationAccount).limit(1);
+      if (destList && destList.length > 0) {
+        const destAcc = destList[0];
+        const updatedDestBal = Number(destAcc.current_balance || 0) + depositAmount;
+        await supabase.from('accounts').update({ current_balance: updatedDestBal }).eq('id', destAcc.id);
+      }
     }
 
     // Reset Modal State
@@ -197,7 +210,7 @@ export default function GoalsPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Financial Goals & Targets</h1>
-          <p className="text-sm text-slate-500 mt-1">Set long-term savings goals and track milestone achievements with transaction trails</p>
+          <p className="text-sm text-slate-500 mt-1">Set long-term savings goals and track milestone achievements with complete account trails</p>
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
@@ -268,7 +281,7 @@ export default function GoalsPage() {
                   placeholder="0"
                   value={currentAmount}
                   onChange={(e) => setCurrentAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-900"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-900"
                 />
               </div>
             </div>
@@ -394,7 +407,7 @@ export default function GoalsPage() {
         </div>
       </div>
 
-      {/* Add Funds Modal with Account Selection & Transaction Trail */}
+      {/* Add Funds Modal with Source & Destination Accounts */}
       {fundGoal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -418,11 +431,24 @@ export default function GoalsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Source Account (Deduct Balance From)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Source Account (Money Deducted From)</label>
                 <select
                   value={sourceAccount}
                   onChange={(e) => setSourceAccount(e.target.value)}
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                >
+                  {availableAccounts.map((acc) => (
+                    <option key={acc} value={acc}>{acc}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Destination / Savings Account (Money Allocated To)</label>
+                <select
+                  value={destinationAccount}
+                  onChange={(e) => setDestinationAccount(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-700"
                 >
                   {availableAccounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -454,7 +480,7 @@ export default function GoalsPage() {
                   type="submit"
                   className="flex-1 py-2.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs"
                 >
-                  Deposit & Record Trail
+                  Transfer & Record Trail
                 </button>
               </div>
             </form>
@@ -497,7 +523,7 @@ export default function GoalsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Target Date</label>
+                <label className="block text-xs font-medium text-slate-700 md-1">Target Date</label>
                 <input
                   type="date"
                   value={editingGoal.target_date || ''}
