@@ -51,10 +51,10 @@ export default function FinanceDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Date Filter State
+  // Date Filter States (Initialized safely for Next.js SSR/Prerender)
   const [filterMode, setFilterMode] = useState<'month' | 'year' | 'custom'>('month');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // e.g. "2026-10"
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
@@ -90,6 +90,10 @@ export default function FinanceDashboard() {
   };
 
   useEffect(() => {
+    // Safe client-side date initialization
+    const now = new Date();
+    setSelectedMonth(now.toISOString().slice(0, 7));
+    setSelectedYear(now.getFullYear().toString());
     fetchData();
   }, []);
 
@@ -147,9 +151,9 @@ export default function FinanceDashboard() {
   const filteredTransactions = transactions.filter((tx) => {
     if (!tx.date) return false;
     if (filterMode === 'month') {
-      return tx.date.startsWith(selectedMonth);
+      return selectedMonth ? tx.date.startsWith(selectedMonth) : true;
     } else if (filterMode === 'year') {
-      return tx.date.startsWith(selectedYear);
+      return selectedYear ? tx.date.startsWith(selectedYear) : true;
     } else if (filterMode === 'custom') {
       if (!customStart || !customEnd) return true;
       return tx.date >= customStart && tx.date <= customEnd;
