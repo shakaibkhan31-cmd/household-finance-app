@@ -100,6 +100,8 @@ interface Budget {
   amount?: number;
   budget_amount?: number;
   limit?: number;
+  monthly_limit?: number;
+  budget_limit?: number;
   spent_amount?: number;
 }
 
@@ -168,10 +170,12 @@ function DashboardContent() {
         setBudgets(budgetData);
       } else {
         setBudgets([
-          { id: '1', category: 'Groceries & Food', allocated_amount: 20000, spent_amount: 15000 },
-          { id: '2', category: 'Fuel & Transport', allocated_amount: 15000, spent_amount: 8200 },
-          { id: '3', category: 'Healthcare & Medical', allocated_amount: 10000, spent_amount: 3100 },
-          { id: '4', category: 'Education', allocated_amount: 25000, spent_amount: 15000 }
+          { id: '1', category: 'Groceries & Food', allocated_amount: 15000, spent_amount: 15000 },
+          { id: '2', category: 'Fuel & Transport', allocated_amount: 10000, spent_amount: 0 },
+          { id: '3', category: 'Healthcare & Medical', allocated_amount: 8000, spent_amount: 0 },
+          { id: '4', category: 'Education', allocated_amount: 25000, spent_amount: 0 },
+          { id: '5', category: 'Utilities & Bills', allocated_amount: 15000, spent_amount: 10890 },
+          { id: '6', category: 'Subscriptions', allocated_amount: 5000, spent_amount: 0 }
         ]);
       }
 
@@ -505,12 +509,14 @@ function DashboardContent() {
                 {budgets.map((b, idx) => {
                   const bName = b?.category || b?.name || b?.title || 'General';
                   
-                  // Check all possible allocated amount column names in Supabase
+                  // Comprehensive check for all possible allocated budget column names in Supabase
                   const alloc = Number(
                     b?.allocated_amount ?? 
                     b?.amount ?? 
                     b?.budget_amount ?? 
                     b?.limit ?? 
+                    b?.monthly_limit ?? 
+                    b?.budget_limit ?? 
                     20000
                   );
 
@@ -772,7 +778,7 @@ function DashboardContent() {
               <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
                 <span className="text-xs text-slate-500 dark:text-slate-400">Amount Due</span>
                 <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-                  PKR {Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_name ?? 0).toLocaleString()}
+                  PKR {Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_amount ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
