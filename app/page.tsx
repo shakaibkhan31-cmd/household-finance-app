@@ -14,7 +14,9 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Calendar,
+  Filter
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -34,12 +36,27 @@ interface Bill {
   status: string;
 }
 
+interface Transaction {
+  id: string;
+  date: string;
+  type: string;
+  amount: number;
+  description: string;
+  account_name: string;
+}
+
 export default function FinanceDashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
-  const [totalIncome, setTotalIncome] = useState(0);
-  const [totalExpense, setTotalExpense] = useState(0);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Date Filter State
+  const [filterMode, setFilterMode] = useState<'month' | 'year' | 'custom'>('month');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // e.g. "2026-10"
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   // Quick Add Form States
   const [amount, setAmount] = useState('');
@@ -57,13 +74,8 @@ export default function FinanceDashboard() {
       if (!selectedAccount) setSelectedAccount(accData[0].name);
     }
 
-    const { data: txData } = await supabase.from('transactions').select('amount, type');
-    if (txData) {
-      const income = txData.filter(t => t.type === 'Income' || t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0);
-      const expense = txData.filter(t => t.type === 'Expense' || t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0);
-      setTotalIncome(income);
-      setTotalExpense(expense);
-    }
+    const { data: txData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+    if (txData) setTransactions(txData);
 
     const { data: billData } = await supabase
       .from('bills')
@@ -131,7 +143,29 @@ export default function FinanceDashboard() {
     fetchData();
   };
 
+  // Filter transactions based on date criteria
+  const filteredTransactions = transactions.filter((tx) => {
+    if (!tx.date) return false;
+    if (filterMode === 'month') {
+      return tx.date.startsWith(selectedMonth);
+    } else if (filterMode === 'year') {
+      return tx.date.startsWith(selectedYear);
+    } else if (filterMode === 'custom') {
+      if (!customStart || !customEnd) return true;
+      return tx.date >= customStart && tx.date <= customEnd;
+    }
+    return true;
+  });
+
   const totalAvailableCash = accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
+  
+  const filteredIncome = filteredTransactions
+    .filter((t) => t.type === 'Income' || t.type === 'INCOME')
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const filteredExpense = filteredTransactions
+    .filter((t) => t.type === 'Expense' || t.type === 'EXPENSE')
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors">
@@ -144,7 +178,7 @@ export default function FinanceDashboard() {
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Dashboard</h1>
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-medium">Overview of liquid assets, cash flows, and urgent payables</p>
+            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-medium">Overview of liquid assets, filtered cash flows, and urgent payables</p>
           </div>
           <button
             onClick={fetchData}
@@ -154,7 +188,77 @@ export default function FinanceDashboard() {
           </button>
         </div>
 
-        {/* Executive Metrics Overview */}
+        {/* Date Filter Bar */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <Filter className="w-4 h-4 text-indigo-500 mr-1" />
+            <button
+              onClick={() => setFilterMode('month')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                filterMode === 'month' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Month-wise
+            </button>
+            <button
+              onClick={() => setFilterMode('year')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                filterMode === 'year' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Year-wise
+            </button>
+            <button
+              onClick={() => setFilterMode('custom')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                filterMode === 'custom' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Custom Dates
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {filterMode === 'month' && (
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
+              />
+            )}
+            {filterMode === 'year' && (
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
+              >
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+            )}
+            {filterMode === 'custom' && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+                />
+                <span className="text-xs text-slate-400">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Executive Metrics Overview (Filtered) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
@@ -173,29 +277,29 @@ export default function FinanceDashboard() {
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Total Inflow</span>
+              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Filtered Inflow</span>
               <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl">
                 <ArrowUpCircle className="w-5 h-5" />
               </div>
             </div>
             <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-3">
-              PKR {totalIncome.toLocaleString()}
+              PKR {filteredIncome.toLocaleString()}
             </h3>
-            <p className="text-[11px] text-slate-400 font-medium mt-2">Lifetime Income Ledger</p>
+            <p className="text-[11px] text-slate-400 font-medium mt-2">Selected Period Income</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Total Outflow</span>
+              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Filtered Outflow</span>
               <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-xl">
                 <ArrowDownCircle className="w-5 h-5" />
               </div>
             </div>
             <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-3">
-              PKR {totalExpense.toLocaleString()}
+              PKR {filteredExpense.toLocaleString()}
             </h3>
             <p className="text-[11px] text-rose-500 font-medium mt-2 flex items-center gap-1">
-              <TrendingDown className="w-3.5 h-3.5" /> Lifetime Expense Ledger
+              <TrendingDown className="w-3.5 h-3.5" /> Selected Period Expense
             </p>
           </div>
         </div>
