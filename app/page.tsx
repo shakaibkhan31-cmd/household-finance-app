@@ -507,7 +507,8 @@ export default function FinanceDashboard() {
                           </td>
                         </tr>
                       );
-                    })}
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
