@@ -25,9 +25,10 @@ interface Transaction {
 interface Bill {
   id: string;
   provider: string;
-  bill_type: string;
+  bill_type?: string;
   due_date: string;
-  amount: number;
+  amount?: number;
+  bill_amount?: number;
   status: string;
 }
 
@@ -107,7 +108,8 @@ export default function FinanceDashboard() {
 
   const handlePayBill = async (bill: Bill) => {
     if (!selectedAccount) return alert('Pehle ek Account select karein!');
-    if (!confirm(`${bill.provider} ka PKR ${bill.amount} bill paid mark karein?`)) return;
+    const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
+    if (!confirm(`${bill.provider} ka PKR ${billAmt} bill paid mark karein?`)) return;
 
     setLoading(true);
     await supabase.from('bills').update({ status: 'Paid' }).eq('id', bill.id);
@@ -115,7 +117,7 @@ export default function FinanceDashboard() {
     await supabase.from('transactions').insert([
       {
         type: 'Expense',
-        amount: bill.amount,
+        amount: billAmt,
         description: `Bill Payment: ${bill.provider}`,
         entered_by: 'System',
         account_name: selectedAccount,
@@ -126,14 +128,14 @@ export default function FinanceDashboard() {
     fetchData();
   };
 
-  const totalAvailableCash = accounts.reduce((acc, a) => acc + Number(a.current_balance), 0);
+  const totalAvailableCash = accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
   const totalExpense = transactions
     .filter((t) => t.type === 'Expense' || t.type === 'EXPENSE')
-    .reduce((acc, t) => acc + Number(t.amount), 0);
+    .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
   const totalUnpaidBills = bills
     .filter((b) => b.status === 'Pending' || b.status === 'UNPAID')
-    .reduce((acc, b) => acc + Number(b.amount || b.bill_amount || 0), 0);
+    .reduce((acc, b) => acc + Number(b.amount ?? b.bill_amount ?? 0), 0);
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors">
@@ -211,7 +213,7 @@ export default function FinanceDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {bills.map((bill) => {
               const isPaid = bill.status === 'Paid' || bill.status === 'PAID';
-              const billAmt = Number(bill.amount || bill.bill_amount || 0);
+              const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
               return (
                 <div
                   key={bill.id}
