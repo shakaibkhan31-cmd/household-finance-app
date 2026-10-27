@@ -328,83 +328,83 @@ export default function BillsPage() {
   });
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Bills & Payables</h1>
-        <p className="text-sm text-slate-500 mt-1">Track upcoming bills, recurring payments, and overdue alerts</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Bills & Payables</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track upcoming bills, recurring payments, and overdue alerts</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl flex items-center justify-between">
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-5 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider">Total Pending Bills</p>
-            <p className="text-2xl font-bold text-amber-950 mt-1">PKR {totalPendingAmount.toLocaleString()}</p>
+            <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Total Pending Bills</p>
+            <p className="text-2xl font-bold text-amber-950 dark:text-amber-200 mt-1">PKR {totalPendingAmount.toLocaleString()}</p>
           </div>
-          <Clock className="w-8 h-8 text-amber-600 bg-amber-100 p-1.5 rounded-xl" />
+          <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 p-1.5 rounded-xl" />
         </div>
 
-        <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl flex items-center justify-between">
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-5 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Overdue Bills ({overdueBillsCount})</p>
-            <p className="text-2xl font-bold text-rose-950 mt-1">PKR {totalOverdueAmount.toLocaleString()}</p>
+            <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Overdue Bills ({overdueBillsCount})</p>
+            <p className="text-2xl font-bold text-rose-950 dark:text-rose-200 mt-1">PKR {totalOverdueAmount.toLocaleString()}</p>
           </div>
-          <AlertTriangle className="w-8 h-8 text-rose-600 bg-rose-100 p-1.5 rounded-xl" />
+          <AlertTriangle className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Plus className="w-5 h-5 text-indigo-600" />
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
+          <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             Add New Bill
           </h2>
 
           <form onSubmit={handleAddBill} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Bill Title</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Bill Title</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. HBL Credit Card / KE Electric"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
                 <input
                   type="number"
                   required
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
                 <input
                   type="date"
                   required
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Late Charges (PKR)</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Late Charges (PKR)</label>
               <input
                 type="number"
                 placeholder="e.g. 850"
                 value={lateCharges}
                 onChange={(e) => setLateCharges(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-semibold text-rose-700"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-semibold text-rose-700 dark:text-rose-400"
               />
             </div>
 
@@ -414,21 +414,21 @@ export default function BillsPage() {
                 id="recurring"
                 checked={isRecurring}
                 onChange={(e) => setIsRecurring(e.target.checked)}
-                className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                className="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-slate-700 focus:ring-indigo-500"
               />
-              <label htmlFor="recurring" className="text-xs font-medium text-slate-700 flex items-center gap-1">
-                <Repeat className="w-3.5 h-3.5 text-indigo-600" /> Repeat Monthly (Recurring)
+              <label htmlFor="recurring" className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Repeat className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Repeat Monthly (Recurring)
               </label>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Notes</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
               <input
                 type="text"
                 placeholder="e.g. Monthly statement"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
               />
             </div>
 
@@ -442,8 +442,8 @@ export default function BillsPage() {
         </div>
 
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-3 pb-2 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="relative w-full md:w-64">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -451,32 +451,32 @@ export default function BillsPage() {
                   placeholder="Search bills..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                 />
               </div>
 
               <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto">
                 <button
                   onClick={() => setFilterStatus('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   All
                 </button>
                 <button
                   onClick={() => setFilterStatus('pending')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Pending
                 </button>
                 <button
                   onClick={() => setFilterStatus('overdue')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'overdue' ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'overdue' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Overdue
                 </button>
                 <button
                   onClick={() => setFilterStatus('paid')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Paid
                 </button>
@@ -504,49 +504,49 @@ export default function BillsPage() {
                       key={b.id}
                       className={`p-4 rounded-xl border flex items-center justify-between transition ${
                         b.status === 'Paid'
-                          ? 'bg-slate-50/60 border-slate-200'
+                          ? 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
                           : isOverdue
-                          ? 'bg-rose-50/40 border-rose-200 shadow-xs'
-                          : 'bg-white border-amber-200 shadow-xs'
+                          ? 'bg-rose-50/40 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50 shadow-xs'
+                          : 'bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 shadow-xs'
                       }`}
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800 text-sm">{b.title}</span>
+                          <span className="font-bold text-slate-800 dark:text-white text-sm">{b.title}</span>
                           {b.is_recurring && (
-                            <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+                            <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
                               <Repeat className="w-3 h-3" /> Recurring
                             </span>
                           )}
                           <span
                             className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                               b.status === 'Paid'
-                                ? 'bg-emerald-100 text-emerald-700'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
                                 : isOverdue
-                                ? 'bg-rose-100 text-rose-700 font-bold'
-                                : 'bg-amber-100 text-amber-700'
+                                ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold'
+                                : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
                             }`}
                           >
                             {b.status === 'Paid' ? 'Paid' : isOverdue ? 'Overdue' : 'Pending'}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                        <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                           <span className="flex items-center gap-1 font-mono">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
                           </span>
                           {lateFee > 0 && b.status === 'Pending' && (
-                            <span className="text-rose-600 font-medium">Late Fee: PKR {lateFee.toLocaleString()}</span>
+                            <span className="text-rose-600 dark:text-rose-400 font-medium">Late Fee: PKR {lateFee.toLocaleString()}</span>
                           )}
                           {b.notes && (
-                            <span className="text-slate-600 italic">• {b.notes}</span>
+                            <span className="text-slate-600 dark:text-slate-400 italic">• {b.notes}</span>
                           )}
                         </div>
                       </div>
 
                       <div className="text-right space-y-2">
                         <div>
-                          <p className={`text-base font-bold ${isOverdue ? 'text-rose-700' : 'text-slate-900'}`}>
+                          <p className={`text-base font-bold ${isOverdue ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
                             PKR {effectiveAmount.toLocaleString()}
                           </p>
                         </div>
@@ -556,7 +556,7 @@ export default function BillsPage() {
                             <>
                               <button
                                 onClick={() => handleOpenMarkPaidModal(b)}
-                                className="text-[11px] text-slate-700 hover:text-slate-900 font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                                className="text-[11px] text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition"
                               >
                                 Mark Paid
                               </button>
@@ -572,7 +572,7 @@ export default function BillsPage() {
                           )}
                           <button
                             onClick={() => handleDeleteBill(b)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
                             title="Delete Bill"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -590,22 +590,22 @@ export default function BillsPage() {
 
       {payingBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Record Bill Payment</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Marking <strong>{payingBill.title}</strong> as paid.</p>
-              <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs flex justify-between items-center">
-                <span className="text-slate-600">Total Settlement:</span>
-                <span className="font-bold text-indigo-900 text-sm">PKR {payingTotalAmount.toLocaleString()}</span>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Bill Payment</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Marking <strong>{payingBill.title}</strong> as paid.</p>
+              <div className="mt-2 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center">
+                <span className="text-slate-600 dark:text-slate-300">Total Settlement:</span>
+                <span className="font-bold text-indigo-900 dark:text-indigo-300 text-sm">PKR {payingTotalAmount.toLocaleString()}</span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Paid From Account</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Paid From Account</label>
               <select
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
               >
                 {accounts.map((acc) => (
                   <option key={acc} value={acc}>{acc}</option>
@@ -614,8 +614,8 @@ export default function BillsPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setPayingBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 rounded-xl">Cancel</button>
-              <button onClick={handleConfirmMarkPaid} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 rounded-xl">Confirm Payment</button>
+              <button onClick={() => setPayingBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Cancel</button>
+              <button onClick={handleConfirmMarkPaid} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">Confirm Payment</button>
             </div>
           </div>
         </div>
@@ -623,23 +623,23 @@ export default function BillsPage() {
 
       {transferringBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Pay Bill via Transfer</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Paying <strong>{transferringBill.title}</strong></p>
-              <div className="mt-2 p-2.5 bg-indigo-50 rounded-xl border border-indigo-100 text-xs flex justify-between items-center">
-                <span className="text-indigo-800">Transfer Amount:</span>
-                <span className="font-bold text-indigo-950 text-sm">PKR {transferTotalAmount.toLocaleString()}</span>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pay Bill via Transfer</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Paying <strong>{transferringBill.title}</strong></p>
+              <div className="mt-2 p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50 text-xs flex justify-between items-center">
+                <span className="text-indigo-800 dark:text-indigo-300">Transfer Amount:</span>
+                <span className="font-bold text-indigo-950 dark:text-indigo-200 text-sm">PKR {transferTotalAmount.toLocaleString()}</span>
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Pay From (Source Account)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Pay From (Source Account)</label>
                 <select
                   value={sourceAccount}
                   onChange={(e) => setSourceAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -648,11 +648,11 @@ export default function BillsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Transfer To (Credit Card)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Transfer To (Credit Card)</label>
                 <select
                   value={targetAccount}
                   onChange={(e) => setTargetAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-indigo-700"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -662,8 +662,8 @@ export default function BillsPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setTransferringBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 rounded-xl">Cancel</button>
-              <button onClick={handlePayNowAndTransfer} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 rounded-xl">Confirm Transfer</button>
+              <button onClick={() => setTransferringBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Cancel</button>
+              <button onClick={handlePayNowAndTransfer} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">Confirm Transfer</button>
             </div>
           </div>
         </div>
