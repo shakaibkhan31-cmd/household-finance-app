@@ -18,9 +18,11 @@ export interface Receivable {
 
 export default function ReceivablesPage() {
   const [receivables, setReceivables] = useState<Receivable[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [todayStr, setTodayStr] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -35,8 +37,10 @@ export default function ReceivablesPage() {
   const [selectedAccount, setSelectedAccount] = useState('');
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
     setTodayStr(today);
+    setSelectedMonth(today.slice(0, 7)); // e.g. '2026-10'
     fetchReceivablesAndAccounts();
   }, []);
 
@@ -52,16 +56,16 @@ export default function ReceivablesPage() {
     }
 
     // Fetch Receivables
-    const { data, error } = await supabase
+    const { data: recData } = await supabase
       .from('receivables')
       .select('*')
       .order('expected_date', { ascending: true });
+    setReceivables(recData || []);
 
-    if (error) {
-      console.error('Error fetching receivables:', error.message);
-    } else {
-      setReceivables(data || []);
-    }
+    // Fetch Transactions to cross-verify actual received income
+    const { data: txData } = await supabase.from('transactions').select('*');
+    setTransactions(txData || []);
+
     setLoading(false);
   };
 
@@ -162,13 +166,35 @@ export default function ReceivablesPage() {
     }
   };
 
+  // Calculations for this month
   const pendingTotal = receivables
-    .filter((r) => r.status === 'Pending')
-    .reduce((sum, r) => sum + Number(r.amount), 0);
+    .filter((r) => {
+      const stat = (r.status || '').trim().toLowerCase();
+      return stat === 'pending' || stat === 'unpaid';
+    })
+    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
-  const receivedTotal = receivables
-    .filter((r) => r.status === 'Received')
-    .reduce((sum, r) => sum + Number(r.amount), 0);
+  // Calculate received income from transactions ledger matching this month or explicitly received receivables
+  const currentMonthTransactionsIncome = transactions
+    .filter((t) => {
+      const tDate = (t.date || t.transaction_date || '').trim();
+      const isThisMonth = selectedMonth ? tDate.startsWith(selectedMonth) : true;
+      const tType = (t.type || '').toLowerCase();
+      const tCat = (t.category || '').toLowerCase();
+      const isIncome = tType.includes('income') || tType.includes('deposit') || tType.includes('inflow') || tCat.includes('income');
+      return isThisMonth && isIncome;
+    })
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const receivedReceivablesTotal = receivables
+    .filter((r) => {
+      const stat = (r.status || '').trim().toLowerCase();
+      return stat === 'received' || stat === 'paid';
+    })
+    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+  // Take the maximum or combined accurate total of received income
+  const receivedTotal = Math.max(currentMonthTransactionsIncome, receivedReceivablesTotal);
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
@@ -178,14 +204,27 @@ export default function ReceivablesPage() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Income & Receivables</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track expected salaries, incoming client payments, and pending receivables</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-4 rounded-2xl flex-1 md:w-44">
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Pending Income</p>
-            <p className="text-xl font-bold text-amber-950 dark:text-amber-200 mt-0.5">PKR {pendingTotal.toLocaleString()}</p>
+        
+        <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500">Filter Month:</span>
+            <input 
+              type="month" 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="text-xs bg-transparent text-slate-800 dark:text-slate-100 outline-none font-bold"
+            />
           </div>
-          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-44">
-            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Received Income</p>
-            <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {receivedTotal.toLocaleString()}</p>
+
+          <div className="flex gap-3 w-full sm:w-auto">
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-4 rounded-2xl flex-1 md:w-44">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Pending Income</p>
+              <p className="text-xl font-bold text-amber-950 dark:text-amber-200 mt-0.5">PKR {pendingTotal.toLocaleString()}</p>
+            </div>
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-44">
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Received Income</p>
+              <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {receivedTotal.toLocaleString()}</p>
+            </div>
           </div>
         </div>
       </div>
