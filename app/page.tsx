@@ -22,9 +22,12 @@ import Link from 'next/link';
 
 interface Account {
   id: string;
-  name: string;
-  type: string;
-  current_balance: number;
+  name?: string;
+  account_name?: string;
+  type?: string;
+  account_type?: string;
+  current_balance?: number;
+  opening_balance?: number;
 }
 
 interface Bill {
@@ -33,16 +36,18 @@ interface Bill {
   due_date: string;
   amount?: number;
   bill_amount?: number;
-  status: string;
+  status?: string;
+  payment_status?: string;
 }
 
 interface Transaction {
   id: string;
-  date: string;
+  date?: string;
+  transaction_date?: string;
   type: string;
   amount: number;
   description: string;
-  account_name: string;
+  account_name?: string;
 }
 
 export default function FinanceDashboard() {
@@ -68,23 +73,24 @@ export default function FinanceDashboard() {
   const fetchData = async () => {
     setLoading(true);
 
-    const { data: accData } = await supabase.from('accounts').select('*').order('name', { ascending: true });
+    const { data: accData } = await supabase.from('accounts').select('*');
     if (accData && accData.length > 0) {
       setAccounts(accData);
-      if (!selectedAccount) setSelectedAccount(accData[0].name);
+      const firstAccName = accData[0].name || accData[0].account_name || '';
+      if (!selectedAccount) setSelectedAccount(firstAccName);
     }
 
-    const { data: txData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+    const { data: txData } = await supabase.from('transactions').select('*');
     if (txData) setTransactions(txData);
 
-    const { data: billData } = await supabase
-      .from('bills')
-      .select('*')
-      .eq('status', 'Pending')
-      .order('due_date', { ascending: true })
-      .limit(3);
-
-    if (billData) setBills(billData);
+    const { data: billData } = await supabase.from('bills').select('*');
+    if (billData) {
+      const pendingBills = billData.filter(b => {
+        const stat = (b.status || b.payment_status || '').toUpperCase();
+        return stat === 'PENDING' || stat === 'UNpaid' || stat === 'UNPAID';
+      });
+      setBills(pendingBills);
+    }
 
     setLoading(false);
   };
@@ -103,6 +109,7 @@ export default function FinanceDashboard() {
     }
 
     setLoading(true);
+    const currentDate = new Date().toISOString().split('T')[0];
     const { error } = await supabase.from('transactions').insert([
       {
         type,
@@ -110,7 +117,8 @@ export default function FinanceDashboard() {
         description,
         entered_by: enteredBy,
         account_name: selectedAccount,
-        date: new Date().toISOString().split('T')[0],
+        date: currentDate,
+        transaction_date: currentDate,
       },
     ]);
 
@@ -125,12 +133,15 @@ export default function FinanceDashboard() {
   };
 
   const handlePayBill = async (bill: Bill) => {
-    if (!selectedAccount) return alert('Pehle ek Account select karein!');
+    const accName = selectedAccount;
+    if (!accName) return alert('Pehle ek Account select karein!');
     const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
     if (!confirm(`${bill.provider} ka PKR ${billAmt.toLocaleString()} bill paid mark karein?`)) return;
 
     setLoading(true);
-    await supabase.from('bills').update({ status: 'Paid' }).eq('id', bill.id);
+    const currentDate = new Date().toISOString().split('T')[0];
+    
+    await supabase.from('bills').update({ status: 'Paid', payment_status: 'PAID' }).eq('id', bill.id);
 
     await supabase.from('transactions').insert([
       {
@@ -138,43 +149,48 @@ export default function FinanceDashboard() {
         amount: billAmt,
         description: `Bill Payment: ${bill.provider}`,
         entered_by: 'System',
-        account_name: selectedAccount,
-        date: new Date().toISOString().split('T')[0],
+        account_name: accName,
+        date: currentDate,
+        transaction_date: currentDate,
       },
     ]);
 
     fetchData();
   };
 
-  // Robust filtering of transactions
+  // Robust date filtering supporting both `date` and `transaction_date` columns
   const filteredTransactions = transactions.filter((tx) => {
-    if (!tx.date) return false;
-    const txDateStr = tx.date.split('T')[0];
+    const txDate = (tx.date || tx.transaction_date || '').trim();
+    if (!txDate) return false;
+    const datePrefix = txDate.slice(0, 10); // YYYY-MM-DD
 
     if (filterMode === 'month') {
-      return selectedMonth ? txDateStr.startsWith(selectedMonth) : true;
+      return selectedMonth ? datePrefix.startsWith(selectedMonth) : true;
     } else if (filterMode === 'year') {
-      return selectedYear ? txDateStr.startsWith(selectedYear) : true;
+      return selectedYear ? datePrefix.startsWith(selectedYear) : true;
     } else if (filterMode === 'custom') {
       if (!customStart || !customEnd) return true;
-      return txDateStr >= customStart && txDateStr <= customEnd;
+      return datePrefix >= customStart && datePrefix <= customEnd;
     }
     return true;
   });
 
-  const totalAvailableCash = accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
+  const totalAvailableCash = accounts.reduce((acc, a) => {
+    const bal = a.current_balance ?? a.opening_balance ?? 0;
+    return acc + Number(bal);
+  }, 0);
   
   const filteredIncome = filteredTransactions
     .filter((t) => {
       const tType = (t.type || '').trim().toLowerCase();
-      return tType === 'income';
+      return tType === 'income' || tType === 'inflow';
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   const filteredExpense = filteredTransactions
     .filter((t) => {
       const tType = (t.type || '').trim().toLowerCase();
-      return tType === 'expense';
+      return tType === 'expense' || tType === 'outflow';
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
@@ -333,17 +349,22 @@ export default function FinanceDashboard() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {accounts.map((acc) => (
-                  <div key={acc.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{acc.name}</p>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{acc.type || 'Bank'}</p>
+                {accounts.map((acc) => {
+                  const accName = acc.name || acc.account_name || 'Account';
+                  const accType = acc.type || acc.account_type || 'Bank';
+                  const accBal = acc.current_balance ?? acc.opening_balance ?? 0;
+                  return (
+                    <div key={acc.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{accName}</p>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{accType}</p>
+                      </div>
+                      <p className="text-base font-bold text-slate-900 dark:text-white">
+                        PKR {Number(accBal).toLocaleString()}
+                      </p>
                     </div>
-                    <p className="text-base font-bold text-slate-900 dark:text-white">
-                      PKR {Number(acc.current_balance || 0).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -373,11 +394,14 @@ export default function FinanceDashboard() {
                     onChange={(e) => setSelectedAccount(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium"
                   >
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.name}>
-                        {acc.name}
-                      </option>
-                    ))}
+                    {accounts.map((acc) => {
+                      const accName = acc.name || acc.account_name || '';
+                      return (
+                        <option key={acc.id} value={accName}>
+                          {accName}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
