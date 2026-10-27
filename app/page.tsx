@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   PlusCircle, 
@@ -23,6 +23,40 @@ import {
   PieChart
 } from 'lucide-react';
 import Link from 'next/link';
+
+// Error Boundary Component to prevent full page crash
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Dashboard Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center space-y-4">
+          <h2 className="text-xl font-bold text-rose-600">Something went wrong on the Dashboard.</h2>
+          <p className="text-xs text-slate-500 font-mono">{this.state.error?.message}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl"
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface Account {
   id: string;
@@ -66,6 +100,14 @@ interface Budget {
 }
 
 export default function FinanceDashboard() {
+  return (
+    <ErrorBoundary>
+      <DashboardContent />
+    </ErrorBoundary>
+  );
+}
+
+function DashboardContent() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -75,11 +117,11 @@ export default function FinanceDashboard() {
 
   // Date Filter States
   const [filterMode, setFilterMode] = useState<'month' | 'year' | 'custom'>('month');
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('2026-10');
+  const [selectedYear, setSelectedYear] = useState('2026');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [todayStr, setTodayStr] = useState('');
+  const [todayStr, setTodayStr] = useState('2026-10-27');
 
   // Quick Add Form States
   const [amount, setAmount] = useState('');
@@ -96,30 +138,31 @@ export default function FinanceDashboard() {
     try {
       setLoading(true);
 
-      const { data: accData } = await supabase.from('accounts').select('*');
-      if (accData && accData.length > 0) {
+      const { data: accData, error: accErr } = await supabase.from('accounts').select('*');
+      if (!accErr && accData && accData.length > 0) {
         setAccounts(accData);
-        const firstAccName = accData[0].name || accData[0].account_name || '';
+        const firstAccName = accData[0]?.name || accData[0]?.account_name || '';
         if (!selectedAccount) setSelectedAccount(firstAccName);
         if (!paymentAccountId) setPaymentAccountId(firstAccName);
       }
 
-      const { data: txData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
-      if (txData) setTransactions(txData);
+      const { data: txData, error: txErr } = await supabase.from('transactions').select('*');
+      if (!txErr && txData) setTransactions(txData);
 
-      const { data: billData } = await supabase.from('bills').select('*');
-      if (billData) {
+      const { data: billData, error: billErr } = await supabase.from('bills').select('*');
+      if (!billErr && billData) {
         const pendingBills = billData.filter(b => {
-          const stat = (b.status || b.payment_status || '').toUpperCase();
+          const stat = (b?.status || b?.payment_status || '').toUpperCase();
           return stat === 'PENDING' || stat === 'UNPAID';
         });
         setBills(pendingBills);
       }
 
-      const { data: budgetData } = await supabase.from('budgets').select('*');
-      if (budgetData) setBudgets(budgetData);
+      const { data: budgetData, error: budgetErr } = await supabase.from('budgets').select('*');
+      if (!budgetErr && budgetData) setBudgets(budgetData);
+
     } catch (err) {
-      console.error('Fetch error:', err);
+      console.error('Fetch error caught:', err);
     } finally {
       setLoading(false);
     }
@@ -127,10 +170,14 @@ export default function FinanceDashboard() {
 
   useEffect(() => {
     setIsMounted(true);
-    const now = new Date();
-    setSelectedMonth(now.toISOString().slice(0, 7));
-    setSelectedYear(now.getFullYear().toString());
-    setTodayStr(now.toISOString().slice(0, 10));
+    try {
+      const now = new Date();
+      setSelectedMonth(now.toISOString().slice(0, 7));
+      setSelectedYear(now.getFullYear().toString());
+      setTodayStr(now.toISOString().slice(0, 10));
+    } catch (e) {
+      // Fallback
+    }
     fetchData();
   }, []);
 
@@ -142,58 +189,69 @@ export default function FinanceDashboard() {
       return alert('Amount, Description aur Account sab zaroori hain!');
     }
 
-    setLoading(true);
-    const currentDate = new Date().toISOString().split('T')[0];
-    const { error } = await supabase.from('transactions').insert([
-      {
-        type,
-        amount: parseFloat(amount),
-        description,
-        entered_by: enteredBy,
-        account_name: selectedAccount,
-        date: currentDate,
-        transaction_date: currentDate,
-      },
-    ]);
+    try {
+      setLoading(true);
+      const currentDate = new Date().toISOString().split('T')[0];
+      const { error } = await supabase.from('transactions').insert([
+        {
+          type,
+          amount: parseFloat(amount),
+          description,
+          entered_by: enteredBy,
+          account_name: selectedAccount,
+          date: currentDate,
+          transaction_date: currentDate,
+        },
+      ]);
 
-    if (error) {
-      alert('Error: ' + error.message);
-    } else {
-      setAmount('');
-      setDescription('');
-      fetchData();
+      if (error) {
+        alert('Error: ' + error.message);
+      } else {
+        setAmount('');
+        setDescription('');
+        fetchData();
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleConfirmPayBill = async () => {
     if (!selectedBillToPay) return;
     if (!paymentAccountId) return alert('Kripya Bill Pay karne ke liye ek account select karein!');
 
-    setLoading(true);
-    const currentDate = new Date().toISOString().split('T')[0];
-    const billAmt = Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0);
-    const billProvider = selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Bill Payment';
+    try {
+      setLoading(true);
+      const currentDate = new Date().toISOString().split('T')[0];
+      const billAmt = Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0);
+      const billProvider = selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Bill Payment';
 
-    await supabase.from('bills').update({ status: 'Paid', payment_status: 'PAID' }).eq('id', selectedBillToPay.id);
+      await supabase.from('bills').update({ status: 'Paid', payment_status: 'PAID' }).eq('id', selectedBillToPay.id);
 
-    await supabase.from('transactions').insert([
-      {
-        type: 'Expense',
-        amount: billAmt,
-        description: `Bill Payment: ${billProvider}`,
-        entered_by: 'System',
-        account_name: paymentAccountId,
-        date: currentDate,
-        transaction_date: currentDate,
-      },
-    ]);
+      await supabase.from('transactions').insert([
+        {
+          type: 'Expense',
+          amount: billAmt,
+          description: `Bill Payment: ${billProvider}`,
+          entered_by: 'System',
+          account_name: paymentAccountId,
+          date: currentDate,
+          transaction_date: currentDate,
+        },
+      ]);
 
-    setSelectedBillToPay(null);
-    fetchData();
+      setSelectedBillToPay(null);
+      fetchData();
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Date filtering logic safely handled
+  // Safe date filtering
   const filteredTransactions = transactions.filter((tx) => {
     if (!tx) return false;
     const txDate = (tx.date || tx.transaction_date || '').trim();
@@ -218,18 +276,18 @@ export default function FinanceDashboard() {
   
   const filteredIncome = filteredTransactions
     .filter((t) => {
-      const tType = (t.type || '').trim().toLowerCase();
-      const tCat = (t.category || '').trim().toLowerCase();
+      const tType = (t?.type || '').trim().toLowerCase();
+      const tCat = (t?.category || '').trim().toLowerCase();
       return tType.includes('income') || tType.includes('deposit') || tType.includes('inflow') || tCat.includes('income');
     })
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
   const filteredExpense = filteredTransactions
     .filter((t) => {
-      const tType = (t.type || '').trim().toLowerCase();
+      const tType = (t?.type || '').trim().toLowerCase();
       return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
     })
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
   const urgentBillsCount = bills.filter(b => {
     if (!b || !b.due_date || !todayStr) return false;
@@ -252,7 +310,7 @@ export default function FinanceDashboard() {
           <div className="flex items-center gap-2">
             <button
               onClick={fetchData}
-              className="flex items-center gap-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition border border-slate-200 dark:border-slate-700"
+              className="flex items-center gap-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition border border-slate-200 dark:border-slate-700 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
             </button>
@@ -278,7 +336,7 @@ export default function FinanceDashboard() {
             <Filter className="w-4 h-4 text-indigo-500 mr-1" />
             <button
               onClick={() => setFilterMode('month')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 filterMode === 'month' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
@@ -286,7 +344,7 @@ export default function FinanceDashboard() {
             </button>
             <button
               onClick={() => setFilterMode('year')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 filterMode === 'year' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
@@ -294,7 +352,7 @@ export default function FinanceDashboard() {
             </button>
             <button
               onClick={() => setFilterMode('custom')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 filterMode === 'custom' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
@@ -553,7 +611,7 @@ export default function FinanceDashboard() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition text-xs shadow-sm"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition text-xs shadow-sm cursor-pointer"
                   >
                     {loading ? 'Processing...' : 'Save Quick Entry'}
                   </button>
@@ -663,7 +721,7 @@ export default function FinanceDashboard() {
               </h3>
               <button
                 onClick={() => setSelectedBillToPay(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -708,7 +766,7 @@ export default function FinanceDashboard() {
               <button
                 type="button"
                 onClick={() => setSelectedBillToPay(null)}
-                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition"
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -716,7 +774,7 @@ export default function FinanceDashboard() {
                 type="button"
                 disabled={loading}
                 onClick={handleConfirmPayBill}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs"
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs cursor-pointer"
               >
                 {loading ? 'Processing...' : 'Confirm & Pay'}
               </button>
