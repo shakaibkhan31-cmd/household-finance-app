@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Error Boundary Component to prevent full page crash
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -47,7 +46,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           <p className="text-xs text-slate-500 font-mono">{this.state.error?.message}</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl"
+            className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl cursor-pointer"
           >
             Reload Page
           </button>
@@ -271,7 +270,7 @@ function DashboardContent() {
 
   const totalAvailableCash = accounts.reduce((acc, a) => {
     const bal = a?.current_balance ?? a?.opening_balance ?? 0;
-    return acc + Number(bal);
+    return acc + Number(bal || 0);
   }, 0);
   
   const filteredIncome = filteredTransactions
@@ -410,7 +409,7 @@ function DashboardContent() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-3">
-              PKR {totalAvailableCash.toLocaleString()}
+              PKR {Number(totalAvailableCash || 0).toLocaleString()}
             </h3>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-2 flex items-center gap-1">
               <TrendingUp className="w-3.5 h-3.5" /> Across {accounts.length} Wallets/Banks
@@ -425,7 +424,7 @@ function DashboardContent() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-3">
-              PKR {filteredIncome.toLocaleString()}
+              PKR {Number(filteredIncome || 0).toLocaleString()}
             </h3>
             <p className="text-[11px] text-slate-400 font-medium mt-2">Selected Period Income</p>
           </div>
@@ -438,7 +437,7 @@ function DashboardContent() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-3">
-              PKR {filteredExpense.toLocaleString()}
+              PKR {Number(filteredExpense || 0).toLocaleString()}
             </h3>
             <p className="text-[11px] text-rose-500 font-medium mt-2 flex items-center gap-1">
               <TrendingDown className="w-3.5 h-3.5" /> Selected Period Expense
@@ -456,8 +455,8 @@ function DashboardContent() {
             
             <div className="space-y-3 pt-2">
               <div className="flex justify-between text-xs font-semibold">
-                <span className="text-blue-600 dark:text-blue-400">Inflow: PKR {filteredIncome.toLocaleString()}</span>
-                <span className="text-rose-600 dark:text-rose-400">Outflow: PKR {filteredExpense.toLocaleString()}</span>
+                <span className="text-blue-600 dark:text-blue-400">Inflow: PKR {Number(filteredIncome || 0).toLocaleString()}</span>
+                <span className="text-rose-600 dark:text-rose-400">Outflow: PKR {Number(filteredExpense || 0).toLocaleString()}</span>
               </div>
               
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden flex">
@@ -470,7 +469,7 @@ function DashboardContent() {
                   style={{ width: `${filteredIncome + filteredExpense > 0 ? (filteredExpense / (filteredIncome + filteredExpense)) * 100 : 50}%` }}
                 ></div>
               </div>
-              <p className="text-[11px] text-slate-400 text-center">Net Period Variance: PKR {(filteredIncome - filteredExpense).toLocaleString()}</p>
+              <p className="text-[11px] text-slate-400 text-center">Net Period Variance: PKR {Number((filteredIncome || 0) - (filteredExpense || 0)).toLocaleString()}</p>
             </div>
           </div>
 
@@ -489,13 +488,14 @@ function DashboardContent() {
             ) : (
               <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
                 {budgets.slice(0, 2).map((b) => {
-                  const spent = b.spent_amount || Math.floor(b.allocated_amount * 0.4);
-                  const pct = Math.min(Math.round((spent / b.allocated_amount) * 100), 100);
+                  const alloc = Number(b?.allocated_amount || 0);
+                  const spent = Number(b?.spent_amount || Math.floor(alloc * 0.4));
+                  const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
                   return (
                     <div key={b.id} className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="font-semibold text-slate-700 dark:text-slate-200">{b.category}</span>
-                        <span className="text-slate-400">PKR {spent.toLocaleString()} / {b.allocated_amount.toLocaleString()}</span>
+                        <span className="text-slate-400">PKR {spent.toLocaleString()} / {alloc.toLocaleString()}</span>
                       </div>
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div 
@@ -531,7 +531,7 @@ function DashboardContent() {
                 {accounts.map((acc) => {
                   const accName = acc?.name || acc?.account_name || 'Account';
                   const accType = acc?.type || acc?.account_type || 'Bank';
-                  const accBal = acc?.current_balance ?? acc?.opening_balance ?? 0;
+                  const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
                   return (
                     <div key={acc.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
                       <div>
@@ -539,7 +539,7 @@ function DashboardContent() {
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{accType}</p>
                       </div>
                       <p className="text-base font-bold text-slate-900 dark:text-white">
-                        PKR {Number(accBal).toLocaleString()}
+                        PKR {accBal.toLocaleString()}
                       </p>
                     </div>
                   );
@@ -752,10 +752,10 @@ function DashboardContent() {
               >
                 {accounts.map((acc) => {
                   const accName = acc?.name || acc?.account_name || '';
-                  const accBal = acc?.current_balance ?? acc?.opening_balance ?? 0;
+                  const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
                   return (
                     <option key={acc.id} value={accName}>
-                      {accName} (Bal: PKR {Number(accBal).toLocaleString()})
+                      {accName} (Bal: PKR {accBal.toLocaleString()})
                     </option>
                   );
                 })}
@@ -768,7 +768,7 @@ function DashboardContent() {
                 onClick={() => setSelectedBillToPay(null)}
                 className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
               >
-                Cancel
+                Cancel.
               </button>
               <button
                 type="button"
