@@ -142,40 +142,40 @@ export default function BudgetsPage() {
   const totalSpent = Object.values(spendingMap).reduce((sum, amt) => sum + amt, 0);
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
       {/* Header & Overview */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Monthly Budget & Limits</h1>
-          <p className="text-sm text-slate-500 mt-1">Set category spending thresholds and monitor monthly financial discipline</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Monthly Budget & Limits</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Set category spending thresholds and monitor monthly financial discipline</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex-1 md:w-44">
-            <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Total Limit</p>
-            <p className="text-xl font-bold text-indigo-950 mt-0.5">PKR {totalBudgetLimit.toLocaleString()}</p>
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-44">
+            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Total Limit</p>
+            <p className="text-xl font-bold text-indigo-950 dark:text-indigo-200 mt-0.5">PKR {totalBudgetLimit.toLocaleString()}</p>
           </div>
-          <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex-1 md:w-44">
-            <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Spent This Month</p>
-            <p className="text-xl font-bold text-rose-950 mt-0.5">PKR {totalSpent.toLocaleString()}</p>
+          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-44">
+            <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Spent This Month</p>
+            <p className="text-xl font-bold text-rose-950 dark:text-rose-200 mt-0.5">PKR {totalSpent.toLocaleString()}</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Set Budget Form */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Plus className="w-5 h-5 text-indigo-600" />
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
+          <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             Set Category Budget
           </h2>
 
           <form onSubmit={handleSaveBudget} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Expense Category</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Expense Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
@@ -187,27 +187,27 @@ export default function BudgetsPage() {
 
             {category === 'Other' && (
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Custom Category Name</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Custom Category Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Subscription / Maintenance"
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Monthly Limit (PKR)</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Limit (PKR)</label>
               <input
                 type="number"
                 required
                 placeholder="e.g. 50000"
                 value={monthlyLimit}
                 onChange={(e) => setMonthlyLimit(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-900"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
               />
             </div>
 
@@ -222,8 +222,8 @@ export default function BudgetsPage() {
 
         {/* Right Column: Budgets Progress List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <h2 className="text-base font-semibold text-slate-800">Category Budgets & Progress (Current Month)</h2>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+            <h2 className="text-base font-semibold text-slate-800 dark:text-white">Category Budgets & Progress (Current Month)</h2>
 
             {loading ? (
               <p className="text-xs text-slate-400 py-4 text-center">Loading budgets...</p>
@@ -238,16 +238,16 @@ export default function BudgetsPage() {
                   const isOver = spent > limit;
 
                   return (
-                    <div key={b.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                    <div key={b.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800 text-sm">{b.category}</span>
+                          <span className="font-bold text-slate-800 dark:text-white text-sm">{b.category}</span>
                           {isOver ? (
-                            <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                            <span className="text-[10px] bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" /> Over Budget
                             </span>
                           ) : (
-                            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3" /> On Track
                             </span>
                           )}
@@ -259,14 +259,14 @@ export default function BudgetsPage() {
                               setEditingBudget(b);
                               setEditLimit(b.monthly_limit.toString());
                             }}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                            className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-lg transition"
                             title="Edit Limit"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteBudget(b.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
                             title="Delete Budget"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -274,13 +274,13 @@ export default function BudgetsPage() {
                         </div>
                       </div>
 
-                      <div className="flex justify-between text-xs text-slate-600">
-                        <span>Spent This Month: <strong className="text-slate-900">PKR {spent.toLocaleString()}</strong></span>
-                        <span>Limit: <strong className="text-slate-900">PKR {limit.toLocaleString()}</strong></span>
+                      <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
+                        <span>Spent This Month: <strong className="text-slate-900 dark:text-white">PKR {spent.toLocaleString()}</strong></span>
+                        <span>Limit: <strong className="text-slate-900 dark:text-white">PKR {limit.toLocaleString()}</strong></span>
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 ${
                             isOver ? 'bg-rose-600' : percentage > 80 ? 'bg-amber-500' : 'bg-emerald-600'
@@ -303,23 +303,23 @@ export default function BudgetsPage() {
       {/* Edit Budget Modal */}
       {editingBudget && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Edit Budget — {editingBudget.category}</h3>
-              <button onClick={() => setEditingBudget(null)} className="text-slate-400 hover:text-slate-600">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Budget — {editingBudget.category}</h3>
+              <button onClick={() => setEditingBudget(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleUpdateBudget} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">New Monthly Limit (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">New Monthly Limit (PKR)</label>
                 <input
                   type="number"
                   required
                   value={editLimit}
                   onChange={(e) => setEditLimit(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                 />
               </div>
 
@@ -327,7 +327,7 @@ export default function BudgetsPage() {
                 <button
                   type="button"
                   onClick={() => setEditingBudget(null)}
-                  className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                  className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
                 >
                   Cancel
                 </button>
