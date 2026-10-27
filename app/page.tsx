@@ -44,7 +44,8 @@ interface Transaction {
   id: string;
   date?: string;
   transaction_date?: string;
-  type: string;
+  type?: string;
+  category?: string;
   amount: number;
   description: string;
   account_name?: string;
@@ -87,7 +88,7 @@ export default function FinanceDashboard() {
     if (billData) {
       const pendingBills = billData.filter(b => {
         const stat = (b.status || b.payment_status || '').toUpperCase();
-        return stat === 'PENDING' || stat === 'UNpaid' || stat === 'UNPAID';
+        return stat === 'PENDING' || stat === 'UNPAID';
       });
       setBills(pendingBills);
     }
@@ -97,7 +98,7 @@ export default function FinanceDashboard() {
 
   useEffect(() => {
     const now = new Date();
-    setSelectedMonth(now.toISOString().slice(0, 7));
+    setSelectedMonth(now.toISOString().slice(0, 7)); // e.g. "2026-10"
     setSelectedYear(now.getFullYear().toString());
     fetchData();
   }, []);
@@ -158,7 +159,7 @@ export default function FinanceDashboard() {
     fetchData();
   };
 
-  // Robust date filtering supporting both `date` and `transaction_date` columns
+  // Date filtering logic
   const filteredTransactions = transactions.filter((tx) => {
     const txDate = (tx.date || tx.transaction_date || '').trim();
     if (!txDate) return false;
@@ -180,17 +181,19 @@ export default function FinanceDashboard() {
     return acc + Number(bal);
   }, 0);
   
+  // Broadened income & expense check to capture all variations ('Income', 'INCOME', 'Deposit', etc.)
   const filteredIncome = filteredTransactions
     .filter((t) => {
       const tType = (t.type || '').trim().toLowerCase();
-      return tType === 'income' || tType === 'inflow';
+      const tCat = (t.category || '').trim().toLowerCase();
+      return tType.includes('income') || tType.includes('deposit') || tType.includes('inflow') || tCat.includes('income');
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   const filteredExpense = filteredTransactions
     .filter((t) => {
       const tType = (t.type || '').trim().toLowerCase();
-      return tType === 'expense' || tType === 'outflow';
+      return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
