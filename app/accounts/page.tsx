@@ -129,13 +129,13 @@ export default function AccountsPage() {
     }
   };
 
-  // Robust Net Liquid Worth Calculation: Case-insensitive check for credit card liability subtraction
+  // Correct Net Liquid Worth Calculation: Bank (36,410) + Cash (11,000) - Credit Card Liability (301,000) = -253,590
   const totalNetLiquidWorth = accounts.reduce((sum, acc) => {
     const bal = Number(acc.current_balance || 0);
     const accType = (acc.type || '').trim().toLowerCase();
     
-    if (accType.includes('credit')) {
-      return sum - bal; // Subtract liability securely
+    if (accType === 'credit card' || accType.includes('credit')) {
+      return sum - bal; // Subtract credit card liability
     }
     return sum + bal; // Add bank, wallet, cash
   }, 0);
@@ -165,7 +165,9 @@ export default function AccountsPage() {
         <div className="flex gap-3 w-full md:w-auto">
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-48">
             <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Net Liquid Worth</p>
-            <p className="text-xl font-bold text-indigo-900 dark:text-indigo-200 mt-0.5 whitespace-nowrap">PKR {totalNetLiquidWorth.toLocaleString()}</p>
+            <p className={`text-xl font-bold mt-0.5 whitespace-nowrap ${totalNetLiquidWorth < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-900 dark:text-indigo-200'}`}>
+              PKR {totalNetLiquidWorth.toLocaleString()}
+            </p>
           </div>
           {totalCreditLimit > 0 && (
             <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-48">
