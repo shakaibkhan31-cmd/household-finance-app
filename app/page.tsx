@@ -166,7 +166,6 @@ function DashboardContent() {
 
       const { data: budgetData, error: budgetErr } = await supabase.from('budgets').select('*');
       if (!budgetErr && budgetData && budgetData.length > 0) {
-        console.log('Fetched Budgets from DB:', budgetData);
         setBudgets(budgetData);
       } else {
         setBudgets([
@@ -311,6 +310,32 @@ function DashboardContent() {
     if (!b || !b.due_date || !todayStr) return false;
     return b.due_date <= todayStr;
   }).length;
+
+  // Processed and Sorted Budgets (Highest spent percentage on top)
+  const processedBudgets = budgets.map((b) => {
+    const bName = b?.category || b?.name || b?.title || 'General';
+    const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? b?.monthly_limit ?? b?.budget_limit ?? 20000);
+    
+    const calcSpent = filteredTransactions
+      .filter(t => {
+        const tCat = (t?.category || '').toLowerCase();
+        const tDesc = (t?.description || '').toLowerCase();
+        const nameLower = bName.toLowerCase();
+        return tCat.includes(nameLower) || tDesc.includes(nameLower);
+      })
+      .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
+
+    const spent = calcSpent > 0 ? calcSpent : Number(b?.spent_amount || 0);
+    const pct = alloc > 0 ? Math.round((spent / alloc) * 100) : 0;
+
+    return {
+      ...b,
+      bName,
+      alloc,
+      spent,
+      pct: Math.min(pct, 100)
+    };
+  }).sort((itemA, itemB) => itemB.spent - itemA.spent); // Sorted by highest spent amount/percentage first
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors relative">
@@ -495,59 +520,31 @@ function DashboardContent() {
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-emerald-500" /> Budget Health Thresholds
+                <PieChart className="w-4 h-4 text-emerald-500" /> Budget Health Thresholds (Sorted by Usage)
               </h3>
               <Link href="/budgets" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
                 View All
               </Link>
             </div>
 
-            {budgets.length === 0 ? (
+            {processedBudgets.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-6">No budgets configured yet.</p>
             ) : (
-              <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
-                {budgets.map((b, idx) => {
-                  const bName = b?.category || b?.name || b?.title || 'General';
-                  
-                  // Comprehensive check for all possible allocated budget column names in Supabase
-                  const alloc = Number(
-                    b?.allocated_amount ?? 
-                    b?.amount ?? 
-                    b?.budget_amount ?? 
-                    b?.limit ?? 
-                    b?.monthly_limit ?? 
-                    b?.budget_limit ?? 
-                    20000
-                  );
-
-                  // Calculate exact spent from transactions matching category name
-                  const calcSpent = filteredTransactions
-                    .filter(t => {
-                      const tCat = (t?.category || '').toLowerCase();
-                      const tDesc = (t?.description || '').toLowerCase();
-                      const nameLower = bName.toLowerCase();
-                      return tCat.includes(nameLower) || tDesc.includes(nameLower);
-                    })
-                    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
-
-                  const spent = calcSpent > 0 ? calcSpent : Number(b?.spent_amount || 0);
-                  const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
-
-                  return (
-                    <div key={b.id || idx} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">{bName}</span>
-                        <span className="text-slate-400">PKR {spent.toLocaleString()} / {alloc.toLocaleString()}</span>
-                      </div>
-                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${pct > 80 ? 'bg-rose-500' : pct > 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                          style={{ width: `${pct}%` }}
-                        ></div>
-                      </div>
+              <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
+                {processedBudgets.map((b, idx) => (
+                  <div key={b.id || idx} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{b.bName}</span>
+                      <span className="text-slate-400">PKR {b.spent.toLocaleString()} / {b.alloc.toLocaleString()}</span>
                     </div>
-                  );
-                })}
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${b.pct > 80 ? 'bg-rose-500' : b.pct > 40 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${b.pct}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
