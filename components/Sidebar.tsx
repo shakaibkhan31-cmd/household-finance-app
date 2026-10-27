@@ -87,7 +87,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile Top Header with Hamburger Toggle */}
-      <div className="lg:hidden bg-slate-900 text-white p-4 flex items-center justify-between sticky top-0 z-50 border-b border-slate-800 shadow-sm">
+      <div className="lg:hidden bg-slate-900 dark:bg-slate-950 text-white p-4 flex items-center justify-between sticky top-0 z-50 border-b border-slate-800 dark:border-slate-800 shadow-sm transition-colors">
         <h1 className="font-bold text-base tracking-wide">Household Finance</h1>
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
@@ -107,7 +107,7 @@ export default function Sidebar() {
 
       {/* Sidebar Desktop & Mobile Sliding Drawer */}
       <aside 
-        className={`bg-slate-900 text-slate-300 min-h-screen p-4 flex flex-col justify-between shrink-0 transition-all duration-300 z-50
+        className={`bg-slate-900 dark:bg-slate-900 text-slate-300 min-h-screen p-4 flex flex-col justify-between shrink-0 transition-all duration-300 z-50 border-r border-slate-800/60 dark:border-slate-800
           fixed lg:relative inset-y-0 left-0 shadow-xl lg:shadow-none
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
           ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
@@ -116,7 +116,7 @@ export default function Sidebar() {
         {/* Desktop Collapse Toggle Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex absolute -right-3 top-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-1 shadow-md border-2 border-slate-900 transition items-center justify-center z-10"
+          className="hidden lg:flex absolute -right-3 top-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-1 shadow-md border-2 border-slate-900 dark:border-slate-900 transition items-center justify-center z-10"
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
