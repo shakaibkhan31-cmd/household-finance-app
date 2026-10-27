@@ -16,7 +16,8 @@ import {
   Clock,
   ArrowRight,
   Calendar,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -32,8 +33,11 @@ interface Account {
 
 interface Bill {
   id: string;
-  provider: string;
-  due_date: string;
+  provider?: string;
+  title?: string;
+  bill_name?: string;
+  name?: string;
+  due_date?: string;
   amount?: number;
   bill_amount?: number;
   status?: string;
@@ -71,6 +75,10 @@ export default function FinanceDashboard() {
   const [enteredBy, setEnteredBy] = useState('Husband');
   const [selectedAccount, setSelectedAccount] = useState('');
 
+  // Bill Pay Modal States
+  const [selectedBillToPay, setSelectedBillToPay] = useState<Bill | null>(null);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
+
   const fetchData = async () => {
     setLoading(true);
 
@@ -79,6 +87,7 @@ export default function FinanceDashboard() {
       setAccounts(accData);
       const firstAccName = accData[0].name || accData[0].account_name || '';
       if (!selectedAccount) setSelectedAccount(firstAccName);
+      if (!paymentAccountId) setPaymentAccountId(firstAccName);
     }
 
     const { data: txData } = await supabase.from('transactions').select('*');
@@ -98,7 +107,7 @@ export default function FinanceDashboard() {
 
   useEffect(() => {
     const now = new Date();
-    setSelectedMonth(now.toISOString().slice(0, 7)); // e.g. "2026-10"
+    setSelectedMonth(now.toISOString().slice(0, 7));
     setSelectedYear(now.getFullYear().toString());
     fetchData();
   }, []);
@@ -133,29 +142,30 @@ export default function FinanceDashboard() {
     setLoading(false);
   };
 
-  const handlePayBill = async (bill: Bill) => {
-    const accName = selectedAccount;
-    if (!accName) return alert('Pehle ek Account select karein!');
-    const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
-    if (!confirm(`${bill.provider} ka PKR ${billAmt.toLocaleString()} bill paid mark karein?`)) return;
+  const handleConfirmPayBill = async () => {
+    if (!selectedBillToPay) return;
+    if (!paymentAccountId) return alert('Kripya Bill Pay karne ke liye ek account select karein!');
 
     setLoading(true);
     const currentDate = new Date().toISOString().split('T')[0];
-    
-    await supabase.from('bills').update({ status: 'Paid', payment_status: 'PAID' }).eq('id', bill.id);
+    const billAmt = Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0);
+    const billProvider = selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Bill Payment';
+
+    await supabase.from('bills').update({ status: 'Paid', payment_status: 'PAID' }).eq('id', selectedBillToPay.id);
 
     await supabase.from('transactions').insert([
       {
         type: 'Expense',
         amount: billAmt,
-        description: `Bill Payment: ${bill.provider}`,
+        description: `Bill Payment: ${billProvider}`,
         entered_by: 'System',
-        account_name: accName,
+        account_name: paymentAccountId,
         date: currentDate,
         transaction_date: currentDate,
       },
     ]);
 
+    setSelectedBillToPay(null);
     fetchData();
   };
 
@@ -163,7 +173,7 @@ export default function FinanceDashboard() {
   const filteredTransactions = transactions.filter((tx) => {
     const txDate = (tx.date || tx.transaction_date || '').trim();
     if (!txDate) return false;
-    const datePrefix = txDate.slice(0, 10); // YYYY-MM-DD
+    const datePrefix = txDate.slice(0, 10);
 
     if (filterMode === 'month') {
       return selectedMonth ? datePrefix.startsWith(selectedMonth) : true;
@@ -181,7 +191,6 @@ export default function FinanceDashboard() {
     return acc + Number(bal);
   }, 0);
   
-  // Broadened income & expense check to capture all variations ('Income', 'INCOME', 'Deposit', etc.)
   const filteredIncome = filteredTransactions
     .filter((t) => {
       const tType = (t.type || '').trim().toLowerCase();
@@ -198,7 +207,7 @@ export default function FinanceDashboard() {
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors relative">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header */}
@@ -463,11 +472,13 @@ export default function FinanceDashboard() {
               <div className="space-y-3">
                 {bills.map((bill) => {
                   const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
+                  const providerName = bill.provider || bill.title || bill.bill_name || bill.name || 'Utility Bill';
+
                   return (
                     <div key={bill.id} className="p-3.5 rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-bold text-slate-800 dark:text-white text-xs">{bill.provider}</h4>
+                          <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}</h4>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due: {bill.due_date}</p>
                         </div>
                         <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
@@ -478,8 +489,13 @@ export default function FinanceDashboard() {
                       <div className="flex justify-between items-center pt-1">
                         <span className="text-sm font-bold text-slate-900 dark:text-white">PKR {billAmt.toLocaleString()}</span>
                         <button
-                          onClick={() => handlePayBill(bill)}
-                          className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-xs"
+                          onClick={() => {
+                            setSelectedBillToPay(bill);
+                            if (accounts.length > 0) {
+                              setPaymentAccountId(accounts[0].name || accounts[0].account_name || '');
+                            }
+                          }}
+                          className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
                         >
                           <CheckCircle className="w-3 h-3" /> Pay
                         </button>
@@ -494,6 +510,79 @@ export default function FinanceDashboard() {
         </div>
 
       </div>
+
+      {/* Bill Payment Account Selection Modal */}
+      {selectedBillToPay && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-emerald-500" /> Confirm Bill Payment
+              </h3>
+              <button
+                onClick={() => setSelectedBillToPay(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-1.5 border border-slate-100 dark:border-slate-800">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Bill Provider</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                {selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Utility Bill'}
+              </p>
+              
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">Amount Due</span>
+                <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                  PKR {Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Select Account to Pay From
+              </label>
+              <select
+                value={paymentAccountId}
+                onChange={(e) => setPaymentAccountId(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium"
+              >
+                {accounts.map((acc) => {
+                  const accName = acc.name || acc.account_name || '';
+                  const accBal = acc.current_balance ?? acc.opening_balance ?? 0;
+                  return (
+                    <option key={acc.id} value={accName}>
+                      {accName} (Bal: PKR {Number(accBal).toLocaleString()})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedBillToPay(null)}
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleConfirmPayBill}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs"
+              >
+                {loading ? 'Processing...' : 'Confirm & Pay'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
