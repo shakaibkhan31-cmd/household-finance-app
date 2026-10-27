@@ -339,10 +339,10 @@ export default function DebtsPage() {
           </p>
         </div>
 
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full md:w-auto">
           <button
             onClick={() => setActiveTab('debts')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
+            className={`flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               activeTab === 'debts' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -350,7 +350,7 @@ export default function DebtsPage() {
           </button>
           <button
             onClick={() => setActiveTab('kametis')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+            className={`flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'kametis' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -378,7 +378,7 @@ export default function DebtsPage() {
                 <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Total Receivable (Logay)</p>
                 <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-200 mt-1">PKR {totalReceivable.toLocaleString()}</p>
               </div>
-              <ArrowDownLeft className="w-8 h-8 text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 p-1.5 rounded-xl" />
+              <ArrowDownLeft className="w-8 h-8 text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 p-1.5 rounded-xl shrink-0" />
             </div>
 
             <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-5 rounded-2xl flex items-center justify-between">
@@ -386,7 +386,7 @@ export default function DebtsPage() {
                 <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Total Payable (Denay)</p>
                 <p className="text-2xl font-bold text-rose-900 dark:text-rose-200 mt-1">PKR {totalPayable.toLocaleString()}</p>
               </div>
-              <ArrowUpRight className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl" />
+              <ArrowUpRight className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl shrink-0" />
             </div>
           </div>
 
@@ -476,7 +476,7 @@ export default function DebtsPage() {
 
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
                 >
                   Add Debt Entry
                 </button>
@@ -484,7 +484,7 @@ export default function DebtsPage() {
             </div>
 
             <div className="lg:col-span-2 space-y-4">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4">
                 <h2 className="text-base font-semibold text-slate-800 dark:text-white">Active Loans & Debts Ledger</h2>
 
                 {loading ? (
@@ -500,7 +500,7 @@ export default function DebtsPage() {
                       return (
                         <div
                           key={d.id}
-                          className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                          className={`p-3.5 md:p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition ${
                             isSettled
                               ? 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-75'
                               : isReceivable
@@ -508,8 +508,8 @@ export default function DebtsPage() {
                               : 'bg-rose-50/30 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40'
                           }`}
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                          <div className="space-y-1 w-full sm:w-auto pr-0 sm:pr-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-slate-800 dark:text-white text-sm">{d.person_name}</span>
                               <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md font-medium">{d.type}</span>
                               <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${isReceivable ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'}`}>
@@ -520,14 +520,16 @@ export default function DebtsPage() {
                             <p className="text-[11px] text-slate-400 font-mono">Due: {d.due_date} {isSettled && '• (Settled)'}</p>
                           </div>
 
-                          <div className="text-right space-y-2">
-                            <p className={`text-base font-bold ${isSettled ? 'text-slate-400 line-through' : isReceivable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                              PKR {Number(d.amount).toLocaleString()}
-                            </p>
+                          <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
+                            <div>
+                              <p className={`text-base font-bold whitespace-nowrap ${isSettled ? 'text-slate-400 line-through' : isReceivable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                                PKR {Number(d.amount).toLocaleString()}
+                              </p>
+                            </div>
                             <div className="flex items-center gap-1.5 justify-end">
                               <button
                                 onClick={() => openHistoryModal(d.person_name, 'debt')}
-                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition"
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
                                 title="View History Trail"
                               >
                                 <History className="w-4 h-4" />
@@ -535,7 +537,7 @@ export default function DebtsPage() {
                               {!isSettled && (
                                 <button
                                   onClick={() => handleOpenSettlementModal(d)}
-                                  className="text-[11px] text-white bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 font-medium px-3 py-1 rounded-lg transition shadow-xs"
+                                  className="text-[11px] text-white bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 font-medium px-3 py-1 rounded-lg transition shadow-xs cursor-pointer"
                                 >
                                   Settle / Pay
                                 </button>
@@ -561,7 +563,7 @@ export default function DebtsPage() {
               <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">Total Active Kameti Pools</p>
               <p className="text-2xl font-bold text-indigo-950 dark:text-indigo-200 mt-1">PKR {activeKametisPool.toLocaleString()}</p>
             </div>
-            <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 p-1.5 rounded-xl" />
+            <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 p-1.5 rounded-xl shrink-0" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -634,7 +636,7 @@ export default function DebtsPage() {
 
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
                 >
                   Add Kameti Circle
                 </button>
@@ -642,7 +644,7 @@ export default function DebtsPage() {
             </div>
 
             <div className="lg:col-span-2 space-y-4">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4">
                 <h2 className="text-base font-semibold text-slate-800 dark:text-white">Active Kameti Circles</h2>
 
                 {kametis.length === 0 ? (
@@ -654,12 +656,12 @@ export default function DebtsPage() {
                       return (
                         <div 
                           key={k.id}
-                          className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                          className={`p-3.5 md:p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition ${
                             isCompleted ? 'bg-slate-50 dark:bg-slate-800/40 opacity-75' : 'bg-indigo-50/30 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40'
                           }`}
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                          <div className="space-y-1 w-full sm:w-auto pr-0 sm:pr-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-slate-800 dark:text-white text-sm">{k.committee_name}</span>
                               <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-semibold">Turn: {k.my_turn_month}</span>
                               {isCompleted && <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium">Completed</span>}
@@ -668,16 +670,16 @@ export default function DebtsPage() {
                             <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Monthly Installment: <strong className="text-indigo-900 dark:text-indigo-300">PKR {Number(k.monthly_installment).toLocaleString()}</strong></p>
                           </div>
 
-                          <div className="text-right space-y-2">
+                          <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
                             <div>
-                              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Pool</p>
-                              <p className="text-base font-bold text-slate-900 dark:text-white">PKR {Number(k.total_pool_amount).toLocaleString()}</p>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wider text-left sm:text-right">Total Pool</p>
+                              <p className="text-base font-bold text-slate-900 dark:text-white whitespace-nowrap">PKR {Number(k.total_pool_amount).toLocaleString()}</p>
                             </div>
 
                             <div className="flex gap-1.5 justify-end">
                               <button
                                 onClick={() => openHistoryModal(k.committee_name, 'kameti')}
-                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition"
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
                                 title="View Installment History"
                               >
                                 <History className="w-4 h-4" />
@@ -686,13 +688,13 @@ export default function DebtsPage() {
                                 <>
                                   <button
                                     onClick={() => handleOpenKametiAction(k, 'pay')}
-                                    className="text-[11px] text-white bg-indigo-600 hover:bg-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition"
+                                    className="text-[11px] text-white bg-indigo-600 hover:bg-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer"
                                   >
                                     + Pay
                                   </button>
                                   <button
                                     onClick={() => handleOpenKametiAction(k, 'receive')}
-                                    className="text-[11px] text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg transition"
+                                    className="text-[11px] text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer"
                                   >
                                     Receive
                                   </button>
@@ -720,7 +722,7 @@ export default function DebtsPage() {
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Transaction History Trail</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{historyModalItem.title}</p>
               </div>
-              <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">×</button>
+              <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">×</button>
             </div>
 
             <div className="max-h-80 overflow-y-auto space-y-2">
@@ -733,7 +735,7 @@ export default function DebtsPage() {
                       <p className="font-semibold text-slate-800 dark:text-white">{tx.description}</p>
                       <p className="text-[10px] text-slate-400 font-mono">{tx.date} • {tx.account_name}</p>
                     </div>
-                    <p className="font-bold text-indigo-700 dark:text-indigo-400">PKR {Number(tx.amount).toLocaleString()}</p>
+                    <p className="font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">PKR {Number(tx.amount).toLocaleString()}</p>
                   </div>
                 ))
               )}
@@ -741,7 +743,7 @@ export default function DebtsPage() {
 
             <button
               onClick={() => setHistoryModalItem(null)}
-              className="w-full py-2 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition mt-2"
+              className="w-full py-2 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition mt-2 cursor-pointer"
             >
               Close
             </button>
@@ -803,13 +805,13 @@ export default function DebtsPage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setKametiActionModal(null)}
-                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmKametiAction}
-                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs cursor-pointer"
               >
                 Confirm & Sync Ledger
               </button>
@@ -872,13 +874,13 @@ export default function DebtsPage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setSettlingDebt(null)}
-                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmSettlement}
-                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+                className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs cursor-pointer"
               >
                 Confirm Payment
               </button>
