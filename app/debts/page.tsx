@@ -329,21 +329,21 @@ export default function DebtsPage() {
   });
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
       {/* Header & Tabs */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Debts & Kameti Management</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Debts & Kameti Management</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Track personal loans, partial installments, and rotating savings circles
           </p>
         </div>
 
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('debts')}
             className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
-              activeTab === 'debts' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'debts' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Loans & Debts ({debts.filter(d => d.status === 'Active').length})
@@ -351,7 +351,7 @@ export default function DebtsPage() {
           <button
             onClick={() => setActiveTab('kametis')}
             className={`px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              activeTab === 'kametis' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'kametis' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Users className="w-3.5 h-3.5" /> Kameti Circles ({kametis.filter(k => k.status === 'Active').length})
@@ -361,9 +361,9 @@ export default function DebtsPage() {
 
       {/* Due Soon Alert Banner */}
       {upcomingDebts.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-          <div className="text-xs text-amber-900">
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-4 rounded-2xl flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="text-xs text-amber-900 dark:text-amber-200">
             <span className="font-bold">Payment Due Soon:</span> You have {upcomingDebts.length} active debt/loan payment(s) due within the next 5 days. Check the ledger below.
           </div>
         </div>
@@ -373,50 +373,50 @@ export default function DebtsPage() {
       {activeTab === 'debts' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl flex items-center justify-between">
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-5 rounded-2xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Total Receivable (Logay)</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1">PKR {totalReceivable.toLocaleString()}</p>
+                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Total Receivable (Logay)</p>
+                <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-200 mt-1">PKR {totalReceivable.toLocaleString()}</p>
               </div>
-              <ArrowDownLeft className="w-8 h-8 text-emerald-600 bg-emerald-100 p-1.5 rounded-xl" />
+              <ArrowDownLeft className="w-8 h-8 text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 p-1.5 rounded-xl" />
             </div>
 
-            <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl flex items-center justify-between">
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-5 rounded-2xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Total Payable (Denay)</p>
-                <p className="text-2xl font-bold text-rose-900 mt-1">PKR {totalPayable.toLocaleString()}</p>
+                <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Total Payable (Denay)</p>
+                <p className="text-2xl font-bold text-rose-900 dark:text-rose-200 mt-1">PKR {totalPayable.toLocaleString()}</p>
               </div>
-              <ArrowUpRight className="w-8 h-8 text-rose-600 bg-rose-100 p-1.5 rounded-xl" />
+              <ArrowUpRight className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Plus className="w-5 h-5 text-indigo-600" />
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
+              <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 Add Loan Record
               </h2>
 
               <form onSubmit={handleAddDebt} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Person / Institution Name</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Person / Institution Name</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Ali / Meezan Bank"
                     value={personName}
                     onChange={(e) => setPersonName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Debt Type</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Debt Type</label>
                     <select
                       value={debtType}
                       onChange={(e) => handleDebtTypeChange(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                     >
                       <option value="Personal Loan">Personal Loan</option>
                       <option value="Credit Card">Credit Card</option>
@@ -425,12 +425,12 @@ export default function DebtsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Direction</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Direction</label>
                     <select
                       value={direction}
                       onChange={(e) => setDirection(e.target.value)}
                       disabled={debtType === 'Credit Card'}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 disabled:opacity-75 disabled:bg-slate-100"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 dark:text-indigo-300 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-slate-800"
                     >
                       <option value="Given (Receivable)">Given (Logay)</option>
                       <option value="Taken (Payable)">Taken (Denay)</option>
@@ -440,37 +440,37 @@ export default function DebtsPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
                     <input
                       type="number"
                       required
                       placeholder="0.00"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
                     <input
                       type="date"
                       required
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Notes / Remarks</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Notes / Remarks</label>
                   <input
                     type="text"
                     placeholder="e.g. Agreement details"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                   />
                 </div>
 
@@ -484,8 +484,8 @@ export default function DebtsPage() {
             </div>
 
             <div className="lg:col-span-2 space-y-4">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                <h2 className="text-base font-semibold text-slate-800">Active Loans & Debts Ledger</h2>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+                <h2 className="text-base font-semibold text-slate-800 dark:text-white">Active Loans & Debts Ledger</h2>
 
                 {loading ? (
                   <p className="text-xs text-slate-400 py-4 text-center">Loading debt records...</p>
@@ -502,32 +502,32 @@ export default function DebtsPage() {
                           key={d.id}
                           className={`p-4 rounded-xl border flex items-center justify-between transition ${
                             isSettled
-                              ? 'bg-slate-50/60 border-slate-200 opacity-75'
+                              ? 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-75'
                               : isReceivable
-                              ? 'bg-emerald-50/30 border-emerald-100'
-                              : 'bg-rose-50/30 border-rose-100'
+                              ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/40'
+                              : 'bg-rose-50/30 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40'
                           }`}
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-800 text-sm">{d.person_name}</span>
-                              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">{d.type}</span>
-                              <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${isReceivable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              <span className="font-bold text-slate-800 dark:text-white text-sm">{d.person_name}</span>
+                              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md font-medium">{d.type}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${isReceivable ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'}`}>
                                 {d.direction}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-500">{d.notes || 'No remarks'}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{d.notes || 'No remarks'}</p>
                             <p className="text-[11px] text-slate-400 font-mono">Due: {d.due_date} {isSettled && '• (Settled)'}</p>
                           </div>
 
                           <div className="text-right space-y-2">
-                            <p className={`text-base font-bold ${isSettled ? 'text-slate-400 line-through' : isReceivable ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            <p className={`text-base font-bold ${isSettled ? 'text-slate-400 line-through' : isReceivable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                               PKR {Number(d.amount).toLocaleString()}
                             </p>
                             <div className="flex items-center gap-1.5 justify-end">
                               <button
                                 onClick={() => openHistoryModal(d.person_name, 'debt')}
-                                className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition"
                                 title="View History Trail"
                               >
                                 <History className="w-4 h-4" />
@@ -535,7 +535,7 @@ export default function DebtsPage() {
                               {!isSettled && (
                                 <button
                                   onClick={() => handleOpenSettlementModal(d)}
-                                  className="text-[11px] text-white bg-slate-900 hover:bg-slate-800 font-medium px-3 py-1 rounded-lg transition shadow-xs"
+                                  className="text-[11px] text-white bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 font-medium px-3 py-1 rounded-lg transition shadow-xs"
                                 >
                                   Settle / Pay
                                 </button>
@@ -556,79 +556,79 @@ export default function DebtsPage() {
       {/* TAB 2: KAMETI CIRCLES VIEW */}
       {activeTab === 'kametis' && (
         <div className="space-y-6">
-          <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl flex items-center justify-between">
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 p-5 rounded-2xl flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Total Active Kameti Pools</p>
-              <p className="text-2xl font-bold text-indigo-950 mt-1">PKR {activeKametisPool.toLocaleString()}</p>
+              <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">Total Active Kameti Pools</p>
+              <p className="text-2xl font-bold text-indigo-950 dark:text-indigo-200 mt-1">PKR {activeKametisPool.toLocaleString()}</p>
             </div>
-            <Users className="w-8 h-8 text-indigo-600 bg-indigo-100 p-1.5 rounded-xl" />
+            <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 p-1.5 rounded-xl" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Plus className="w-5 h-5 text-indigo-600" />
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
+              <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 Add Kameti Circle
               </h2>
 
               <form onSubmit={handleAddKameti} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Committee Name / Organizer</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Committee Name / Organizer</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Family Kameti"
                     value={committeeName}
                     onChange={(e) => setCommitteeName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Total Pool (PKR)</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Total Pool (PKR)</label>
                     <input
                       type="number"
                       required
                       placeholder="e.g. 100000"
                       value={totalPoolAmount}
                       onChange={(e) => setTotalPoolAmount(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Monthly Installment</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Installment</label>
                     <input
                       type="number"
                       required
                       placeholder="e.g. 10000"
                       value={monthlyInstallment}
                       onChange={(e) => setMonthlyInstallment(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-900"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-900 dark:text-indigo-300"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">My Turn / Payout Month</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">My Turn / Payout Month</label>
                   <input
                     type="text"
                     placeholder="e.g. November 2026"
                     value={myTurnMonth}
                     onChange={(e) => setMyTurnMonth(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Remarks / Notes</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Remarks / Notes</label>
                   <input
                     type="text"
                     placeholder="e.g. 10 members total"
                     value={kametiNotes}
                     onChange={(e) => setKametiNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                   />
                 </div>
 
@@ -642,8 +642,8 @@ export default function DebtsPage() {
             </div>
 
             <div className="lg:col-span-2 space-y-4">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                <h2 className="text-base font-semibold text-slate-800">Active Kameti Circles</h2>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+                <h2 className="text-base font-semibold text-slate-800 dark:text-white">Active Kameti Circles</h2>
 
                 {kametis.length === 0 ? (
                   <p className="text-xs text-slate-400 py-4 text-center">No active Kameti circles recorded.</p>
@@ -655,29 +655,29 @@ export default function DebtsPage() {
                         <div 
                           key={k.id}
                           className={`p-4 rounded-xl border flex items-center justify-between transition ${
-                            isCompleted ? 'bg-slate-50 opacity-75' : 'bg-indigo-50/30 border-indigo-100'
+                            isCompleted ? 'bg-slate-50 dark:bg-slate-800/40 opacity-75' : 'bg-indigo-50/30 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40'
                           }`}
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-800 text-sm">{k.committee_name}</span>
-                              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-semibold">Turn: {k.my_turn_month}</span>
-                              {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-medium">Completed</span>}
+                              <span className="font-bold text-slate-800 dark:text-white text-sm">{k.committee_name}</span>
+                              <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-semibold">Turn: {k.my_turn_month}</span>
+                              {isCompleted && <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium">Completed</span>}
                             </div>
-                            <p className="text-xs text-slate-500">{k.notes || 'No remarks'}</p>
-                            <p className="text-[11px] text-slate-600 font-medium">Monthly Installment: <strong className="text-indigo-900">PKR {Number(k.monthly_installment).toLocaleString()}</strong></p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{k.notes || 'No remarks'}</p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Monthly Installment: <strong className="text-indigo-900 dark:text-indigo-300">PKR {Number(k.monthly_installment).toLocaleString()}</strong></p>
                           </div>
 
                           <div className="text-right space-y-2">
                             <div>
                               <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Pool</p>
-                              <p className="text-base font-bold text-slate-900">PKR {Number(k.total_pool_amount).toLocaleString()}</p>
+                              <p className="text-base font-bold text-slate-900 dark:text-white">PKR {Number(k.total_pool_amount).toLocaleString()}</p>
                             </div>
 
                             <div className="flex gap-1.5 justify-end">
                               <button
                                 onClick={() => openHistoryModal(k.committee_name, 'kameti')}
-                                className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition"
                                 title="View Installment History"
                               >
                                 <History className="w-4 h-4" />
@@ -692,7 +692,7 @@ export default function DebtsPage() {
                                   </button>
                                   <button
                                     onClick={() => handleOpenKametiAction(k, 'receive')}
-                                    className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg transition"
+                                    className="text-[11px] text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg transition"
                                   >
                                     Receive
                                   </button>
@@ -714,13 +714,13 @@ export default function DebtsPage() {
       {/* History Trail Modal */}
       {historyModalItem && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Transaction History Trail</h3>
-                <p className="text-xs text-slate-500">{historyModalItem.title}</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Transaction History Trail</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{historyModalItem.title}</p>
               </div>
-              <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600">×</button>
+              <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">×</button>
             </div>
 
             <div className="max-h-80 overflow-y-auto space-y-2">
@@ -728,12 +728,12 @@ export default function DebtsPage() {
                 <p className="text-xs text-slate-400 py-6 text-center">No transaction records found for this item.</p>
               ) : (
                 itemTransactions.map((tx) => (
-                  <div key={tx.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                  <div key={tx.id} className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between text-xs">
                     <div>
-                      <p className="font-semibold text-slate-800">{tx.description}</p>
+                      <p className="font-semibold text-slate-800 dark:text-white">{tx.description}</p>
                       <p className="text-[10px] text-slate-400 font-mono">{tx.date} • {tx.account_name}</p>
                     </div>
-                    <p className="font-bold text-indigo-700">PKR {Number(tx.amount).toLocaleString()}</p>
+                    <p className="font-bold text-indigo-700 dark:text-indigo-400">PKR {Number(tx.amount).toLocaleString()}</p>
                   </div>
                 ))
               )}
@@ -741,7 +741,7 @@ export default function DebtsPage() {
 
             <button
               onClick={() => setHistoryModalItem(null)}
-              className="w-full py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition mt-2"
+              className="w-full py-2 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition mt-2"
             >
               Close
             </button>
@@ -752,23 +752,23 @@ export default function DebtsPage() {
       {/* Kameti Pay / Receive Modal */}
       {kametiActionModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                 {kametiActionModal.actionType === 'pay' ? 'Pay Monthly Installment' : 'Receive Kameti Payout'}
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Circle: <strong>{kametiActionModal.kameti.committee_name}</strong></p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Circle: <strong>{kametiActionModal.kameti.committee_name}</strong></p>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                   {kametiActionModal.actionType === 'pay' ? 'Paid From Account' : 'Received In Account'}
                 </label>
                 <select
                   value={kametiAccount}
                   onChange={(e) => setKametiAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -778,23 +778,23 @@ export default function DebtsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
                   <input
                     type="date"
                     required
                     value={kametiActionDate}
                     onChange={(e) => setKametiActionDate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
                   <input
                     type="number"
                     required
                     value={kametiActionAmount}
                     onChange={(e) => setKametiActionAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-bold"
                   />
                 </div>
               </div>
@@ -803,7 +803,7 @@ export default function DebtsPage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setKametiActionModal(null)}
-                className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
               >
                 Cancel
               </button>
@@ -821,23 +821,23 @@ export default function DebtsPage() {
       {/* Partial Settlement Modal */}
       {settlingDebt && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Settle / Pay Loan Balance</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Settle / Pay Loan Balance</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 For <strong>{settlingDebt.person_name}</strong> (Active Balance: PKR {settlingDebt.amount.toLocaleString()})
               </p>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                   {settlingDebt.direction.includes('Given') || settlingDebt.direction.includes('Receivable') ? 'Received In Account' : 'Paid From Account'}
                 </label>
                 <select
                   value={selectedAccount}
                   onChange={(e) => setSelectedAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -847,23 +847,23 @@ export default function DebtsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
                   <input
                     type="date"
                     required
                     value={settlementDate}
                     onChange={(e) => setSettlementDate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Payment Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Payment Amount (PKR)</label>
                   <input
                     type="number"
                     required
                     value={settlementAmount}
                     onChange={(e) => setSettlementAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-emerald-800"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-bold text-emerald-800 dark:text-emerald-400"
                   />
                 </div>
               </div>
@@ -872,7 +872,7 @@ export default function DebtsPage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setSettlingDebt(null)}
-                className="flex-1 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
               >
                 Cancel
               </button>
