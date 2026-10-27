@@ -71,6 +71,7 @@ export default function FinanceDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Date Filter States
   const [filterMode, setFilterMode] = useState<'month' | 'year' | 'custom'>('month');
@@ -92,41 +93,48 @@ export default function FinanceDashboard() {
   const [paymentAccountId, setPaymentAccountId] = useState('');
 
   const fetchData = async () => {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const { data: accData } = await supabase.from('accounts').select('*');
-    if (accData && accData.length > 0) {
-      setAccounts(accData);
-      const firstAccName = accData[0].name || accData[0].account_name || '';
-      if (!selectedAccount) setSelectedAccount(firstAccName);
-      if (!paymentAccountId) setPaymentAccountId(firstAccName);
+      const { data: accData } = await supabase.from('accounts').select('*');
+      if (accData && accData.length > 0) {
+        setAccounts(accData);
+        const firstAccName = accData[0].name || accData[0].account_name || '';
+        if (!selectedAccount) setSelectedAccount(firstAccName);
+        if (!paymentAccountId) setPaymentAccountId(firstAccName);
+      }
+
+      const { data: txData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+      if (txData) setTransactions(txData);
+
+      const { data: billData } = await supabase.from('bills').select('*');
+      if (billData) {
+        const pendingBills = billData.filter(b => {
+          const stat = (b.status || b.payment_status || '').toUpperCase();
+          return stat === 'PENDING' || stat === 'UNPAID';
+        });
+        setBills(pendingBills);
+      }
+
+      const { data: budgetData } = await supabase.from('budgets').select('*');
+      if (budgetData) setBudgets(budgetData);
+    } catch (err) {
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
     }
-
-    const { data: txData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
-    if (txData) setTransactions(txData);
-
-    const { data: billData } = await supabase.from('bills').select('*');
-    if (billData) {
-      const pendingBills = billData.filter(b => {
-        const stat = (b.status || b.payment_status || '').toUpperCase();
-        return stat === 'PENDING' || stat === 'UNPAID';
-      });
-      setBills(pendingBills);
-    }
-
-    const { data: budgetData } = await supabase.from('budgets').select('*');
-    if (budgetData) setBudgets(budgetData);
-
-    setLoading(false);
   };
 
   useEffect(() => {
+    setIsMounted(true);
     const now = new Date();
     setSelectedMonth(now.toISOString().slice(0, 7));
     setSelectedYear(now.getFullYear().toString());
     setTodayStr(now.toISOString().slice(0, 10));
     fetchData();
   }, []);
+
+  if (!isMounted) return null;
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,8 +193,9 @@ export default function FinanceDashboard() {
     fetchData();
   };
 
-  // Date filtering logic
+  // Date filtering logic safely handled
   const filteredTransactions = transactions.filter((tx) => {
+    if (!tx) return false;
     const txDate = (tx.date || tx.transaction_date || '').trim();
     if (!txDate) return false;
     const datePrefix = txDate.slice(0, 10);
@@ -203,7 +212,7 @@ export default function FinanceDashboard() {
   });
 
   const totalAvailableCash = accounts.reduce((acc, a) => {
-    const bal = a.current_balance ?? a.opening_balance ?? 0;
+    const bal = a?.current_balance ?? a?.opening_balance ?? 0;
     return acc + Number(bal);
   }, 0);
   
@@ -223,7 +232,7 @@ export default function FinanceDashboard() {
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   const urgentBillsCount = bills.filter(b => {
-    if (!b.due_date || !todayStr) return false;
+    if (!b || !b.due_date || !todayStr) return false;
     return b.due_date <= todayStr;
   }).length;
 
@@ -462,9 +471,9 @@ export default function FinanceDashboard() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {accounts.map((acc) => {
-                  const accName = acc.name || acc.account_name || 'Account';
-                  const accType = acc.type || acc.account_type || 'Bank';
-                  const accBal = acc.current_balance ?? acc.opening_balance ?? 0;
+                  const accName = acc?.name || acc?.account_name || 'Account';
+                  const accType = acc?.type || acc?.account_type || 'Bank';
+                  const accBal = acc?.current_balance ?? acc?.opening_balance ?? 0;
                   return (
                     <div key={acc.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
                       <div>
@@ -506,7 +515,7 @@ export default function FinanceDashboard() {
                     className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium"
                   >
                     {accounts.map((acc) => {
-                      const accName = acc.name || acc.account_name || '';
+                      const accName = acc?.name || acc?.account_name || '';
                       return (
                         <option key={acc.id} value={accName}>
                           {accName}
@@ -571,15 +580,15 @@ export default function FinanceDashboard() {
               ) : (
                 <div className="space-y-3">
                   {bills.map((bill) => {
-                    const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
-                    const providerName = bill.provider || bill.title || bill.bill_name || bill.name || 'Utility Bill';
+                    const billAmt = Number(bill?.amount ?? bill?.bill_amount ?? 0);
+                    const providerName = bill?.provider || bill?.title || bill?.bill_name || bill?.name || 'Utility Bill';
 
                     return (
                       <div key={bill.id} className="p-3.5 rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 space-y-2">
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}</h4>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due: {bill.due_date}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due: {bill?.due_date}</p>
                           </div>
                           <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
                             Due
@@ -592,7 +601,7 @@ export default function FinanceDashboard() {
                             onClick={() => {
                               setSelectedBillToPay(bill);
                               if (accounts.length > 0) {
-                                setPaymentAccountId(accounts[0].name || accounts[0].account_name || '');
+                                setPaymentAccountId(accounts[0]?.name || accounts[0]?.account_name || '');
                               }
                             }}
                             className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
@@ -622,15 +631,15 @@ export default function FinanceDashboard() {
               ) : (
                 <div className="space-y-3">
                   {transactions.slice(0, 4).map((tx) => {
-                    const isIncome = (tx.type || '').toLowerCase().includes('income') || (tx.type || '').toLowerCase().includes('inflow');
+                    const isIncome = (tx?.type || '').toLowerCase().includes('income') || (tx?.type || '').toLowerCase().includes('inflow');
                     return (
                       <div key={tx.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
                         <div className="overflow-hidden pr-2">
-                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{tx.description}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">{tx.date || tx.transaction_date}</p>
+                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{tx?.description}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">{tx?.date || tx?.transaction_date}</p>
                         </div>
                         <span className={`text-xs font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                          {isIncome ? '+' : '-'} PKR {Number(tx.amount).toLocaleString()}
+                          {isIncome ? '+' : '-'} PKR {Number(tx?.amount || 0).toLocaleString()}
                         </span>
                       </div>
                     );
@@ -663,13 +672,13 @@ export default function FinanceDashboard() {
             <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-1.5 border border-slate-100 dark:border-slate-800">
               <p className="text-xs text-slate-500 dark:text-slate-400">Bill Provider</p>
               <p className="text-sm font-bold text-slate-900 dark:text-white">
-                {selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Utility Bill'}
+                {selectedBillToPay?.provider || selectedBillToPay?.title || selectedBillToPay?.bill_name || selectedBillToPay?.name || 'Utility Bill'}
               </p>
               
               <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
                 <span className="text-xs text-slate-500 dark:text-slate-400">Amount Due</span>
                 <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-                  PKR {Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0).toLocaleString()}
+                  PKR {Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_amount ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -684,8 +693,8 @@ export default function FinanceDashboard() {
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium"
               >
                 {accounts.map((acc) => {
-                  const accName = acc.name || acc.account_name || '';
-                  const accBal = acc.current_balance ?? acc.opening_balance ?? 0;
+                  const accName = acc?.name || acc?.account_name || '';
+                  const accBal = acc?.current_balance ?? acc?.opening_balance ?? 0;
                   return (
                     <option key={acc.id} value={accName}>
                       {accName} (Bal: PKR {Number(accBal).toLocaleString()})
