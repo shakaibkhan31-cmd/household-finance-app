@@ -205,7 +205,6 @@ export default function ReceivablesPage() {
       
       if (!isThisMonth || !isIncome) return false;
 
-      // Check if a corresponding receivable already exists with same amount/title
       const existsInReceivables = receivables.some(r => {
         const matchesTitle = (r.title || '').toLowerCase().includes((t.description || '').toLowerCase()) || 
                              (t.description || '').toLowerCase().includes((r.title || '').toLowerCase());
@@ -226,7 +225,6 @@ export default function ReceivablesPage() {
       notes: `Account: ${t.account_name}`,
     }));
 
-  // Combine receivables items with non-duplicate direct income transactions
   const combinedItems = [
     ...receivables,
     ...incomeTransactionsAsReceivables
@@ -234,34 +232,35 @@ export default function ReceivablesPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header & Metrics */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Income & Receivables</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track expected salaries, incoming client payments, and pending receivables</p>
         </div>
-        
-        <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-            <span className="text-xs font-semibold text-slate-500">Filter Month:</span>
-            <input 
-              type="month" 
-              value={selectedMonth} 
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="text-xs bg-transparent text-slate-800 dark:text-slate-100 outline-none font-bold"
-            />
-          </div>
+      </div>
 
-          <div className="flex gap-3 w-full sm:w-auto">
-            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-4 rounded-2xl flex-1 md:w-44">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Pending Income</p>
-              <p className="text-xl font-bold text-amber-950 dark:text-amber-200 mt-0.5">PKR {pendingTotal.toLocaleString()}</p>
-            </div>
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-44">
-              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Received Income</p>
-              <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {receivedTotal.toLocaleString()}</p>
-            </div>
+      {/* Cards & Filter Month Section */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex gap-3 w-full sm:w-auto flex-1">
+          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-4 rounded-2xl flex-1 md:w-44">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Pending Income</p>
+            <p className="text-xl font-bold text-amber-950 dark:text-amber-200 mt-0.5">PKR {pendingTotal.toLocaleString()}</p>
           </div>
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-44">
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Received Income</p>
+            <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {receivedTotal.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs w-full md:w-auto">
+          <span className="text-xs font-semibold text-slate-500">Filter Month:</span>
+          <input 
+            type="month" 
+            value={selectedMonth} 
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="text-xs bg-transparent text-slate-800 dark:text-slate-100 outline-none font-bold cursor-pointer"
+          />
         </div>
       </div>
 
