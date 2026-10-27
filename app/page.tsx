@@ -93,8 +93,10 @@ interface Transaction {
 
 interface Budget {
   id: string;
-  category: string;
-  allocated_amount: number;
+  category?: string;
+  name?: string;
+  allocated_amount?: number;
+  amount?: number;
   spent_amount?: number;
 }
 
@@ -487,14 +489,26 @@ function DashboardContent() {
               <p className="text-xs text-slate-400 text-center py-6">No budgets configured yet.</p>
             ) : (
               <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
-                {budgets.slice(0, 2).map((b) => {
-                  const alloc = Number(b?.allocated_amount || 0);
-                  const spent = Number(b?.spent_amount || Math.floor(alloc * 0.4));
+                {budgets.slice(0, 3).map((b) => {
+                  const bName = b?.category || b?.name || 'General';
+                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? 0);
+                  
+                  // Calculate actual spent from transactions matching category or description
+                  const spent = Number(b?.spent_amount) || filteredTransactions
+                    .filter(t => {
+                      const tCat = (t?.category || '').toLowerCase();
+                      const tDesc = (t?.description || '').toLowerCase();
+                      const nameLower = bName.toLowerCase();
+                      return tCat.includes(nameLower) || tDesc.includes(nameLower);
+                    })
+                    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
+
                   const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
+
                   return (
                     <div key={b.id} className="space-y-1">
                       <div className="flex justify-between text-xs">
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">{b.category}</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">{bName}</span>
                         <span className="text-slate-400">PKR {spent.toLocaleString()} / {alloc.toLocaleString()}</span>
                       </div>
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -768,7 +782,7 @@ function DashboardContent() {
                 onClick={() => setSelectedBillToPay(null)}
                 className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
               >
-                Cancel.
+                Cancel
               </button>
               <button
                 type="button"
