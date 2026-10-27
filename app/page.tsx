@@ -146,35 +146,35 @@ export default function FinanceDashboard() {
     fetchData();
   };
 
-  // Robust filtering of transactions
+  // Accurate filtering matching transactions page logic
   const filteredTransactions = transactions.filter((tx) => {
     if (!tx.date) return false;
-    const txDateStr = tx.date.split('T')[0]; // Handle timestamps if any
+    const txDate = tx.date.trim();
 
     if (filterMode === 'month') {
-      return selectedMonth ? txDateStr.startsWith(selectedMonth) : true;
+      return selectedMonth ? txDate.startsWith(selectedMonth) : true;
     } else if (filterMode === 'year') {
-      return selectedYear ? txDateStr.startsWith(selectedYear) : true;
+      return selectedYear ? txDate.startsWith(selectedYear) : true;
     } else if (filterMode === 'custom') {
       if (!customStart || !customEnd) return true;
-      return txDateStr >= customStart && txDateStr <= customEnd;
+      return txDate >= customStart && txDate <= customEnd;
     }
     return true;
   });
 
-  const totalAvailableCash = accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
+  const totalAvailableCash = accounts.xx ? 0 : accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
   
   const filteredIncome = filteredTransactions
     .filter((t) => {
-      const tType = (t.type || '').toUpperCase();
-      return tType === 'INCOME' || tType === 'INCOME';
+      const tType = (t.type || '').trim().toLowerCase();
+      return tType === 'income';
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   const filteredExpense = filteredTransactions
     .filter((t) => {
-      const tType = (t.type || '').toUpperCase();
-      return tType === 'EXPENSE' || tType === 'EXPENSE';
+      const tType = (t.type || '').trim().toLowerCase();
+      return tType === 'expense';
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
