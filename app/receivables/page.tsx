@@ -275,7 +275,7 @@ export default function ReceivablesPage() {
 
             <button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
             >
               Add Receivable Entry
             </button>
@@ -284,7 +284,7 @@ export default function ReceivablesPage() {
 
         {/* Right Column: Receivables List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4">
             <h2 className="text-base font-semibold text-slate-800 dark:text-white">Pending & Received Incomes</h2>
 
             {loading ? (
@@ -298,12 +298,12 @@ export default function ReceivablesPage() {
                   return (
                     <div
                       key={r.id}
-                      className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                      className={`p-3.5 md:p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition ${
                         isReceived ? 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800' : 'bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/50 shadow-xs'
                       }`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 w-full sm:w-auto pr-0 sm:pr-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-slate-800 dark:text-white text-sm">{r.title}</span>
                           <span
                             className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
@@ -314,7 +314,7 @@ export default function ReceivablesPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                           {r.source_person && <span>From: {r.source_person}</span>}
                           <span className="flex items-center gap-1 font-mono">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" /> Expected: {r.expected_date}
@@ -323,16 +323,18 @@ export default function ReceivablesPage() {
                         </div>
                       </div>
 
-                      <div className="text-right space-y-2">
-                        <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">
-                          PKR {Number(r.amount).toLocaleString()}
-                        </p>
+                      <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
+                        <div>
+                          <p className="text-base font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                            PKR {Number(r.amount).toLocaleString()}
+                          </p>
+                        </div>
 
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           {!isReceived && (
                             <button
                               onClick={() => handleOpenReceiveModal(r)}
-                              className="text-[11px] text-white bg-emerald-600 hover:bg-emerald-700 font-medium px-3 py-1 rounded-lg transition flex items-center gap-1 shadow-xs"
+                              className="text-[11px] text-white bg-emerald-600 hover:bg-emerald-700 font-medium px-3 py-1 rounded-lg transition flex items-center gap-1 shadow-xs cursor-pointer"
                             >
                               <ArrowDownLeft className="w-3.5 h-3.5" /> Mark Received
                             </button>
@@ -340,7 +342,7 @@ export default function ReceivablesPage() {
 
                           <button
                             onClick={() => handleDeleteReceivable(r.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
                             title="Delete Entry"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -391,13 +393,13 @@ export default function ReceivablesPage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setReceivingItem(null)}
-                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
+                className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmReceived}
-                className="flex-1 py-2.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs"
+                className="flex-1 py-2.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer"
               >
                 Confirm Deposit
               </button>
