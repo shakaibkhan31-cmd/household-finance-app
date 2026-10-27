@@ -146,23 +146,23 @@ export default function FinanceDashboard() {
     fetchData();
   };
 
-  // Accurate filtering matching transactions page logic
+  // Robust filtering of transactions
   const filteredTransactions = transactions.filter((tx) => {
     if (!tx.date) return false;
-    const txDate = tx.date.trim();
+    const txDateStr = tx.date.split('T')[0];
 
     if (filterMode === 'month') {
-      return selectedMonth ? txDate.startsWith(selectedMonth) : true;
+      return selectedMonth ? txDateStr.startsWith(selectedMonth) : true;
     } else if (filterMode === 'year') {
-      return selectedYear ? txDate.startsWith(selectedYear) : true;
+      return selectedYear ? txDateStr.startsWith(selectedYear) : true;
     } else if (filterMode === 'custom') {
       if (!customStart || !customEnd) return true;
-      return txDate >= customStart && txDate <= customEnd;
+      return txDateStr >= customStart && txDateStr <= customEnd;
     }
     return true;
   });
 
-  const totalAvailableCash = accounts.xx ? 0 : accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
+  const totalAvailableCash = accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
   
   const filteredIncome = filteredTransactions
     .filter((t) => {
