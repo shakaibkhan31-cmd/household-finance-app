@@ -104,11 +104,9 @@ export default function TransactionsPage() {
     fetchDataAndSync();
   }, []);
 
-  // Fetch Accounts, Active Debts, Transactions, and Dynamic Categories from Budgets table
   const fetchDataAndSync = async () => {
     setLoading(true);
     
-    // 1. Fetch real accounts from Supabase
     const { data: accData, error: accError } = await supabase.from('accounts').select('name');
     if (accError) {
       console.error('Error fetching accounts:', accError.message);
@@ -129,7 +127,6 @@ export default function TransactionsPage() {
       setTransferTo('');
     }
 
-    // 2. Fetch Categories dynamically from Budgets table
     const { data: bData } = await supabase.from('budgets').select('category');
     if (bData && bData.length > 0) {
       const budgetCats = bData.map((b: { category: string }) => b.category);
@@ -140,7 +137,6 @@ export default function TransactionsPage() {
       setCategories(DEFAULT_CATEGORIES);
     }
 
-    // 3. Fetch Active Debts for Repayment Dropdown
     const { data: debtsData } = await supabase
       .from('debts')
       .select('id, person_name, direction, amount, type')
@@ -154,7 +150,6 @@ export default function TransactionsPage() {
       setSelectedDebtId('');
     }
 
-    // 4. Fetch transactions
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -168,7 +163,6 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
-  // Handle Transaction Type Change with Auto Category Mapping
   const handleTypeChange = (newType: string) => {
     setType(newType);
 
@@ -177,7 +171,6 @@ export default function TransactionsPage() {
       if (diff) setTransferTo(diff);
     }
 
-    // Auto select categories based on transaction type
     if (['Loan Given', 'Loan Received', 'Loan Repayment'].includes(newType)) {
       setCategory('Loan / Debt Related');
     } else if (newType === 'Income Receipt') {
@@ -189,7 +182,6 @@ export default function TransactionsPage() {
     }
   };
 
-  // Add or Update Transaction
   const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !accountName) {
@@ -207,7 +199,6 @@ export default function TransactionsPage() {
       return;
     }
 
-    // Validation: Prevent overpaying loan on repayment
     if (isRepayment && selectedDebtId) {
       const targetDebt = activeDebts.find(d => d.id === selectedDebtId);
       if (targetDebt) {
@@ -219,7 +210,6 @@ export default function TransactionsPage() {
       }
     }
 
-    // Find party name automatically if Loan Repayment or Adjustment
     let finalPartyName = partyName;
     if (isRepayment && selectedDebtId) {
       const matchedDebt = activeDebts.find(d => d.id === selectedDebtId);
@@ -231,7 +221,6 @@ export default function TransactionsPage() {
     }
 
     if (editingId) {
-      // UPDATE TRANSACTION
       const { error } = await supabase
         .from('transactions')
         .update({
@@ -253,7 +242,6 @@ export default function TransactionsPage() {
       }
       setEditingId(null);
     } else {
-      // INSERT TRANSACTION
       const { error } = await supabase.from('transactions').insert([
         {
           date,
@@ -273,35 +261,67 @@ export default function TransactionsPage() {
         return;
       }
 
-      // AUTO-UPDATE ACCOUNT BALANCES
+      // ROBUST AUTO-SYNC ACCOUNT BALANCES & CREDIT CARD LIABILITIES
+      const isCreditCardAccount = accountName.toLowerCase().includes('credit card');
+
       if (isTransfer) {
+        // Source Account Sync
         const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
         if (srcAcc && srcAcc.length > 0) {
-          const newBal = Number(srcAcc[0].current_balance || 0) - parsedAmount;
-          await supabase.from('accounts').update({ current_balance: newBal }).eq('id', srcAcc[0].id);
+          const accObj = srcAcc[0];
+          const isSrcCard = (accObj.type || '').trim().toLowerCase().includes('credit');
+          let currentBal = Number(accObj.current_balance || 0);
+          
+          if (isSrcCard) {
+            currentBal -= parsedAmount; // Payment to card reduces liability
+          } else {
+            currentBal -= parsedAmount; // Bank transfer reduces balance
+          }
+          await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', accObj.id);
         }
 
+        // Destination Account Sync
         const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', transferTo).limit(1);
         if (destAcc && destAcc.length > 0) {
-          const newBal = Number(destAcc[0].current_balance || 0) + parsedAmount;
-          await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
+          const accObj = destAcc[0];
+          const isDestCard = (accObj.type || '').trim().toLowerCase().includes('credit');
+          let currentBal = Number(accObj.current_balance || 0);
+
+          if (isDestCard) {
+            currentBal += parsedAmount; // Transfer into card increases liability
+          } else {
+            currentBal += parsedAmount;
+          }
+          await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', accObj.id);
         }
       } else {
         const { data: accList } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
         if (accList && accList.length > 0) {
           const acc = accList[0];
+          const isCardType = (acc.type || '').trim().toLowerCase().includes('credit');
           let currentBal = Number(acc.current_balance || 0);
           
-          let isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
+          const isCreditInflow = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
+          let effectiveIsCredit = isCreditInflow;
 
           if (isAdjustment) {
-            isCredit = adjustmentDirection === 'add';
+            effectiveIsCredit = adjustmentDirection === 'add';
           }
 
-          if (isCredit) {
-            currentBal += parsedAmount;
+          if (isCardType) {
+            // Credit Card: Spending (Expense/Bill) increases liability (+), Payment/Refund reduces liability (-)
+            if (effectiveIsCredit) {
+              currentBal -= parsedAmount; 
+            } else {
+              currentBal += parsedAmount; 
+            }
           } else {
-            currentBal -= parsedAmount;
+            // Bank / Wallet / Cash
+            if (effectiveIsCredit) {
+              currentBal += parsedAmount;
+            } else {
+              currentBal -= parsedAmount;
+            }
           }
 
           await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
@@ -350,42 +370,12 @@ export default function TransactionsPage() {
           if (updateErr) alert('Error updating Debt repayment: ' + updateErr.message);
         }
       }
-
-      // AUTO-SYNC WITH DEBTS IF ACCOUNT IS CREDIT CARD
-      if (accountName.toLowerCase().includes('credit card') && !isTransfer) {
-        const { data: existingDebts } = await supabase
-          .from('debts')
-          .select('*')
-          .eq('type', 'Credit Card')
-          .eq('status', 'Active')
-          .limit(1);
-
-        if (existingDebts && existingDebts.length > 0) {
-          const cardDebt = existingDebts[0];
-          const newTotal = Number(cardDebt.amount) + parsedAmount;
-          await supabase.from('debts').update({ amount: newTotal }).eq('id', cardDebt.id);
-        } else {
-          await supabase.from('debts').insert([
-            {
-              person_name: 'Credit Card Outstanding',
-              type: 'Credit Card',
-              direction: 'Taken (Payable)',
-              amount: parsedAmount,
-              due_date: date,
-              status: 'Active',
-              notes: `Auto-created from Transaction: ${description || category}`,
-            },
-          ]);
-        }
-      }
     }
 
-    // Reset Form
     resetForm();
     fetchDataAndSync();
   };
 
-  // Edit Button Click
   const handleEditClick = (t: Transaction) => {
     setEditingId(t.id);
     setDate(t.date);
@@ -399,7 +389,6 @@ export default function TransactionsPage() {
     setEnteredBy(t.entered_by || 'Husband');
   };
 
-  // Delete Transaction with Account Balance Reversal
   const handleDeleteTransaction = async (t: Transaction) => {
     if (!confirm('Kya aap waqai is transaction ko delete karna chahte hain? Account balance wapas adjust ho jayega.')) return;
 
@@ -410,24 +399,31 @@ export default function TransactionsPage() {
     if (isTransfer && t.transfer_to) {
       const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
       if (srcAcc && srcAcc.length > 0) {
-        const restoredBal = Number(srcAcc[0].current_balance || 0) + txAmount;
-        await supabase.from('accounts').update({ current_balance: restoredBal }).eq('id', srcAcc[0].id);
+        const isSrcCard = (srcAcc[0].type || '').trim().toLowerCase().includes('credit');
+        let bal = Number(srcAcc[0].current_balance || 0);
+        bal = isSrcCard ? bal + txAmount : bal + txAmount;
+        await supabase.from('accounts').update({ current_balance: bal }).eq('id', srcAcc[0].id);
       }
       const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
       if (destAcc && destAcc.length > 0) {
-        const reducedBal = Number(destAcc[0].current_balance || 0) - txAmount;
-        await supabase.from('accounts').update({ current_balance: reducedBal }).eq('id', destAcc[0].id);
+        const isDestCard = (destAcc[0].type || '').trim().toLowerCase().includes('credit');
+        let bal = Number(destAcc[0].current_balance || 0);
+        bal = isDestCard ? bal - txAmount : bal - txAmount;
+        await supabase.from('accounts').update({ current_balance: bal }).eq('id', destAcc[0].id);
       }
     } else {
       const { data: accList } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
       if (accList && accList.length > 0) {
         const acc = accList[0];
+        const isCard = (acc.type || '').trim().toLowerCase().includes('credit');
         let currentBal = Number(acc.current_balance || 0);
 
-        if (isCredit) {
-          currentBal -= txAmount;
+        if (isCard) {
+          if (isCredit) currentBal += txAmount;
+          else currentBal -= txAmount;
         } else {
-          currentBal += txAmount;
+          if (isCredit) currentBal -= txAmount;
+          else currentBal += txAmount;
         }
 
         await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
@@ -442,7 +438,6 @@ export default function TransactionsPage() {
     }
   };
 
-  // Bulk Delete Selected Transactions
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     if (!confirm(`Kya aap waqai selected ${selectedIds.length} transactions ko delete karna chahte hain?`)) return;
@@ -457,24 +452,27 @@ export default function TransactionsPage() {
         if (isTransfer && t.transfer_to) {
           const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
           if (srcAcc && srcAcc.length > 0) {
-            const restoredBal = Number(srcAcc[0].current_balance || 0) + txAmount;
-            await supabase.from('accounts').update({ current_balance: restoredBal }).eq('id', srcAcc[0].id);
+            let bal = Number(srcAcc[0].current_balance || 0) + txAmount;
+            await supabase.from('accounts').update({ current_balance: bal }).eq('id', srcAcc[0].id);
           }
           const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
           if (destAcc && destAcc.length > 0) {
-            const reducedBal = Number(destAcc[0].current_balance || 0) - txAmount;
-            await supabase.from('accounts').update({ current_balance: reducedBal }).eq('id', destAcc[0].id);
+            let bal = Number(destAcc[0].current_balance || 0) - txAmount;
+            await supabase.from('accounts').update({ current_balance: bal }).eq('id', destAcc[0].id);
           }
         } else {
           const { data: accList } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
           if (accList && accList.length > 0) {
             const acc = accList[0];
+            const isCard = (acc.type || '').trim().toLowerCase().includes('credit');
             let currentBal = Number(acc.current_balance || 0);
 
-            if (isCredit) {
-              currentBal -= txAmount;
+            if (isCard) {
+              if (isCredit) currentBal += txAmount;
+              else currentBal -= txAmount;
             } else {
-              currentBal += txAmount;
+              if (isCredit) currentBal -= txAmount;
+              else currentBal += txAmount;
             }
 
             await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
@@ -492,7 +490,6 @@ export default function TransactionsPage() {
     }
   };
 
-  // Export Filtered Transactions to CSV
   const exportToCSV = () => {
     const headers = ['Date', 'Type', 'Category', 'Party Name', 'Account', 'Transfer To', 'Amount (PKR)', 'Entered By', 'Description'];
     const rows = filteredTransactions.map(t => [
@@ -533,7 +530,6 @@ export default function TransactionsPage() {
   const isRefundType = type === 'Refund';
   const isAdjustmentType = type === 'Adjustment';
 
-  // Filtered List Logic
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch = 
       t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -553,7 +549,6 @@ export default function TransactionsPage() {
     return matchesSearch && matchesCategory && matchesAccount && matchesType && matchesFromDate && matchesToDate;
   });
 
-  // Monthly KPI Calculations
   const monthlyExpenses = currentMonthPrefix
     ? transactions
         .filter((t) => t.date && t.date.startsWith(currentMonthPrefix) && (t.type === 'Expense' || t.type === 'Bill Payment'))
@@ -566,7 +561,6 @@ export default function TransactionsPage() {
         .reduce((sum, t) => sum + Number(t.amount), 0)
     : 0;
 
-  // Pagination Logic
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
   const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -584,7 +578,6 @@ export default function TransactionsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header & Monthly KPI Summary */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Transactions Ledger</h1>
@@ -603,10 +596,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left Column: Transaction Entry / Edit Form */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2">
@@ -627,7 +617,6 @@ export default function TransactionsPage() {
             </div>
           ) : (
             <form onSubmit={handleSaveTransaction} className="space-y-4">
-              {/* Date & Type Dropdown */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
@@ -654,7 +643,6 @@ export default function TransactionsPage() {
                 </div>
               </div>
 
-              {/* Adjustment Mode Options */}
               {isAdjustmentType && (
                 <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl space-y-2">
                   <label className="block text-xs font-semibold text-amber-900 dark:text-amber-300">Adjustment Action</label>
@@ -685,7 +673,6 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              {/* Account Dropdown */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                   {isTransferType ? 'From Account (Source)' : isRefundType ? 'Refund Deposited In' : 'Account'}
@@ -708,7 +695,6 @@ export default function TransactionsPage() {
                 </select>
               </div>
 
-              {/* Conditionally show Transfer To field if type is Transfer */}
               {isTransferType && (
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Transfer To (Destination)</label>
@@ -726,7 +712,6 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              {/* Conditionally show Select Debt for Repayment */}
               {isRepaymentType && (
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Select Loan to Repay</label>
@@ -748,7 +733,6 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              {/* Category & Amount (Synced with Budgets) */}
               <div className={`grid ${isTransferType ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
                 {!isTransferType && (
                   <div>
@@ -775,12 +759,11 @@ export default function TransactionsPage() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                   />
                 </div>
               </div>
 
-              {/* Paid To / Received From Field */}
               {!isTransferType && !isRepaymentType && (
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -806,7 +789,6 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              {/* Conditionally show Due Date if Loan Given or Loan Received */}
               {isLoanType && (
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Loan Due Date</label>
@@ -820,7 +802,6 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              {/* Entered By */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Entered By</label>
                 <select
@@ -833,7 +814,6 @@ export default function TransactionsPage() {
                 </select>
               </div>
 
-              {/* Description / Remarks */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description / Remarks</label>
                 <input
@@ -861,10 +841,7 @@ export default function TransactionsPage() {
           )}
         </div>
 
-        {/* Right Column: Ledger Table & Filters */}
         <div className="lg:col-span-2 space-y-4">
-          
-          {/* Search & Filter Bar */}
           <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
             <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-1">
@@ -910,7 +887,6 @@ export default function TransactionsPage() {
               </div>
             </div>
 
-            {/* Date Range Filter Bar */}
             <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
               <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span className="font-medium text-[11px] text-slate-500 dark:text-slate-400">Date Range:</span>
@@ -937,7 +913,6 @@ export default function TransactionsPage() {
               )}
             </div>
 
-            {/* Bulk Selection Banner */}
             {selectedIds.length > 0 && (
               <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-2.5 rounded-xl text-xs">
                 <span className="font-semibold text-indigo-900 dark:text-indigo-300">{selectedIds.length} transaction(s) selected</span>
@@ -951,7 +926,6 @@ export default function TransactionsPage() {
             )}
           </div>
 
-          {/* Transactions Table */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -1055,7 +1029,6 @@ export default function TransactionsPage() {
               </table>
             </div>
 
-            {/* Pagination Controls Footer */}
             <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
               <span>Showing page <strong>{currentPage}</strong> of <strong>{totalPages}</strong></span>
               <div className="flex gap-2">

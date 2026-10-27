@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users, Wallet, History } from 'lucide-react';
+import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users, Wallet, History, Trash2 } from 'lucide-react';
 
 export interface Debt {
   id: string;
@@ -140,6 +140,17 @@ export default function DebtsPage() {
       setPersonName('');
       setAmount('');
       setNotes('');
+      fetchData();
+    }
+  };
+
+  const handleDeleteDebt = async (id: string, name: string) => {
+    if (!confirm(`Kya aap waqai "${name}" ka debt record delete karna chahte hain?`)) return;
+
+    const { error } = await supabase.from('debts').delete().eq('id', id);
+    if (error) {
+      alert('Error deleting debt record: ' + error.message);
+    } else {
       fetchData();
     }
   };
@@ -458,7 +469,7 @@ export default function DebtsPage() {
                       required
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
                   </div>
                 </div>
@@ -542,6 +553,13 @@ export default function DebtsPage() {
                                   Settle / Pay
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleDeleteDebt(d.id, d.person_name)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                                title="Delete Debt Record"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         </div>
