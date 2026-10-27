@@ -20,8 +20,7 @@ import {
   X,
   AlertTriangle,
   Activity,
-  PieChart,
-  Command
+  PieChart
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -79,6 +78,7 @@ export default function FinanceDashboard() {
   const [selectedYear, setSelectedYear] = useState('');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [todayStr, setTodayStr] = useState('');
 
   // Quick Add Form States
   const [amount, setAmount] = useState('');
@@ -124,6 +124,7 @@ export default function FinanceDashboard() {
     const now = new Date();
     setSelectedMonth(now.toISOString().slice(0, 7));
     setSelectedYear(now.getFullYear().toString());
+    setTodayStr(now.toISOString().slice(0, 10));
     fetchData();
   }, []);
 
@@ -221,10 +222,8 @@ export default function FinanceDashboard() {
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-  // Smart Alert Check (Urgent bills due within 3 days or low liquidity)
-  const todayStr = new Date().toISOString().slice(0, 10);
   const urgentBillsCount = bills.filter(b => {
-    if (!b.due_date) return false;
+    if (!b.due_date || !todayStr) return false;
     return b.due_date <= todayStr;
   }).length;
 
@@ -251,7 +250,7 @@ export default function FinanceDashboard() {
           </div>
         </div>
 
-        {/* Feature 4: Smart Notification Alert Banner */}
+        {/* Smart Notification Alert Banner */}
         {urgentBillsCount > 0 && (
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 p-4 rounded-2xl flex items-center justify-between text-xs font-medium shadow-xs">
             <div className="flex items-center gap-2.5">
@@ -380,10 +379,9 @@ export default function FinanceDashboard() {
           </div>
         </div>
 
-        {/* Feature 1 & 2: Cash Flow Trend Visual & Budget Progress Health */}
+        {/* Cash Flow Trend Visual & Budget Progress Health */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Feature 1: Cash Flow Visual Ratio Bar */}
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
             <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
               <Activity className="w-4 h-4 text-indigo-500" /> Cash Flow Ratio (Inflow vs Outflow)
@@ -395,7 +393,6 @@ export default function FinanceDashboard() {
                 <span className="text-rose-600 dark:text-rose-400">Outflow: PKR {filteredExpense.toLocaleString()}</span>
               </div>
               
-              {/* Visual Progress Bar */}
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden flex">
                 <div 
                   className="bg-blue-500 h-full transition-all duration-500" 
@@ -410,7 +407,6 @@ export default function FinanceDashboard() {
             </div>
           </div>
 
-          {/* Feature 2: Budget Health Progress */}
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
@@ -426,7 +422,7 @@ export default function FinanceDashboard() {
             ) : (
               <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
                 {budgets.slice(0, 2).map((b) => {
-                  const spent = b.spent_amount || Math.floor(b.allocated_amount * 0.4); // fallback demo ratio if unlinked
+                  const spent = b.spent_amount || Math.floor(b.allocated_amount * 0.4);
                   const pct = Math.min(Math.round((spent / b.allocated_amount) * 100), 100);
                   return (
                     <div key={b.id} className="space-y-1">
@@ -449,13 +445,11 @@ export default function FinanceDashboard() {
 
         </div>
 
-        {/* Two Column Layout: Accounts & Quick Actions vs Pending Bills & Recent Activity Feed */}
+        {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Left 2 Cols: Accounts & Quick Form */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Accounts Portfolio Cards */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
@@ -486,7 +480,6 @@ export default function FinanceDashboard() {
               </div>
             </div>
 
-            {/* Quick Transaction Form */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <PlusCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Quick Transaction Entry
@@ -561,10 +554,8 @@ export default function FinanceDashboard() {
 
           </div>
 
-          {/* Right Col: Urgent Pending Bills & Feature 3 (Recent Activity Mini-Feed) */}
           <div className="space-y-6">
             
-            {/* Urgent Pending Bills */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -616,7 +607,6 @@ export default function FinanceDashboard() {
               )}
             </div>
 
-            {/* Feature 3: Recent Activity Mini-Feed */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -655,7 +645,6 @@ export default function FinanceDashboard() {
 
       </div>
 
-      {/* Bill Payment Account Selection Modal */}
       {selectedBillToPay && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
