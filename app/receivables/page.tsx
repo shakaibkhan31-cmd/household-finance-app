@@ -62,7 +62,7 @@ export default function ReceivablesPage() {
       .order('expected_date', { ascending: true });
     setReceivables(recData || []);
 
-    // Fetch Transactions to cross-verify actual received income
+    // Fetch Transactions
     const { data: txData } = await supabase.from('transactions').select('*');
     setTransactions(txData || []);
 
@@ -174,7 +174,6 @@ export default function ReceivablesPage() {
     })
     .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
-  // Calculate received income from transactions ledger matching this month or explicitly received receivables
   const currentMonthTransactionsIncome = transactions
     .filter((t) => {
       const tDate = (t.date || t.transaction_date || '').trim();
@@ -193,8 +192,34 @@ export default function ReceivablesPage() {
     })
     .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
-  // Take the maximum or combined accurate total of received income
   const receivedTotal = Math.max(currentMonthTransactionsIncome, receivedReceivablesTotal);
+
+  // Combine receivables items with direct income transactions for display completeness
+  const incomeTransactionsAsReceivables = transactions
+    .filter((t) => {
+      const tDate = (t.date || t.transaction_date || '').trim();
+      const isThisMonth = selectedMonth ? tDate.startsWith(selectedMonth) : true;
+      const tType = (t.type || '').toLowerCase();
+      const tCat = (t.category || '').toLowerCase();
+      const isIncome = tType.includes('income') || tType.includes('deposit') || tType.includes('inflow') || tCat.includes('income');
+      return isThisMonth && isIncome;
+    })
+    .map((t) => ({
+      id: `tx-${t.id}`,
+      title: t.description || t.party_name || 'Direct Income',
+      source_person: t.party_name,
+      category: t.category || 'Salary / Business Income',
+      amount: Number(t.amount || 0),
+      expected_date: t.date || t.transaction_date || todayStr,
+      status: 'Received',
+      notes: `Account: ${t.account_name}`,
+    }));
+
+  // Merge both lists avoiding duplicate IDs
+  const combinedItems = [
+    ...receivables,
+    ...incomeTransactionsAsReceivables.filter(txItem => !receivables.some(r => r.id === txItem.id))
+  ];
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
@@ -328,11 +353,11 @@ export default function ReceivablesPage() {
 
             {loading ? (
               <p className="text-xs text-slate-400 py-4 text-center">Loading receivables...</p>
-            ) : receivables.length === 0 ? (
+            ) : combinedItems.length === 0 ? (
               <p className="text-xs text-slate-400 py-4 text-center">No income or receivable records found.</p>
             ) : (
               <div className="space-y-3">
-                {receivables.map((r) => {
+                {combinedItems.map((r) => {
                   const isReceived = r.status === 'Received';
                   return (
                     <div
@@ -356,7 +381,7 @@ export default function ReceivablesPage() {
                         <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                           {r.source_person && <span>From: {r.source_person}</span>}
                           <span className="flex items-center gap-1 font-mono">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" /> Expected: {r.expected_date}
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" /> Date: {r.expected_date}
                           </span>
                           {r.notes && <span>{r.notes}</span>}
                         </div>
@@ -372,20 +397,22 @@ export default function ReceivablesPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           {!isReceived && (
                             <button
-                              onClick={() => handleOpenReceiveModal(r)}
+                              onClick={() => handleOpenReceiveModal(r as Receivable)}
                               className="text-[11px] text-white bg-emerald-600 hover:bg-emerald-700 font-medium px-3 py-1 rounded-lg transition flex items-center gap-1 shadow-xs cursor-pointer"
                             >
                               <ArrowDownLeft className="w-3.5 h-3.5" /> Mark Received
                             </button>
                           )}
 
-                          <button
-                            onClick={() => handleDeleteReceivable(r.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
-                            title="Delete Entry"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!r.id.toString().startsWith('tx-') && (
+                            <button
+                              onClick={() => handleDeleteReceivable(r.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                              title="Delete Entry"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
