@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Wallet, Plus, Building2, CreditCard, DollarSign, Edit3, X } from 'lucide-react';
+import { Wallet, Plus, Building2, CreditCard, DollarSign, Edit3, X, Trash2, Search, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
 export interface Account {
   id: string;
@@ -17,6 +17,8 @@ export interface Account {
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [filterType, setFilterType] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Form State (Add)
   const [name, setName] = useState('');
@@ -27,8 +29,10 @@ export default function AccountsPage() {
 
   // Edit State
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editName, setEditName] = useState('');
   const [editBalance, setEditBalance] = useState('');
   const [editCreditLimit, setEditCreditLimit] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -80,8 +84,10 @@ export default function AccountsPage() {
 
   const handleOpenEdit = (acc: Account) => {
     setEditingAccount(acc);
+    setEditName(acc.name);
     setEditBalance(acc.current_balance.toString());
     setEditCreditLimit(acc.credit_limit ? acc.credit_limit.toString() : '');
+    setEditAccountNumber(acc.account_number || '');
   };
 
   const handleUpdateAccount = async (e: React.FormEvent) => {
@@ -89,7 +95,9 @@ export default function AccountsPage() {
     if (!editingAccount) return;
 
     const updatePayload: any = {
+      name: editName,
       current_balance: parseFloat(editBalance),
+      account_number: editAccountNumber || null,
     };
 
     if (editingAccount.type === 'Credit Card') {
@@ -105,27 +113,55 @@ export default function AccountsPage() {
       alert('Error updating account: ' + error.message);
     } else {
       setEditingAccount(null);
-      setEditBalance('');
-      setEditCreditLimit('');
+      fetchAccounts();
+    }
+  };
+
+  const handleDeleteAccount = async (id: string, name: string) => {
+    if (!confirm(`Kya aap waqai "${name}" account ko delete karna chahte hain?`)) return;
+
+    const { error } = await supabase.from('accounts').delete().eq('id', id);
+    if (error) {
+      alert('Error deleting account: ' + error.message);
+    } else {
       fetchAccounts();
     }
   };
 
   const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.current_balance), 0);
+  const totalCreditLimit = accounts
+    .filter((acc) => acc.type === 'Credit Card')
+    .reduce((sum, acc) => sum + Number(acc.credit_limit || 0), 0);
+
+  const filteredAccounts = accounts.filter((acc) => {
+    const matchesType = filterType === 'All' || acc.type === filterType;
+    const matchesSearch = acc.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (acc.account_number && acc.account_number.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesType && matchesSearch;
+  });
+
   const isCreditCard = type === 'Credit Card';
   const isCash = type === 'Cash';
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header */}
+      {/* Header & Portfolio Stats */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Accounts & Wallets</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage bank accounts, digital wallets, credit cards, and cash reserves</p>
         </div>
-        <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl text-left md:text-right w-full md:w-auto">
-          <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Net Liquid Worth</p>
-          <p className="text-2xl font-bold text-indigo-900 dark:text-indigo-200 mt-0.5">PKR {totalBalance.toLocaleString()}</p>
+        <div className="flex gap-3 w-full md:w-auto">
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-48">
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Net Liquid Worth</p>
+            <p className="text-xl font-bold text-indigo-900 dark:text-indigo-200 mt-0.5">PKR {totalBalance.toLocaleString()}</p>
+          </div>
+          {totalCreditLimit > 0 && (
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-48">
+              <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Total Credit Limit</p>
+              <p className="text-xl font-bold text-rose-900 dark:text-rose-200 mt-0.5">PKR {totalCreditLimit.toLocaleString()}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -218,74 +254,116 @@ export default function AccountsPage() {
           </form>
         </div>
 
-        {/* List: Accounts Cards */}
-        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
-          {loading ? (
-            <div className="col-span-2 text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
-              Loading account portfolio...
+        {/* List: Accounts Cards & Filters */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Filter & Search Bar */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+              {['All', 'Bank', 'Wallet', 'Credit Card', 'Cash'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilterType(tab)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0 ${
+                    filterType === tab
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
-          ) : accounts.length === 0 ? (
-            <div className="col-span-2 text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
-              No accounts registered yet. Add your first bank or credit card account on the left.
+
+            <div className="relative w-full sm:w-56">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search accounts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+              />
             </div>
-          ) : (
-            accounts.map((acc) => (
-              <div key={acc.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 relative group">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl">
-                      {acc.type === 'Bank' ? <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" /> :
-                       acc.type === 'Wallet' ? <Wallet className="w-5 h-5 text-purple-600 dark:text-purple-400" /> :
-                       acc.type === 'Credit Card' ? <CreditCard className="w-5 h-5 text-rose-600 dark:text-rose-400" /> :
-                       <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+          </div>
+
+          {/* Accounts Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {loading ? (
+              <div className="col-span-2 text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
+                Loading account portfolio...
+              </div>
+            ) : filteredAccounts.length === 0 ? (
+              <div className="col-span-2 text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
+                No accounts found matching your filter.
+              </div>
+            ) : (
+              filteredAccounts.map((acc) => (
+                <div key={acc.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 relative group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl">
+                        {acc.type === 'Bank' ? <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" /> :
+                         acc.type === 'Wallet' ? <Wallet className="w-5 h-5 text-purple-600 dark:text-purple-400" /> :
+                         acc.type === 'Credit Card' ? <CreditCard className="w-5 h-5 text-rose-600 dark:text-rose-400" /> :
+                         <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-800 dark:text-white text-sm">{acc.name}</h3>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{acc.type}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-800 dark:text-white text-sm">{acc.name}</h3>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{acc.type}</p>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEdit(acc)}
+                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 p-1.5 rounded-lg transition"
+                        title="Edit Account Details"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAccount(acc.id, acc.name)}
+                        className="text-xs text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1.5 rounded-lg transition"
+                        title="Delete Account"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenEdit(acc)}
-                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 p-2 rounded-lg transition flex items-center gap-1 font-medium"
-                    title="Edit Account Details"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" /> Edit
-                  </button>
-                </div>
+                  {acc.account_number && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg w-fit">
+                      {acc.account_number}
+                    </p>
+                  )}
 
-                {acc.account_number && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg w-fit">
-                    {acc.account_number}
-                  </p>
-                )}
-
-                {acc.type === 'Credit Card' ? (
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-3 grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-[11px] text-slate-400">Credit Limit</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                        PKR {Number(acc.credit_limit || 0).toLocaleString()}
-                      </p>
+                  {acc.type === 'Credit Card' ? (
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[11px] text-slate-400">Credit Limit</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                          PKR {Number(acc.credit_limit || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-slate-400">Outstanding</p>
+                        <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                          PKR {Number(acc.current_balance).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[11px] text-slate-400">Outstanding</p>
-                      <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                  ) : (
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <p className="text-[11px] text-slate-400">Available Balance</p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">
                         PKR {Number(acc.current_balance).toLocaleString()}
                       </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <p className="text-[11px] text-slate-400">Available Balance</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">
-                      PKR {Number(acc.current_balance).toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
       </div>
@@ -295,13 +373,36 @@ export default function AccountsPage() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Account — {editingAccount.name}</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Account</h3>
               <button onClick={() => setEditingAccount(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleUpdateAccount} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Account Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                />
+              </div>
+
+              {editingAccount.type !== 'Cash' && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Account / Card Number</label>
+                  <input
+                    type="text"
+                    value={editAccountNumber}
+                    onChange={(e) => setEditAccountNumber(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+              )}
+
               {editingAccount.type === 'Credit Card' && (
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Credit Limit (PKR)</label>
