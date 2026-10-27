@@ -340,7 +340,7 @@ export default function BillsPage() {
             <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Total Pending Bills</p>
             <p className="text-2xl font-bold text-amber-950 dark:text-amber-200 mt-1">PKR {totalPendingAmount.toLocaleString()}</p>
           </div>
-          <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 p-1.5 rounded-xl" />
+          <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 p-1.5 rounded-xl shrink-0" />
         </div>
 
         <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-5 rounded-2xl flex items-center justify-between">
@@ -348,7 +348,7 @@ export default function BillsPage() {
             <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Overdue Bills ({overdueBillsCount})</p>
             <p className="text-2xl font-bold text-rose-950 dark:text-rose-200 mt-1">PKR {totalOverdueAmount.toLocaleString()}</p>
           </div>
-          <AlertTriangle className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl" />
+          <AlertTriangle className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl shrink-0" />
         </div>
       </div>
 
@@ -434,7 +434,7 @@ export default function BillsPage() {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
             >
               Add Bill Entry
             </button>
@@ -442,7 +442,7 @@ export default function BillsPage() {
         </div>
 
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="relative w-full md:w-64">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -455,28 +455,28 @@ export default function BillsPage() {
                 />
               </div>
 
-              <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto">
+              <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
                 <button
                   onClick={() => setFilterStatus('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   All
                 </button>
                 <button
                   onClick={() => setFilterStatus('pending')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Pending
                 </button>
                 <button
                   onClick={() => setFilterStatus('overdue')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'overdue' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'overdue' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Overdue
                 </button>
                 <button
                   onClick={() => setFilterStatus('paid')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Paid
                 </button>
@@ -502,7 +502,7 @@ export default function BillsPage() {
                   return (
                     <div
                       key={b.id}
-                      className={`p-4 rounded-xl border flex items-center justify-between transition ${
+                      className={`p-3.5 md:p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition ${
                         b.status === 'Paid'
                           ? 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
                           : isOverdue
@@ -510,8 +510,8 @@ export default function BillsPage() {
                           : 'bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 shadow-xs'
                       }`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 w-full sm:w-auto pr-0 sm:pr-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-slate-800 dark:text-white text-sm">{b.title}</span>
                           {b.is_recurring && (
                             <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
@@ -531,7 +531,7 @@ export default function BillsPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                           <span className="flex items-center gap-1 font-mono">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
                           </span>
@@ -544,26 +544,26 @@ export default function BillsPage() {
                         </div>
                       </div>
 
-                      <div className="text-right space-y-2">
+                      <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
                         <div>
-                          <p className={`text-base font-bold ${isOverdue ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                          <p className={`text-base font-bold whitespace-nowrap ${isOverdue ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
                             PKR {effectiveAmount.toLocaleString()}
                           </p>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           {b.status === 'Pending' && (
                             <>
                               <button
                                 onClick={() => handleOpenMarkPaidModal(b)}
-                                className="text-[11px] text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition"
+                                className="text-[11px] text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer"
                               >
                                 Mark Paid
                               </button>
                               {isCreditCardBill && (
                                 <button
                                   onClick={() => handleOpenTransferModal(b)}
-                                  className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1"
+                                  className="text-[11px] text-white font-medium px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer"
                                 >
                                   <CreditCard className="w-3.5 h-3.5" /> Transfer
                                 </button>
@@ -572,7 +572,7 @@ export default function BillsPage() {
                           )}
                           <button
                             onClick={() => handleDeleteBill(b)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
                             title="Delete Bill"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -614,8 +614,8 @@ export default function BillsPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setPayingBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Cancel</button>
-              <button onClick={handleConfirmMarkPaid} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">Confirm Payment</button>
+              <button onClick={() => setPayingBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl cursor-pointer">Cancel</button>
+              <button onClick={handleConfirmMarkPaid} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl cursor-pointer">Confirm Payment</button>
             </div>
           </div>
         </div>
@@ -662,8 +662,8 @@ export default function BillsPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setTransferringBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Cancel</button>
-              <button onClick={handlePayNowAndTransfer} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">Confirm Transfer</button>
+              <button onClick={() => setTransferringBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl cursor-pointer">Cancel</button>
+              <button onClick={handlePayNowAndTransfer} className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl cursor-pointer">Confirm Transfer</button>
             </div>
           </div>
         </div>
