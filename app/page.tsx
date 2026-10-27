@@ -95,6 +95,7 @@ interface Budget {
   id: string;
   category?: string;
   name?: string;
+  title?: string;
   allocated_amount?: number;
   amount?: number;
   budget_amount?: number;
@@ -163,14 +164,14 @@ function DashboardContent() {
 
       const { data: budgetData, error: budgetErr } = await supabase.from('budgets').select('*');
       if (!budgetErr && budgetData && budgetData.length > 0) {
+        console.log('Fetched Budgets from DB:', budgetData);
         setBudgets(budgetData);
       } else {
-        // Detailed realistic default budgets if table is empty
         setBudgets([
-          { id: '1', category: 'Groceries & Food', allocated_amount: 25000, spent_amount: 12500 },
+          { id: '1', category: 'Groceries & Food', allocated_amount: 20000, spent_amount: 15000 },
           { id: '2', category: 'Fuel & Transport', allocated_amount: 15000, spent_amount: 8200 },
           { id: '3', category: 'Healthcare & Medical', allocated_amount: 10000, spent_amount: 3100 },
-          { id: '4', category: 'Education', allocated_amount: 20000, spent_amount: 15000 }
+          { id: '4', category: 'Education', allocated_amount: 25000, spent_amount: 15000 }
         ]);
       }
 
@@ -502,13 +503,18 @@ function DashboardContent() {
             ) : (
               <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
                 {budgets.map((b, idx) => {
-                  const bName = b?.category || b?.name || 'General';
-                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? 20000);
+                  const bName = b?.category || b?.name || b?.title || 'General';
                   
-                  // Calculate unique spent amount based on index or category name
-                  const defaultSpentArr = [12500, 8200, 3100, 15000];
-                  const fallbackSpent = defaultSpentArr[idx % defaultSpentArr.length];
+                  // Check all possible allocated amount column names in Supabase
+                  const alloc = Number(
+                    b?.allocated_amount ?? 
+                    b?.amount ?? 
+                    b?.budget_amount ?? 
+                    b?.limit ?? 
+                    20000
+                  );
 
+                  // Calculate exact spent from transactions matching category name
                   const calcSpent = filteredTransactions
                     .filter(t => {
                       const tCat = (t?.category || '').toLowerCase();
@@ -518,7 +524,7 @@ function DashboardContent() {
                     })
                     .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
-                  const spent = calcSpent > 0 ? calcSpent : fallbackSpent;
+                  const spent = calcSpent > 0 ? calcSpent : Number(b?.spent_amount || 0);
                   const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
 
                   return (
@@ -766,7 +772,7 @@ function DashboardContent() {
               <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
                 <span className="text-xs text-slate-500 dark:text-slate-400">Amount Due</span>
                 <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-                  PKR {Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_amount ?? 0).toLocaleString()}
+                  PKR {Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_name ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
