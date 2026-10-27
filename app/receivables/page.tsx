@@ -194,7 +194,7 @@ export default function ReceivablesPage() {
 
   const receivedTotal = Math.max(currentMonthTransactionsIncome, receivedReceivablesTotal);
 
-  // Combine receivables items with direct income transactions for display completeness
+  // Filter direct income transactions only if they are NOT already present in receivables table as 'Received'
   const incomeTransactionsAsReceivables = transactions
     .filter((t) => {
       const tDate = (t.date || t.transaction_date || '').trim();
@@ -202,7 +202,18 @@ export default function ReceivablesPage() {
       const tType = (t.type || '').toLowerCase();
       const tCat = (t.category || '').toLowerCase();
       const isIncome = tType.includes('income') || tType.includes('deposit') || tType.includes('inflow') || tCat.includes('income');
-      return isThisMonth && isIncome;
+      
+      if (!isThisMonth || !isIncome) return false;
+
+      // Check if a corresponding receivable already exists with same amount/title
+      const existsInReceivables = receivables.some(r => {
+        const matchesTitle = (r.title || '').toLowerCase().includes((t.description || '').toLowerCase()) || 
+                             (t.description || '').toLowerCase().includes((r.title || '').toLowerCase());
+        const matchesAmt = Number(r.amount) === Number(t.amount);
+        return matchesTitle && matchesAmt;
+      });
+
+      return !existsInReceivables;
     })
     .map((t) => ({
       id: `tx-${t.id}`,
@@ -215,10 +226,10 @@ export default function ReceivablesPage() {
       notes: `Account: ${t.account_name}`,
     }));
 
-  // Merge both lists avoiding duplicate IDs
+  // Combine receivables items with non-duplicate direct income transactions
   const combinedItems = [
     ...receivables,
-    ...incomeTransactionsAsReceivables.filter(txItem => !receivables.some(r => r.id === txItem.id))
+    ...incomeTransactionsAsReceivables
   ];
 
   return (
