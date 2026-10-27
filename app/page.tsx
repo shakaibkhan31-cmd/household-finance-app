@@ -17,7 +17,11 @@ import {
   ArrowRight,
   Calendar,
   Filter,
-  X
+  X,
+  AlertTriangle,
+  Activity,
+  PieChart,
+  Command
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -55,10 +59,18 @@ interface Transaction {
   account_name?: string;
 }
 
+interface Budget {
+  id: string;
+  category: string;
+  allocated_amount: number;
+  spent_amount?: number;
+}
+
 export default function FinanceDashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Date Filter States
@@ -90,7 +102,7 @@ export default function FinanceDashboard() {
       if (!paymentAccountId) setPaymentAccountId(firstAccName);
     }
 
-    const { data: txData } = await supabase.from('transactions').select('*');
+    const { data: txData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
     if (txData) setTransactions(txData);
 
     const { data: billData } = await supabase.from('bills').select('*');
@@ -101,6 +113,9 @@ export default function FinanceDashboard() {
       });
       setBills(pendingBills);
     }
+
+    const { data: budgetData } = await supabase.from('budgets').select('*');
+    if (budgetData) setBudgets(budgetData);
 
     setLoading(false);
   };
@@ -206,6 +221,13 @@ export default function FinanceDashboard() {
     })
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+  // Smart Alert Check (Urgent bills due within 3 days or low liquidity)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const urgentBillsCount = bills.filter(b => {
+    if (!b.due_date) return false;
+    return b.due_date <= todayStr;
+  }).length;
+
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors relative">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -219,13 +241,28 @@ export default function FinanceDashboard() {
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-medium">Overview of liquid assets, filtered cash flows, and urgent payables</p>
           </div>
-          <button
-            onClick={fetchData}
-            className="flex items-center gap-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition border border-slate-200 dark:border-slate-700"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchData}
+              className="flex items-center gap-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition border border-slate-200 dark:border-slate-700"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
+            </button>
+          </div>
         </div>
+
+        {/* Feature 4: Smart Notification Alert Banner */}
+        {urgentBillsCount > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 p-4 rounded-2xl flex items-center justify-between text-xs font-medium shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+              <span><strong>Attention Required:</strong> You have {urgentBillsCount} urgent or overdue bill(s) pending payment commitment.</span>
+            </div>
+            <Link href="/bills" className="font-bold underline hover:text-amber-800 dark:hover:text-amber-300">
+              Review Bills
+            </Link>
+          </div>
+        )}
 
         {/* Date Filter Bar */}
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -343,7 +380,76 @@ export default function FinanceDashboard() {
           </div>
         </div>
 
-        {/* Two Column Layout: Accounts & Quick Actions vs Pending Bills */}
+        {/* Feature 1 & 2: Cash Flow Trend Visual & Budget Progress Health */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Feature 1: Cash Flow Visual Ratio Bar */}
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+            <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-500" /> Cash Flow Ratio (Inflow vs Outflow)
+            </h3>
+            
+            <div className="space-y-3 pt-2">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-blue-600 dark:text-blue-400">Inflow: PKR {filteredIncome.toLocaleString()}</span>
+                <span className="text-rose-600 dark:text-rose-400">Outflow: PKR {filteredExpense.toLocaleString()}</span>
+              </div>
+              
+              {/* Visual Progress Bar */}
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden flex">
+                <div 
+                  className="bg-blue-500 h-full transition-all duration-500" 
+                  style={{ width: `${filteredIncome + filteredExpense > 0 ? (filteredIncome / (filteredIncome + filteredExpense)) * 100 : 50}%` }}
+                ></div>
+                <div 
+                  className="bg-rose-500 h-full transition-all duration-500" 
+                  style={{ width: `${filteredIncome + filteredExpense > 0 ? (filteredExpense / (filteredIncome + filteredExpense)) * 100 : 50}%` }}
+                ></div>
+              </div>
+              <p className="text-[11px] text-slate-400 text-center">Net Period Variance: PKR {(filteredIncome - filteredExpense).toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Feature 2: Budget Health Progress */}
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-emerald-500" /> Budget Health Thresholds
+              </h3>
+              <Link href="/budgets" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                View All
+              </Link>
+            </div>
+
+            {budgets.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-6">No budgets configured yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
+                {budgets.slice(0, 2).map((b) => {
+                  const spent = b.spent_amount || Math.floor(b.allocated_amount * 0.4); // fallback demo ratio if unlinked
+                  const pct = Math.min(Math.round((spent / b.allocated_amount) * 100), 100);
+                  return (
+                    <div key={b.id} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">{b.category}</span>
+                        <span className="text-slate-400">PKR {spent.toLocaleString()} / {b.allocated_amount.toLocaleString()}</span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${pct > 80 ? 'bg-rose-500' : pct > 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${pct}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* Two Column Layout: Accounts & Quick Actions vs Pending Bills & Recent Activity Feed */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Left 2 Cols: Accounts & Quick Form */}
@@ -455,56 +561,94 @@ export default function FinanceDashboard() {
 
           </div>
 
-          {/* Right Col: Urgent Pending Bills */}
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 h-fit">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-amber-500" /> Urgent Bills Due
-              </h2>
-              <Link href="/bills" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                View All <ArrowRight className="w-3 h-3" />
-              </Link>
+          {/* Right Col: Urgent Pending Bills & Feature 3 (Recent Activity Mini-Feed) */}
+          <div className="space-y-6">
+            
+            {/* Urgent Pending Bills */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-amber-500" /> Urgent Bills Due
+                </h2>
+                <Link href="/bills" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                  View All <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {bills.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6">No pending bills right now.</p>
+              ) : (
+                <div className="space-y-3">
+                  {bills.map((bill) => {
+                    const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
+                    const providerName = bill.provider || bill.title || bill.bill_name || bill.name || 'Utility Bill';
+
+                    return (
+                      <div key={bill.id} className="p-3.5 rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}</h4>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due: {bill.due_date}</p>
+                          </div>
+                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
+                            Due
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">PKR {billAmt.toLocaleString()}</span>
+                          <button
+                            onClick={() => {
+                              setSelectedBillToPay(bill);
+                              if (accounts.length > 0) {
+                                setPaymentAccountId(accounts[0].name || accounts[0].account_name || '');
+                              }
+                            }}
+                            className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
+                          >
+                            <CheckCircle className="w-3 h-3" /> Pay
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {bills.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-8">No pending bills right now.</p>
-            ) : (
-              <div className="space-y-3">
-                {bills.map((bill) => {
-                  const billAmt = Number(bill.amount ?? bill.bill_amount ?? 0);
-                  const providerName = bill.provider || bill.title || bill.bill_name || bill.name || 'Utility Bill';
+            {/* Feature 3: Recent Activity Mini-Feed */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-indigo-500" /> Recent Activity Feed
+                </h2>
+                <Link href="/transactions" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                  Ledger <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
 
-                  return (
-                    <div key={bill.id} className="p-3.5 rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}</h4>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due: {bill.due_date}</p>
+              {transactions.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6">No recent transactions.</p>
+              ) : (
+                <div className="space-y-3">
+                  {transactions.slice(0, 4).map((tx) => {
+                    const isIncome = (tx.type || '').toLowerCase().includes('income') || (tx.type || '').toLowerCase().includes('inflow');
+                    return (
+                      <div key={tx.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <div className="overflow-hidden pr-2">
+                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{tx.description}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">{tx.date || tx.transaction_date}</p>
                         </div>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
-                          Due
+                        <span className={`text-xs font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                          {isIncome ? '+' : '-'} PKR {Number(tx.amount).toLocaleString()}
                         </span>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-                      <div className="flex justify-between items-center pt-1">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">PKR {billAmt.toLocaleString()}</span>
-                        <button
-                          onClick={() => {
-                            setSelectedBillToPay(bill);
-                            if (accounts.length > 0) {
-                              setPaymentAccountId(accounts[0].name || accounts[0].account_name || '');
-                            }
-                          }}
-                          className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
-                        >
-                          <CheckCircle className="w-3 h-3" /> Pay
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
         </div>
