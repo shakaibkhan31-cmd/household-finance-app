@@ -128,7 +128,15 @@ export default function AccountsPage() {
     }
   };
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.current_balance), 0);
+  // Corrected Net Liquid Worth Logic: Subtract credit card outstanding liabilities from total liquid cash/bank funds
+  const totalNetLiquidWorth = accounts.reduce((sum, acc) => {
+    const bal = Number(acc.current_balance || 0);
+    if (acc.type === 'Credit Card') {
+      return sum - bal; // Subtract liability
+    }
+    return sum + bal; // Add bank, wallet, cash
+  }, 0);
+
   const totalCreditLimit = accounts
     .filter((acc) => acc.type === 'Credit Card')
     .reduce((sum, acc) => sum + Number(acc.credit_limit || 0), 0);
@@ -154,12 +162,12 @@ export default function AccountsPage() {
         <div className="flex gap-3 w-full md:w-auto">
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-48">
             <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Net Liquid Worth</p>
-            <p className="text-xl font-bold text-indigo-900 dark:text-indigo-200 mt-0.5">PKR {totalBalance.toLocaleString()}</p>
+            <p className="text-xl font-bold text-indigo-900 dark:text-indigo-200 mt-0.5 whitespace-nowrap">PKR {totalNetLiquidWorth.toLocaleString()}</p>
           </div>
           {totalCreditLimit > 0 && (
             <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-48">
               <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Total Credit Limit</p>
-              <p className="text-xl font-bold text-rose-900 dark:text-rose-200 mt-0.5">PKR {totalCreditLimit.toLocaleString()}</p>
+              <p className="text-xl font-bold text-rose-900 dark:text-rose-200 mt-0.5 whitespace-nowrap">PKR {totalCreditLimit.toLocaleString()}</p>
             </div>
           )}
         </div>
@@ -247,7 +255,7 @@ export default function AccountsPage() {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2 cursor-pointer"
             >
               Add Account
             </button>
@@ -263,7 +271,7 @@ export default function AccountsPage() {
                 <button
                   key={tab}
                   onClick={() => setFilterType(tab)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer ${
                     filterType === tab
                       ? 'bg-indigo-600 text-white shadow-xs'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -301,7 +309,7 @@ export default function AccountsPage() {
                 <div key={acc.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 relative group">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl">
+                      <div className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl shrink-0">
                         {acc.type === 'Bank' ? <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" /> :
                          acc.type === 'Wallet' ? <Wallet className="w-5 h-5 text-purple-600 dark:text-purple-400" /> :
                          acc.type === 'Credit Card' ? <CreditCard className="w-5 h-5 text-rose-600 dark:text-rose-400" /> :
@@ -316,14 +324,14 @@ export default function AccountsPage() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenEdit(acc)}
-                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 p-1.5 rounded-lg transition"
+                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 p-1.5 rounded-lg transition cursor-pointer"
                         title="Edit Account Details"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteAccount(acc.id, acc.name)}
-                        className="text-xs text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1.5 rounded-lg transition"
+                        className="text-xs text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1.5 rounded-lg transition cursor-pointer"
                         title="Delete Account"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -341,13 +349,13 @@ export default function AccountsPage() {
                     <div className="border-t border-slate-100 dark:border-slate-800 pt-3 grid grid-cols-2 gap-2">
                       <div>
                         <p className="text-[11px] text-slate-400">Credit Limit</p>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 whitespace-nowrap">
                           PKR {Number(acc.credit_limit || 0).toLocaleString()}
                         </p>
                       </div>
                       <div>
                         <p className="text-[11px] text-slate-400">Outstanding</p>
-                        <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                        <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 whitespace-nowrap">
                           PKR {Number(acc.current_balance).toLocaleString()}
                         </p>
                       </div>
@@ -355,7 +363,7 @@ export default function AccountsPage() {
                   ) : (
                     <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
                       <p className="text-[11px] text-slate-400">Available Balance</p>
-                      <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                      <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 whitespace-nowrap">
                         PKR {Number(acc.current_balance).toLocaleString()}
                       </p>
                     </div>
@@ -374,7 +382,7 @@ export default function AccountsPage() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Account</h3>
-              <button onClick={() => setEditingAccount(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <button onClick={() => setEditingAccount(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -433,13 +441,13 @@ export default function AccountsPage() {
                 <button
                   type="button"
                   onClick={() => setEditingAccount(null)}
-                  className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
+                  className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+                  className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs cursor-pointer"
                 >
                   Save Changes
                 </button>
