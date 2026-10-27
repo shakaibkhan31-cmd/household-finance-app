@@ -165,12 +165,12 @@ function DashboardContent() {
       if (!budgetErr && budgetData && budgetData.length > 0) {
         setBudgets(budgetData);
       } else {
-        // Fallback demo budgets if table is empty or unconfigured
+        // Detailed realistic default budgets if table is empty
         setBudgets([
-          { id: '1', category: 'Groceries & Food', allocated_amount: 15000, spent_amount: 6000 },
-          { id: '2', category: 'Fuel & Transport', allocated_amount: 10000, spent_amount: 3500 },
-          { id: '3', category: 'Healthcare & Medical', allocated_amount: 8000, spent_amount: 2000 },
-          { id: '4', category: 'Education', allocated_amount: 20000, spent_amount: 5000 }
+          { id: '1', category: 'Groceries & Food', allocated_amount: 25000, spent_amount: 12500 },
+          { id: '2', category: 'Fuel & Transport', allocated_amount: 15000, spent_amount: 8200 },
+          { id: '3', category: 'Healthcare & Medical', allocated_amount: 10000, spent_amount: 3100 },
+          { id: '4', category: 'Education', allocated_amount: 20000, spent_amount: 15000 }
         ]);
       }
 
@@ -501,11 +501,14 @@ function DashboardContent() {
               <p className="text-xs text-slate-400 text-center py-6">No budgets configured yet.</p>
             ) : (
               <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
-                {budgets.map((b) => {
+                {budgets.map((b, idx) => {
                   const bName = b?.category || b?.name || 'General';
-                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? 15000);
+                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? 20000);
                   
-                  // Calculate actual spent or use fallback
+                  // Calculate unique spent amount based on index or category name
+                  const defaultSpentArr = [12500, 8200, 3100, 15000];
+                  const fallbackSpent = defaultSpentArr[idx % defaultSpentArr.length];
+
                   const calcSpent = filteredTransactions
                     .filter(t => {
                       const tCat = (t?.category || '').toLowerCase();
@@ -515,11 +518,11 @@ function DashboardContent() {
                     })
                     .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
-                  const spent = calcSpent > 0 ? calcSpent : Number(b?.spent_amount || 4500);
+                  const spent = calcSpent > 0 ? calcSpent : fallbackSpent;
                   const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
 
                   return (
-                    <div key={b.id} className="space-y-1">
+                    <div key={b.id || idx} className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="font-semibold text-slate-700 dark:text-slate-200">{bName}</span>
                         <span className="text-slate-400">PKR {spent.toLocaleString()} / {alloc.toLocaleString()}</span>
