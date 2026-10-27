@@ -51,7 +51,7 @@ export default function FinanceDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Date Filter States (Initialized safely for Next.js SSR/Prerender)
+  // Date Filter States
   const [filterMode, setFilterMode] = useState<'month' | 'year' | 'custom'>('month');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
@@ -90,7 +90,6 @@ export default function FinanceDashboard() {
   };
 
   useEffect(() => {
-    // Safe client-side date initialization
     const now = new Date();
     setSelectedMonth(now.toISOString().slice(0, 7));
     setSelectedYear(now.getFullYear().toString());
@@ -147,16 +146,18 @@ export default function FinanceDashboard() {
     fetchData();
   };
 
-  // Filter transactions based on date criteria
+  // Robust filtering of transactions
   const filteredTransactions = transactions.filter((tx) => {
     if (!tx.date) return false;
+    const txDateStr = tx.date.split('T')[0]; // Handle timestamps if any
+
     if (filterMode === 'month') {
-      return selectedMonth ? tx.date.startsWith(selectedMonth) : true;
+      return selectedMonth ? txDateStr.startsWith(selectedMonth) : true;
     } else if (filterMode === 'year') {
-      return selectedYear ? tx.date.startsWith(selectedYear) : true;
+      return selectedYear ? txDateStr.startsWith(selectedYear) : true;
     } else if (filterMode === 'custom') {
       if (!customStart || !customEnd) return true;
-      return tx.date >= customStart && tx.date <= customEnd;
+      return txDateStr >= customStart && txDateStr <= customEnd;
     }
     return true;
   });
@@ -164,12 +165,18 @@ export default function FinanceDashboard() {
   const totalAvailableCash = accounts.reduce((acc, a) => acc + Number(a.current_balance || 0), 0);
   
   const filteredIncome = filteredTransactions
-    .filter((t) => t.type === 'Income' || t.type === 'INCOME')
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+    .filter((t) => {
+      const tType = (t.type || '').toUpperCase();
+      return tType === 'INCOME' || tType === 'INCOME';
+    })
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   const filteredExpense = filteredTransactions
-    .filter((t) => t.type === 'Expense' || t.type === 'EXPENSE')
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+    .filter((t) => {
+      const tType = (t.type || '').toUpperCase();
+      return tType === 'EXPENSE' || tType === 'EXPENSE';
+    })
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors">
