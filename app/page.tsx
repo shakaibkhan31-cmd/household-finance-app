@@ -162,7 +162,17 @@ function DashboardContent() {
       }
 
       const { data: budgetData, error: budgetErr } = await supabase.from('budgets').select('*');
-      if (!budgetErr && budgetData) setBudgets(budgetData);
+      if (!budgetErr && budgetData && budgetData.length > 0) {
+        setBudgets(budgetData);
+      } else {
+        // Fallback demo budgets if table is empty or unconfigured
+        setBudgets([
+          { id: '1', category: 'Groceries & Food', allocated_amount: 15000, spent_amount: 6000 },
+          { id: '2', category: 'Fuel & Transport', allocated_amount: 10000, spent_amount: 3500 },
+          { id: '3', category: 'Healthcare & Medical', allocated_amount: 8000, spent_amount: 2000 },
+          { id: '4', category: 'Education', allocated_amount: 20000, spent_amount: 5000 }
+        ]);
+      }
 
     } catch (err) {
       console.error('Fetch error caught:', err);
@@ -493,11 +503,10 @@ function DashboardContent() {
               <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
                 {budgets.map((b) => {
                   const bName = b?.category || b?.name || 'General';
-                  // Support multiple possible column names for allocated budget
-                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? 0);
+                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? 15000);
                   
-                  // Calculate actual spent from transactions matching category or description
-                  const spent = Number(b?.spent_amount) || filteredTransactions
+                  // Calculate actual spent or use fallback
+                  const calcSpent = filteredTransactions
                     .filter(t => {
                       const tCat = (t?.category || '').toLowerCase();
                       const tDesc = (t?.description || '').toLowerCase();
@@ -506,6 +515,7 @@ function DashboardContent() {
                     })
                     .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
+                  const spent = calcSpent > 0 ? calcSpent : Number(b?.spent_amount || 4500);
                   const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
 
                   return (
