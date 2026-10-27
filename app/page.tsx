@@ -97,6 +97,8 @@ interface Budget {
   name?: string;
   allocated_amount?: number;
   amount?: number;
+  budget_amount?: number;
+  limit?: number;
   spent_amount?: number;
 }
 
@@ -489,9 +491,10 @@ function DashboardContent() {
               <p className="text-xs text-slate-400 text-center py-6">No budgets configured yet.</p>
             ) : (
               <div className="space-y-3 max-h-32 overflow-y-auto pr-1">
-                {budgets.slice(0, 3).map((b) => {
+                {budgets.map((b) => {
                   const bName = b?.category || b?.name || 'General';
-                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? 0);
+                  // Support multiple possible column names for allocated budget
+                  const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? 0);
                   
                   // Calculate actual spent from transactions matching category or description
                   const spent = Number(b?.spent_amount) || filteredTransactions
