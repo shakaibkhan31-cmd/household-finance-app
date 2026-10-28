@@ -341,7 +341,6 @@ export default function DebtsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header & Tabs */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Debts & Kameti Management</h1>
@@ -370,7 +369,6 @@ export default function DebtsPage() {
         </div>
       </div>
 
-      {/* Due Soon Alert Banner */}
       {upcomingDebts.length > 0 && (
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-4 rounded-2xl flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -380,7 +378,6 @@ export default function DebtsPage() {
         </div>
       )}
 
-      {/* TAB 1: LOANS & DEBTS VIEW */}
       {activeTab === 'debts' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -469,7 +466,7 @@ export default function DebtsPage() {
                       required
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                     />
                   </div>
                 </div>
@@ -555,7 +552,7 @@ export default function DebtsPage() {
                               )}
                               <button
                                 onClick={() => handleDeleteDebt(d.id, d.person_name)}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
                                 title="Delete Debt Record"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -573,7 +570,6 @@ export default function DebtsPage() {
         </div>
       )}
 
-      {/* TAB 2: KAMETI CIRCLES VIEW */}
       {activeTab === 'kametis' && (
         <div className="space-y-6">
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 p-5 rounded-2xl flex items-center justify-between">
@@ -731,7 +727,6 @@ export default function DebtsPage() {
         </div>
       )}
 
-      {/* History Trail Modal */}
       {historyModalItem && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-lg w-full p-6 space-y-4">
@@ -769,7 +764,6 @@ export default function DebtsPage() {
         </div>
       )}
 
-      {/* Kameti Pay / Receive Modal */}
       {kametiActionModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -838,7 +832,6 @@ export default function DebtsPage() {
         </div>
       )}
 
-      {/* Partial Settlement Modal */}
       {settlingDebt && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
