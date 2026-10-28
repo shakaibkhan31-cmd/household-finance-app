@@ -261,11 +261,8 @@ export default function TransactionsPage() {
         return;
       }
 
-      // ROBUST AUTO-SYNC ACCOUNT BALANCES & CREDIT CARD LIABILITIES
-      const isCreditCardAccount = accountName.toLowerCase().includes('credit card');
-
+      // ACCURATE AUTO-SYNC FOR ACCOUNTS & CREDIT CARDS
       if (isTransfer) {
-        // Source Account Sync
         const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
         if (srcAcc && srcAcc.length > 0) {
           const accObj = srcAcc[0];
@@ -273,14 +270,13 @@ export default function TransactionsPage() {
           let currentBal = Number(accObj.current_balance || 0);
           
           if (isSrcCard) {
-            currentBal -= parsedAmount; // Payment to card reduces liability
+            currentBal -= parsedAmount; // Payment out of card / Bill payment reduces card liability
           } else {
-            currentBal -= parsedAmount; // Bank transfer reduces balance
+            currentBal -= parsedAmount; 
           }
           await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', accObj.id);
         }
 
-        // Destination Account Sync
         const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', transferTo).limit(1);
         if (destAcc && destAcc.length > 0) {
           const accObj = destAcc[0];
@@ -288,7 +284,7 @@ export default function TransactionsPage() {
           let currentBal = Number(accObj.current_balance || 0);
 
           if (isDestCard) {
-            currentBal += parsedAmount; // Transfer into card increases liability
+            currentBal += parsedAmount; // Transfer into card increases card liability
           } else {
             currentBal += parsedAmount;
           }
@@ -309,14 +305,12 @@ export default function TransactionsPage() {
           }
 
           if (isCardType) {
-            // Credit Card: Spending (Expense/Bill) increases liability (+), Payment/Refund reduces liability (-)
             if (effectiveIsCredit) {
               currentBal -= parsedAmount; 
             } else {
               currentBal += parsedAmount; 
             }
           } else {
-            // Bank / Wallet / Cash
             if (effectiveIsCredit) {
               currentBal += parsedAmount;
             } else {
@@ -328,9 +322,8 @@ export default function TransactionsPage() {
         }
       }
 
-      // AUTO-SYNC WITH DEBTS TABLE
       if (type === 'Loan Given') {
-        const { error: debtErr } = await supabase.from('debts').insert([
+        await supabase.from('debts').insert([
           {
             person_name: partyName || 'Unknown Party',
             type: 'Personal Loan',
@@ -341,9 +334,8 @@ export default function TransactionsPage() {
             notes: description || `Loan Given via ${accountName}`,
           },
         ]);
-        if (debtErr) alert('Error syncing with Debts table: ' + debtErr.message);
       } else if (type === 'Loan Received') {
-        const { error: debtErr } = await supabase.from('debts').insert([
+        await supabase.from('debts').insert([
           {
             person_name: partyName || 'Unknown Party',
             type: 'Personal Loan',
@@ -354,20 +346,17 @@ export default function TransactionsPage() {
             notes: description || `Loan Received in ${accountName}`,
           },
         ]);
-        if (debtErr) alert('Error syncing with Debts table: ' + debtErr.message);
       } else if (type === 'Loan Repayment' && selectedDebtId) {
         const targetDebt = activeDebts.find(d => d.id === selectedDebtId);
         if (targetDebt) {
           const updatedAmount = Math.max(0, Number(targetDebt.amount) - parsedAmount);
-          const { error: updateErr } = await supabase
+          await supabase
             .from('debts')
             .update({ 
               amount: updatedAmount,
               status: updatedAmount === 0 ? 'Settled' : 'Active'
             })
             .eq('id', targetDebt.id);
-
-          if (updateErr) alert('Error updating Debt repayment: ' + updateErr.message);
         }
       }
     }
@@ -399,16 +388,12 @@ export default function TransactionsPage() {
     if (isTransfer && t.transfer_to) {
       const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
       if (srcAcc && srcAcc.length > 0) {
-        const isSrcCard = (srcAcc[0].type || '').trim().toLowerCase().includes('credit');
-        let bal = Number(srcAcc[0].current_balance || 0);
-        bal = isSrcCard ? bal + txAmount : bal + txAmount;
+        let bal = Number(srcAcc[0].current_balance || 0) + txAmount;
         await supabase.from('accounts').update({ current_balance: bal }).eq('id', srcAcc[0].id);
       }
       const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
       if (destAcc && destAcc.length > 0) {
-        const isDestCard = (destAcc[0].type || '').trim().toLowerCase().includes('credit');
-        let bal = Number(destAcc[0].current_balance || 0);
-        bal = isDestCard ? bal - txAmount : bal - txAmount;
+        let bal = Number(destAcc[0].current_balance || 0) - txAmount;
         await supabase.from('accounts').update({ current_balance: bal }).eq('id', destAcc[0].id);
       }
     } else {
