@@ -52,19 +52,19 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white transition-colors pb-24 md:pb-0">
+    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white transition-colors pb-24 md:pb-0 overflow-x-hidden">
       
-      {/* Navigation Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      {/* Navigation Header - Fixed mobile alignment */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
           
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/30">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/30 shrink-0">
               HFC
             </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight text-white">Household Finance</h1>
-              <p className="text-[10px] text-indigo-400 font-medium">Control Centre & Ledger</p>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-bold tracking-tight text-white truncate">Household Finance</h1>
+              <p className="text-[9px] sm:text-[10px] text-indigo-400 font-medium truncate">Control Centre & Ledger</p>
             </div>
           </div>
 
@@ -77,18 +77,18 @@ export default function LandingPage() {
             <a href="#faq" className="hover:text-indigo-400 transition">FAQ</a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <Link 
               href="/login" 
-              className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition"
+              className="px-3 sm:px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition"
             >
               Sign In
             </Link>
             <Link 
               href="/signup" 
-              className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition shadow-lg shadow-indigo-600/20"
+              className="px-3 sm:px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition shadow-lg shadow-indigo-600/20 whitespace-nowrap"
             >
-              Start Free Trial
+              Free Trial
             </Link>
           </div>
 
@@ -96,26 +96,26 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 md:pt-44 md:pb-32 overflow-hidden bg-gradient-to-b from-indigo-950/40 via-slate-950 to-slate-950">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <section className="relative pt-28 pb-16 md:pt-44 md:pb-32 overflow-hidden bg-gradient-to-b from-indigo-950/40 via-slate-950 to-slate-950">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
           
           <div className="space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5" /> 34-Days Full Access Free Trial
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight">
               Master Your Household Budget & Multi-Member Cash Flow.
             </h1>
 
-            <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+            <p className="text-xs sm:text-sm md:text-base text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
               Track bank accounts, cash wallets, recurring bills, kametis, and member-wise expense ledgers in one encrypted real-time control centre.
             </p>
 
             {/* Security Trust Badges */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 py-2 text-xs text-slate-300">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 py-2 text-xs text-slate-300">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
                 <Lock className="w-3.5 h-3.5 text-indigo-400" /> End-to-End Encrypted
               </span>
@@ -142,17 +142,17 @@ export default function LandingPage() {
 
             <div className="flex items-center justify-center lg:justify-start gap-6 pt-4 text-xs text-slate-400 border-t border-slate-800/80">
               <span className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> No Credit Card Required
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> No Credit Card Required
               </span>
               <span className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Granular Access Control
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Granular Access Control
               </span>
             </div>
           </div>
 
-          {/* Live Visual Analytics Preview Mockup */}
+          {/* Live Visual Analytics Preview Mockup - Cleaned up URL text for mobile */}
           <div className="relative">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 backdrop-blur-xl">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 backdrop-blur-xl">
               
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
@@ -160,17 +160,17 @@ export default function LandingPage() {
                   <span className="w-3 h-3 rounded-full bg-amber-500/80"></span>
                   <span className="w-3 h-3 rounded-full bg-emerald-500/80"></span>
                 </div>
-                <span className="text-[10px] font-mono text-slate-500">app.household-finance.com/dashboard</span>
+                <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 truncate max-w-[180px] sm:max-w-none">app.household-finance.com/dashboard</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-rose-950/30 border border-rose-900/40 p-4 rounded-2xl">
-                  <p className="text-[10px] uppercase font-semibold text-rose-400">This Month Expense</p>
-                  <p className="text-lg font-bold text-rose-200 mt-1">PKR 45,200</p>
+                <div className="bg-rose-950/30 border border-rose-900/40 p-3 sm:p-4 rounded-2xl">
+                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-rose-400">This Month Expense</p>
+                  <p className="text-base sm:text-lg font-bold text-rose-200 mt-1">PKR 45,200</p>
                 </div>
-                <div className="bg-emerald-950/30 border border-emerald-900/40 p-4 rounded-2xl">
-                  <p className="text-[10px] uppercase font-semibold text-emerald-400">This Month Income</p>
-                  <p className="text-lg font-bold text-emerald-200 mt-1">PKR 120,000</p>
+                <div className="bg-emerald-950/30 border border-emerald-900/40 p-3 sm:p-4 rounded-2xl">
+                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-emerald-400">This Month Income</p>
+                  <p className="text-base sm:text-lg font-bold text-emerald-200 mt-1">PKR 120,000</p>
                 </div>
               </div>
 
@@ -213,7 +213,7 @@ export default function LandingPage() {
 
       {/* Feature Highlights Grid */}
       <section id="features" className="py-20 bg-slate-900/50 border-y border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-6 space-y-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
           
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <h2 className="text-2xl md:text-3xl font-bold text-white">Engineered for Complete Financial Control</h2>
@@ -250,9 +250,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* NEW SECTION 1: How It Works / Onboarding Flow */}
+      {/* How It Works / Onboarding Flow */}
       <section id="how-it-works" className="py-20 bg-slate-950 border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-6 space-y-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
               <Zap className="w-3.5 h-3.5" /> Fast Onboarding
@@ -297,7 +297,7 @@ export default function LandingPage() {
 
       {/* Comparison / "Why Switch?" Section */}
       <section id="comparison" className="py-20 bg-slate-950">
-        <div className="max-w-5xl mx-auto px-6 space-y-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
           
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <h2 className="text-2xl md:text-3xl font-bold text-white">Traditional Registers vs. Household Finance</h2>
@@ -307,7 +307,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Traditional Method */}
-            <div className="bg-slate-900/40 border border-rose-900/30 rounded-3xl p-8 space-y-6">
+            <div className="bg-slate-900/40 border border-rose-900/30 rounded-3xl p-6 sm:p-8 space-y-6">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold">
                   <X className="w-4 h-4" />
@@ -323,7 +323,7 @@ export default function LandingPage() {
             </div>
 
             {/* HFC Method */}
-            <div className="bg-indigo-950/20 border border-indigo-500/40 rounded-3xl p-8 space-y-6 relative overflow-hidden shadow-xl shadow-indigo-600/5">
+            <div className="bg-indigo-950/20 border border-indigo-500/40 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-xl shadow-indigo-600/5">
               <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
                 Recommended
               </div>
@@ -346,9 +346,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* NEW SECTION 2: Core Modules & Features Showcase Grid */}
+      {/* Core Modules & Features Showcase Grid */}
       <section className="py-20 bg-slate-900/30 border-y border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-6 space-y-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <h2 className="text-2xl md:text-3xl font-bold text-white">Comprehensive Financial Modules</h2>
             <p className="text-xs text-slate-400">Everything required to maintain total clarity over household liquidity.</p>
@@ -390,10 +390,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Interactive Savings Calculator */}
+      {/* Interactive Savings Calculator - Fixed mobile alignment issues */}
       <section id="calculator" className="py-20 bg-slate-950">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 md:p-12 space-y-6 shadow-2xl">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-12 space-y-6 shadow-2xl">
             
             <div className="text-center space-y-2">
               <h2 className="text-xl md:text-2xl font-bold text-white">Calculate Potential Monthly Savings</h2>
@@ -402,9 +402,9 @@ export default function LandingPage() {
 
             <div className="space-y-6 max-w-2xl mx-auto pt-4">
               <div>
-                <div className="flex justify-between text-xs font-semibold text-slate-300 mb-2">
+                <div className="flex flex-col sm:flex-row justify-between items-center text-xs font-semibold text-slate-300 mb-3 gap-1">
                   <span>Estimated Total Monthly Expense</span>
-                  <span className="text-indigo-400 font-bold">PKR {monthlyExpense.toLocaleString()}</span>
+                  <span className="text-indigo-400 font-bold text-sm">PKR {monthlyExpense.toLocaleString()}</span>
                 </div>
                 <input 
                   type="range" 
@@ -417,14 +417,16 @@ export default function LandingPage() {
                 />
               </div>
 
-              <div className="p-6 bg-indigo-950/30 border border-indigo-900/40 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="p-5 sm:p-6 bg-indigo-950/30 border border-indigo-900/40 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
                 <div>
                   <p className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wider">Estimated Monthly Savings</p>
-                  <p className="text-3xl font-extrabold text-emerald-400 mt-1">PKR {estimatedSavings.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ month</span></p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1">
+                    PKR {estimatedSavings.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ month</span>
+                  </p>
                 </div>
                 <Link 
                   href="/signup" 
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/20 whitespace-nowrap"
+                  className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/20 whitespace-nowrap text-center"
                 >
                   Start Saving Now
                 </Link>
@@ -435,15 +437,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* NEW SECTION 3: Transparent Pricing / Subscription Section */}
+      {/* Transparent Pricing / Subscription Section */}
       <section id="pricing" className="py-20 bg-slate-900/40 border-t border-slate-800/80">
-        <div className="max-w-4xl mx-auto px-6 space-y-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10">
           <div className="text-center space-y-3">
             <h2 className="text-2xl md:text-3xl font-bold text-white">Transparent, Honest Pricing</h2>
             <p className="text-xs text-slate-400">No hidden fees, no data selling. You pay for the software, and you own your data.</p>
           </div>
 
-          <div className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-8 md:p-10 space-y-6 max-w-lg mx-auto relative overflow-hidden shadow-2xl">
+          <div className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-6 sm:p-10 space-y-6 max-w-lg mx-auto relative overflow-hidden shadow-2xl">
             <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
               34 Days Free Trial
             </div>
@@ -454,7 +456,7 @@ export default function LandingPage() {
             </div>
 
             <div className="flex items-baseline gap-2 border-y border-slate-800 py-4">
-              <span className="text-4xl font-extrabold text-white">PKR 10,000</span>
+              <span className="text-3xl sm:text-4xl font-extrabold text-white">PKR 10,000</span>
               <span className="text-xs text-slate-400">/ year</span>
             </div>
 
@@ -489,7 +491,7 @@ export default function LandingPage() {
 
       {/* FAQ Section */}
       <section id="faq" className="py-20 bg-slate-950">
-        <div className="max-w-3xl mx-auto px-6 space-y-10">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-10">
           
           <div className="text-center space-y-3">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
@@ -506,13 +508,13 @@ export default function LandingPage() {
               >
                 <button
                   onClick={() => toggleFaq(index)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between text-xs md:text-sm font-semibold text-white hover:text-indigo-400 transition cursor-pointer"
+                  className="w-full px-5 sm:px-6 py-4 text-left flex items-center justify-between text-xs sm:text-sm font-semibold text-white hover:text-indigo-400 transition cursor-pointer gap-3"
                 >
                   <span>{faq.q}</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${openFaq === index ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
+                  <ChevronDown className={`w-4 h-4 shrink-0 transition-transform duration-200 ${openFaq === index ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
                 </button>
                 {openFaq === index && (
-                  <div className="px-6 pb-4 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+                  <div className="px-5 sm:px-6 pb-4 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
                     {faq.a}
                   </div>
                 )}
@@ -525,8 +527,8 @@ export default function LandingPage() {
 
       {/* Call To Action Banner */}
       <section className="py-20 border-t border-slate-800/80 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-center">
-        <div className="max-w-3xl mx-auto px-6 space-y-6">
-          <h2 className="text-3xl font-extrabold text-white">Ready to take complete financial control?</h2>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-6">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Ready to take complete financial control?</h2>
           <p className="text-xs text-slate-400">Join today and enjoy 34 days of complete full-feature access with no risk.</p>
           <Link 
             href="/signup" 
@@ -539,7 +541,7 @@ export default function LandingPage() {
       </section>
 
       {/* Mobile Sticky CTA Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 flex items-center justify-between gap-3">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 flex items-center justify-between gap-3 shadow-2xl">
         <div>
           <p className="text-[11px] font-bold text-white">34-Days Free Trial</p>
           <p className="text-[10px] text-slate-400">No credit card required</p>
@@ -555,7 +557,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-8 border-t border-slate-900 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {currentYear} Household Finance. All rights reserved.</p>
           <div className="flex items-center gap-4 text-slate-400">
             <Link href="/login" className="hover:underline">Sign In</Link>
