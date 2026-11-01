@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
   LayoutDashboard, 
@@ -17,7 +17,10 @@ import {
   ChevronRight,
   Menu,
   X,
-  UserCheck
+  UserCheck,
+  LogOut,
+  Users,
+  Settings
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
@@ -56,32 +59,71 @@ const navSections: NavSection[] = [
       { name: 'Bills & Payables', href: '/bills', icon: Receipt, badgeKey: 'bills' },
       { name: 'Debts & Kameti', href: '/debts', icon: HandCoins, badgeKey: 'debts' },
     ]
+  },
+  {
+    title: 'Settings & Access',
+    items: [
+      { name: 'Control Access', href: '/family', icon: Users },
+      { name: 'Settings', href: '/settings', icon: Settings },
+    ]
   }
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [pendingBillsCount, setPendingBillsCount] = useState(0);
   const [activeDebtsCount, setActiveDebtsCount] = useState(0);
+  
+  // User Dynamic States
+  const [userName, setUserName] = useState('User');
+  const [userInitials, setUserInitials] = useState('U');
 
   useEffect(() => {
-    fetchSidebarBadges();
+    fetchSidebarData();
   }, []);
 
-  const fetchSidebarBadges = async () => {
+  const fetchSidebarData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get metadata or email for name
+    const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+    setUserName(fullName);
+    
+    // Generate initials (e.g. Shakaib Khan -> SK)
+    const initials = fullName
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+    setUserInitials(initials || 'U');
+
     const { count: billCount } = await supabase
       .from('bills')
       .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
       .eq('status', 'Pending');
     if (billCount !== null) setPendingBillsCount(billCount);
 
     const { count: debtCount } = await supabase
       .from('debts')
       .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
       .eq('status', 'Active');
     if (debtCount !== null) setActiveDebtsCount(debtCount);
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Logout error:', error.message);
+    } else {
+      router.push('/login');
+    }
   };
 
   return (
@@ -91,7 +133,7 @@ export default function Sidebar() {
         <h1 className="font-bold text-base tracking-wide">Household Finance</h1>
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2 text-slate-300 hover:text-white rounded-lg focus:outline-none"
+          className="p-2 text-slate-300 hover:text-white rounded-lg focus:outline-none cursor-pointer"
         >
           {isMobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
@@ -116,7 +158,7 @@ export default function Sidebar() {
         {/* Desktop Collapse Toggle Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex absolute -right-3 top-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-1 shadow-md border-2 border-slate-900 dark:border-slate-900 transition items-center justify-center z-10"
+          className="hidden lg:flex absolute -right-3 top-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-1 shadow-md border-2 border-slate-900 dark:border-slate-900 transition items-center justify-center z-10 cursor-pointer"
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -180,19 +222,41 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Footer User Info & Version */}
+        {/* Footer User Info, Logout & Version */}
         <div className="pt-4 border-t border-slate-800 space-y-3">
           {(!isCollapsed || isMobileOpen) && (
-            <div className="flex items-center gap-2.5 px-3 py-2 bg-slate-800/50 rounded-xl border border-slate-800 text-xs">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                SK
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-800/50 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {userInitials}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-semibold text-slate-200 truncate">{userName}</p>
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <UserCheck className="w-3 h-3 text-emerald-400" /> Active
+                  </p>
+                </div>
               </div>
-              <div className="overflow-hidden">
-                <p className="font-semibold text-slate-200 truncate">Shakaib Khan</p>
-                <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                  <UserCheck className="w-3 h-3 text-emerald-400" /> Active Session
-                </p>
-              </div>
+              
+              <button
+                onClick={handleLogout}
+                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                title="Logout Session"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {isCollapsed && (
+            <div className="flex justify-center">
+              <button
+                onClick={handleLogout}
+                className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition cursor-pointer"
+                title="Logout Session"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           )}
 

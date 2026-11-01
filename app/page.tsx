@@ -1,827 +1,570 @@
 'use client';
 
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
-import { 
-  PlusCircle, 
-  Wallet, 
-  ArrowDownCircle, 
-  ArrowUpCircle,
-  RefreshCw, 
-  CreditCard, 
-  Receipt, 
-  CheckCircle,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  ArrowRight,
-  Calendar,
-  Filter,
-  X,
-  AlertTriangle,
-  Activity,
-  PieChart
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { 
+  Sparkles, ArrowRight, CheckCircle2, 
+  Users, PieChart, Landmark, ShieldCheck, Lock, 
+  HelpCircle, ChevronDown, Check, X, Zap,
+  CreditCard, TrendingUp, Bell, Layers, Shield, Wallet
+} from 'lucide-react';
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Dashboard Error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-8 text-center space-y-4">
-          <h2 className="text-xl font-bold text-rose-600">Something went wrong on the Dashboard.</h2>
-          <p className="text-xs text-slate-500 font-mono">{this.state.error?.message}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl cursor-pointer"
-          >
-            Reload Page
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-interface Account {
-  id: string;
-  name?: string;
-  account_name?: string;
-  type?: string;
-  account_type?: string;
-  current_balance?: number;
-  opening_balance?: number;
-}
-
-interface Bill {
-  id: string;
-  provider?: string;
-  title?: string;
-  bill_name?: string;
-  name?: string;
-  due_date?: string;
-  amount?: number;
-  bill_amount?: number;
-  status?: string;
-  payment_status?: string;
-}
-
-interface Transaction {
-  id: string;
-  date?: string;
-  transaction_date?: string;
-  type?: string;
-  category?: string;
-  amount: number;
-  description: string;
-  account_name?: string;
-}
-
-interface Budget {
-  id: string;
-  category?: string;
-  name?: string;
-  title?: string;
-  allocated_amount?: number;
-  amount?: number;
-  budget_amount?: number;
-  limit?: number;
-  monthly_limit?: number;
-  budget_limit?: number;
-  spent_amount?: number;
-}
-
-export default function FinanceDashboard() {
-  return (
-    <ErrorBoundary>
-      <DashboardContent />
-    </ErrorBoundary>
-  );
-}
-
-function DashboardContent() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [bills, setBills] = useState<Bill[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Date Filter States
-  const [filterMode, setFilterMode] = useState<'month' | 'year' | 'custom'>('month');
-  const [selectedMonth, setSelectedMonth] = useState('2026-10');
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
-  const [todayStr, setTodayStr] = useState('2026-10-27');
-
-  // Quick Add Form States
-  const [amount, setAmount] = useState('');
-  const [type, setType] = useState('Expense');
-  const [description, setDescription] = useState('');
-  const [enteredBy, setEnteredBy] = useState('Husband');
-  const [selectedAccount, setSelectedAccount] = useState('');
-
-  // Bill Pay Modal States
-  const [selectedBillToPay, setSelectedBillToPay] = useState<Bill | null>(null);
-  const [paymentAccountId, setPaymentAccountId] = useState('');
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-
-      const { data: accData, error: accErr } = await supabase.from('accounts').select('*');
-      if (!accErr && accData && accData.length > 0) {
-        setAccounts(accData);
-        const firstAccName = accData[0]?.name || accData[0]?.account_name || '';
-        if (!selectedAccount) setSelectedAccount(firstAccName);
-        if (!paymentAccountId) setPaymentAccountId(firstAccName);
-      }
-
-      const { data: txData, error: txErr } = await supabase.from('transactions').select('*');
-      if (!txErr && txData) setTransactions(txData);
-
-      const { data: billData, error: billErr } = await supabase.from('bills').select('*');
-      if (!billErr && billData) {
-        const pendingBills = billData.filter(b => {
-          const stat = (b?.status || b?.payment_status || '').toUpperCase();
-          return stat === 'PENDING' || stat === 'UNPAID';
-        });
-        setBills(pendingBills);
-      }
-
-      const { data: budgetData, error: budgetErr } = await supabase.from('budgets').select('*');
-      if (!budgetErr && budgetData && budgetData.length > 0) {
-        setBudgets(budgetData);
-      } else {
-        setBudgets([
-          { id: '1', category: 'Groceries & Food', allocated_amount: 15000, spent_amount: 15000 },
-          { id: '2', category: 'Fuel & Transport', allocated_amount: 10000, spent_amount: 0 },
-          { id: '3', category: 'Healthcare & Medical', allocated_amount: 8000, spent_amount: 0 },
-          { id: '4', category: 'Education', allocated_amount: 25000, spent_amount: 0 },
-          { id: '5', category: 'Utilities & Bills', allocated_amount: 15000, spent_amount: 10890 },
-          { id: '6', category: 'Subscriptions', allocated_amount: 5000, spent_amount: 0 }
-        ]);
-      }
-
-    } catch (err) {
-      console.error('Fetch error caught:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function LandingPage() {
+  const [monthlyExpense, setMonthlyExpense] = useState<number>(100000);
+  const [currentYear, setCurrentYear] = useState<number | string>('2026');
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
-    setIsMounted(true);
-    try {
-      const now = new Date();
-      setSelectedMonth(now.toISOString().slice(0, 7));
-      setSelectedYear(now.getFullYear().toString());
-      setTodayStr(now.toISOString().slice(0, 10));
-    } catch (e) {
-      // Fallback
-    }
-    fetchData();
+    setCurrentYear(new Date().getFullYear());
   }, []);
 
-  if (!isMounted) return null;
+  const estimatedSavings = Math.round(monthlyExpense * 0.12);
 
-  const handleAddTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!amount || !description || !selectedAccount) {
-      return alert('Amount, Description aur Account sab zaroori hain!');
-    }
-
-    try {
-      setLoading(true);
-      const currentDate = new Date().toISOString().split('T')[0];
-      const { error } = await supabase.from('transactions').insert([
-        {
-          type,
-          amount: parseFloat(amount),
-          description,
-          entered_by: enteredBy,
-          account_name: selectedAccount,
-          date: currentDate,
-          transaction_date: currentDate,
-        },
-      ]);
-
-      if (error) {
-        alert('Error: ' + error.message);
-      } else {
-        setAmount('');
-        setDescription('');
-        fetchData();
-      }
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
+  const toggleFaq = (index: number) => {
+    setOpenFaq(openFaq === index ? null : index);
   };
 
-  const handleConfirmPayBill = async () => {
-    if (!selectedBillToPay) return;
-    if (!paymentAccountId) return alert('Kripya Bill Pay karne ke liye ek account select karein!');
-
-    try {
-      setLoading(true);
-      const currentDate = new Date().toISOString().split('T')[0];
-      const billAmt = Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0);
-      const billProvider = selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Bill Payment';
-
-      await supabase.from('bills').update({ status: 'Paid', payment_status: 'PAID' }).eq('id', selectedBillToPay.id);
-
-      await supabase.from('transactions').insert([
-        {
-          type: 'Expense',
-          amount: billAmt,
-          description: `Bill Payment: ${billProvider}`,
-          entered_by: 'System',
-          account_name: paymentAccountId,
-          date: currentDate,
-          transaction_date: currentDate,
-        },
-      ]);
-
-      setSelectedBillToPay(null);
-      fetchData();
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    } finally {
-      setLoading(false);
+  const faqs = [
+    {
+      q: "Is my financial data 100% safe & secure?",
+      a: "Absolutely! We use Supabase Row Level Security (RLS) and strict multi-tenant database isolation, which means that your data can only be viewed by you and the family members you have invited. There’s a saying that if you’re not paying for the product, YOU’RE the product. When it comes to something as private and confidential as your financial data, we want the reins in your hand. We only want to make money from you paying us money, with you fully knowing and understanding what’s going on. You pay us the subscription price, and there you have it. That’s it. Transaction complete. That’s how we make our money."
+    },
+    {
+      q: "How much can I expect to save with this app?",
+      a: "On average, active households experience a 10% to 15% reduction in monthly wasteful or impulse spending simply by having clear, centralized visibility over category budgets, recurring bills, and daily ledger trails."
+    },
+    {
+      q: "Can I add multiple family members to my household control centre?",
+      a: "Yes! You can invite up to 5 family members to your workspace. Each member can securely record transactions, view wallet balances, and track shared expenses with real-time synchronization."
+    },
+    {
+      q: "Is the app fully optimized for mobile devices?",
+      a: "Yes, the platform features a fully responsive design built with Tailwind CSS, ensuring a seamless, lightning-fast experience across mobile phones, tablets, and desktop computers."
+    },
+    {
+      q: "What happens after my 34-days free trial ends?",
+      a: "Once your 34-days full access trial concludes, there are no automatic charges or credit card locks. You can easily choose a subscription plan to continue managing your finances without interruption."
+    },
+    {
+      q: "Can I track debts, loans, and committee (kameti) payouts?",
+      a: "Yes! Unlike basic expense trackers, our platform includes dedicated ledgers specifically engineered to monitor receivables, payables, and committee payouts with exact due date tracking."
     }
-  };
-
-  // Safe date filtering
-  const filteredTransactions = transactions.filter((tx) => {
-    if (!tx) return false;
-    const txDate = (tx.date || tx.transaction_date || '').trim();
-    if (!txDate) return false;
-    const datePrefix = txDate.slice(0, 10);
-
-    if (filterMode === 'month') {
-      return selectedMonth ? datePrefix.startsWith(selectedMonth) : true;
-    } else if (filterMode === 'year') {
-      return selectedYear ? datePrefix.startsWith(selectedYear) : true;
-    } else if (filterMode === 'custom') {
-      if (!customStart || !customEnd) return true;
-      return datePrefix >= customStart && datePrefix <= customEnd;
-    }
-    return true;
-  });
-
-  const totalAvailableCash = accounts.reduce((acc, a) => {
-    const bal = a?.current_balance ?? a?.opening_balance ?? 0;
-    return acc + Number(bal || 0);
-  }, 0);
-  
-  const filteredIncome = filteredTransactions
-    .filter((t) => {
-      const tType = (t?.type || '').trim().toLowerCase();
-      const tCat = (t?.category || '').trim().toLowerCase();
-      return tType.includes('income') || tType.includes('deposit') || tType.includes('inflow') || tCat.includes('income');
-    })
-    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
-
-  const filteredExpense = filteredTransactions
-    .filter((t) => {
-      const tType = (t?.type || '').trim().toLowerCase();
-      return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
-    })
-    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
-
-  const urgentBillsCount = bills.filter(b => {
-    if (!b || !b.due_date || !todayStr) return false;
-    return b.due_date <= todayStr;
-  }).length;
-
-  // Processed and Sorted Budgets (Highest spent percentage on top)
-  const processedBudgets = budgets.map((b) => {
-    const bName = b?.category || b?.name || b?.title || 'General';
-    const alloc = Number(b?.allocated_amount ?? b?.amount ?? b?.budget_amount ?? b?.limit ?? b?.monthly_limit ?? b?.budget_limit ?? 20000);
-    
-    const calcSpent = filteredTransactions
-      .filter(t => {
-        const tCat = (t?.category || '').toLowerCase();
-        const tDesc = (t?.description || '').toLowerCase();
-        const nameLower = bName.toLowerCase();
-        return tCat.includes(nameLower) || tDesc.includes(nameLower);
-      })
-      .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
-
-    const spent = calcSpent > 0 ? calcSpent : Number(b?.spent_amount || 0);
-    const pct = alloc > 0 ? Math.round((spent / alloc) * 100) : 0;
-
-    return {
-      ...b,
-      bName,
-      alloc,
-      spent,
-      pct: Math.min(pct, 100)
-    };
-  }).sort((itemA, itemB) => itemB.spent - itemA.spent); // Sorted by highest spent amount/percentage first
+  ];
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors relative">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Dashboard</h1>
+    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white transition-colors pb-24 md:pb-0">
+      
+      {/* Navigation Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/30">
+              HFC
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-medium">Overview of liquid assets, filtered cash flows, and urgent payables</p>
+            <div>
+              <h1 className="text-base font-bold tracking-tight text-white">Household Finance</h1>
+              <p className="text-[10px] text-indigo-400 font-medium">Control Centre & Ledger</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchData}
-              className="flex items-center gap-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition border border-slate-200 dark:border-slate-700 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
-            </button>
-          </div>
-        </div>
 
-        {/* Smart Notification Alert Banner */}
-        {urgentBillsCount > 0 && (
-          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 p-4 rounded-2xl flex items-center justify-between text-xs font-medium shadow-xs">
-            <div className="flex items-center gap-2.5">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-              <span><strong>Attention Required:</strong> You have {urgentBillsCount} urgent or overdue bill(s) pending payment commitment.</span>
-            </div>
-            <Link href="/bills" className="font-bold underline hover:text-amber-800 dark:hover:text-amber-300">
-              Review Bills
+          <nav className="hidden md:flex items-center gap-8 text-xs font-medium text-slate-300">
+            <a href="#features" className="hover:text-indigo-400 transition">Features</a>
+            <a href="#how-it-works" className="hover:text-indigo-400 transition">How It Works</a>
+            <a href="#comparison" className="hover:text-indigo-400 transition">Why Switch?</a>
+            <a href="#calculator" className="hover:text-indigo-400 transition">Calculator</a>
+            <a href="#pricing" className="hover:text-indigo-400 transition">Pricing</a>
+            <a href="#faq" className="hover:text-indigo-400 transition">FAQ</a>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/login" 
+              className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition"
+            >
+              Sign In
+            </Link>
+            <Link 
+              href="/signup" 
+              className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition shadow-lg shadow-indigo-600/20"
+            >
+              Start Free Trial
             </Link>
           </div>
-        )}
 
-        {/* Date Filter Bar */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
-            <Filter className="w-4 h-4 text-indigo-500 mr-1" />
-            <button
-              onClick={() => setFilterMode('month')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                filterMode === 'month' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-              }`}
-            >
-              Month-wise
-            </button>
-            <button
-              onClick={() => setFilterMode('year')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                filterMode === 'year' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-              }`}
-            >
-              Year-wise
-            </button>
-            <button
-              onClick={() => setFilterMode('custom')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                filterMode === 'custom' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-              }`}
-            >
-              Custom Dates
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            {filterMode === 'month' && (
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
-              />
-            )}
-            {filterMode === 'year' && (
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
-              >
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-              </select>
-            )}
-            {filterMode === 'custom' && (
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
-                />
-                <span className="text-xs text-slate-400">to</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
-                />
-              </div>
-            )}
-          </div>
         </div>
+      </header>
 
-        {/* Executive Metrics Overview (Filtered) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Total Liquidity</span>
-              <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                <Wallet className="w-5 h-5" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-3">
-              PKR {Number(totalAvailableCash || 0).toLocaleString()}
-            </h3>
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-2 flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" /> Across {accounts.length} Wallets/Banks
-            </p>
-          </div>
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 md:pt-44 md:pb-32 overflow-hidden bg-gradient-to-b from-indigo-950/40 via-slate-950 to-slate-950">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Filtered Inflow</span>
-              <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl">
-                <ArrowUpCircle className="w-5 h-5" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-3">
-              PKR {Number(filteredIncome || 0).toLocaleString()}
-            </h3>
-            <p className="text-[11px] text-slate-400 font-medium mt-2">Selected Period Income</p>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Filtered Outflow</span>
-              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-xl">
-                <ArrowDownCircle className="w-5 h-5" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-3">
-              PKR {Number(filteredExpense || 0).toLocaleString()}
-            </h3>
-            <p className="text-[11px] text-rose-500 font-medium mt-2 flex items-center gap-1">
-              <TrendingDown className="w-3.5 h-3.5" /> Selected Period Expense
-            </p>
-          </div>
-        </div>
-
-        {/* Cash Flow Trend Visual & Budget Progress Health */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
           
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-            <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-500" /> Cash Flow Ratio (Inflow vs Outflow)
-            </h3>
-            
-            <div className="space-y-3 pt-2">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-blue-600 dark:text-blue-400">Inflow: PKR {Number(filteredIncome || 0).toLocaleString()}</span>
-                <span className="text-rose-600 dark:text-rose-400">Outflow: PKR {Number(filteredExpense || 0).toLocaleString()}</span>
-              </div>
-              
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden flex">
-                <div 
-                  className="bg-blue-500 h-full transition-all duration-500" 
-                  style={{ width: `${filteredIncome + filteredExpense > 0 ? (filteredIncome / (filteredIncome + filteredExpense)) * 100 : 50}%` }}
-                ></div>
-                <div 
-                  className="bg-rose-500 h-full transition-all duration-500" 
-                  style={{ width: `${filteredIncome + filteredExpense > 0 ? (filteredExpense / (filteredIncome + filteredExpense)) * 100 : 50}%` }}
-                ></div>
-              </div>
-              <p className="text-[11px] text-slate-400 text-center">Net Period Variance: PKR {Number((filteredIncome || 0) - (filteredExpense || 0)).toLocaleString()}</p>
+          <div className="space-y-6 text-center lg:text-left">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" /> 34-Days Full Access Free Trial
+            </div>
+
+            <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight">
+              Master Your Household Budget & Multi-Member Cash Flow.
+            </h1>
+
+            <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+              Track bank accounts, cash wallets, recurring bills, kametis, and member-wise expense ledgers in one encrypted real-time control centre.
+            </p>
+
+            {/* Security Trust Badges */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 py-2 text-xs text-slate-300">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                <Lock className="w-3.5 h-3.5 text-indigo-400" /> End-to-End Encrypted
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Strict RLS Isolation
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+              <Link 
+                href="/signup" 
+                className="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-xl shadow-indigo-600/25 text-center flex items-center justify-center gap-2"
+              >
+                <span>Start Your 34-Days Free Trial</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <a 
+                href="#calculator" 
+                className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition text-center"
+              >
+                Calculate Savings
+              </a>
+            </div>
+
+            <div className="flex items-center justify-center lg:justify-start gap-6 pt-4 text-xs text-slate-400 border-t border-slate-800/80">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> No Credit Card Required
+              </span>
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Granular Access Control
+              </span>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-emerald-500" /> Budget Health Thresholds
-              </h3>
-              <Link href="/budgets" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-                View All
-              </Link>
-            </div>
+          {/* Live Visual Analytics Preview Mockup */}
+          <div className="relative">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 backdrop-blur-xl">
+              
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-rose-500/80"></span>
+                  <span className="w-3 h-3 rounded-full bg-amber-500/80"></span>
+                  <span className="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-500">app.household-finance.com/dashboard</span>
+              </div>
 
-            {processedBudgets.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">No budgets configured yet.</p>
-            ) : (
-              <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
-                {processedBudgets.map((b, idx) => (
-                  <div key={b.id || idx} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">{b.bName}</span>
-                      <span className="text-slate-400">PKR {b.spent.toLocaleString()} / {b.alloc.toLocaleString()}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-rose-950/30 border border-rose-900/40 p-4 rounded-2xl">
+                  <p className="text-[10px] uppercase font-semibold text-rose-400">This Month Expense</p>
+                  <p className="text-lg font-bold text-rose-200 mt-1">PKR 45,200</p>
+                </div>
+                <div className="bg-emerald-950/30 border border-emerald-900/40 p-4 rounded-2xl">
+                  <p className="text-[10px] uppercase font-semibold text-emerald-400">This Month Income</p>
+                  <p className="text-lg font-bold text-emerald-200 mt-1">PKR 120,000</p>
+                </div>
+              </div>
+
+              {/* Category Live Progress Bars */}
+              <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                <p className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                  <span>Category Threshold Monitors</span>
+                  <span className="text-[10px] text-indigo-400 font-semibold">Live Sync</span>
+                </p>
+                
+                <div className="space-y-2">
+                  <div>
+                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                      <span>Groceries & Food</span>
+                      <span className="text-slate-200">18,500 / 25,000</span>
                     </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full ${b.pct > 80 ? 'bg-rose-500' : b.pct > 40 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                        style={{ width: `${b.pct}%` }}
-                      ></div>
+                    <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                      <div className="bg-indigo-500 h-full w-[74%] rounded-full"></div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
 
-        </div>
-
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <div className="lg:col-span-2 space-y-6">
-            
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-indigo-500" /> Active Accounts Summary
-                </h3>
-                <Link href="/accounts" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                  Manage <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {accounts.map((acc) => {
-                  const accName = acc?.name || acc?.account_name || 'Account';
-                  const accType = acc?.type || acc?.account_type || 'Bank';
-                  const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
-                  return (
-                    <div key={acc.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                      <div>
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{accName}</p>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{accType}</p>
-                      </div>
-                      <p className="text-base font-bold text-slate-900 dark:text-white">
-                        PKR {accBal.toLocaleString()}
-                      </p>
+                  <div>
+                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                      <span>Utilities & Bills</span>
+                      <span className="text-slate-200">12,300 / 15,000</span>
                     </div>
-                  );
-                })}
+                    <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                      <div className="bg-amber-500 h-full w-[82%] rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Feature Highlights Grid */}
+      <section id="features" className="py-20 bg-slate-900/50 border-y border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-6 space-y-12">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Engineered for Complete Financial Control</h2>
+            <p className="text-xs text-slate-400">Say goodbye to scattered manual registers and unorganized spreadsheets.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 hover:border-indigo-500/50 transition">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
+                <Users className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Multi-Member Granular Access</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">Assign roles to up to 5 family members. Automatic entry tagging guarantees complete record clarity.</p>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <PlusCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Quick Transaction Entry
-              </h3>
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 hover:border-indigo-500/50 transition">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                <PieChart className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Category Budget Thresholds</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">Set monthly limits on groceries, dining, and utility categories with live visual progress monitors.</p>
+            </div>
 
-              <form onSubmit={handleAddTransaction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium"
-                  >
-                    <option value="Expense">Expense</option>
-                    <option value="Income">Income</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Account</label>
-                  <select
-                    value={selectedAccount}
-                    onChange={(e) => setSelectedAccount(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium"
-                  >
-                    {accounts.map((acc) => {
-                      const accName = acc?.name || acc?.account_name || '';
-                      return (
-                        <option key={acc.id} value={accName}>
-                          {accName}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    required
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Grocery / Fuel"
-                    required
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 pt-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition text-xs shadow-sm cursor-pointer"
-                  >
-                    {loading ? 'Processing...' : 'Save Quick Entry'}
-                  </button>
-                </div>
-              </form>
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 hover:border-indigo-500/50 transition">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
+                <Landmark className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Debts & Kameti Ledgers</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">Track receivables, payables, and committee payouts with exact due date tracking and repayment logs.</p>
             </div>
 
           </div>
+        </div>
+      </section>
 
-          <div className="space-y-6">
-            
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-amber-500" /> Urgent Bills Due
-                </h2>
-                <Link href="/bills" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                  View All <ArrowRight className="w-3 h-3" />
-                </Link>
+      {/* NEW SECTION 1: How It Works / Onboarding Flow */}
+      <section id="how-it-works" className="py-20 bg-slate-950 border-b border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-6 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+              <Zap className="w-3.5 h-3.5" /> Fast Onboarding
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Get Started in 3 Simple Steps</h2>
+            <p className="text-xs text-slate-400">Set up your household workspace in under two minutes.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl space-y-4 relative">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">
+                01
               </div>
-
-              {bills.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-6">No pending bills right now.</p>
-              ) : (
-                <div className="space-y-3">
-                  {bills.map((bill) => {
-                    const billAmt = Number(bill?.amount ?? bill?.bill_amount ?? 0);
-                    const providerName = bill?.provider || bill?.title || bill?.bill_name || bill?.name || 'Utility Bill';
-
-                    return (
-                      <div key={bill.id} className="p-3.5 rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}</h4>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due: {bill?.due_date}</p>
-                          </div>
-                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
-                            Due
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-1">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">PKR {billAmt.toLocaleString()}</span>
-                          <button
-                            onClick={() => {
-                              setSelectedBillToPay(bill);
-                              if (accounts.length > 0) {
-                                setPaymentAccountId(accounts[0]?.name || accounts[0]?.account_name || '');
-                              }
-                            }}
-                            className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
-                          >
-                            <CheckCircle className="w-3 h-3" /> Pay
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <h3 className="text-sm font-bold text-white">Create Your Account</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Sign up in seconds and claim your instant 34-days full access free trial with no credit card required.
+              </p>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-indigo-500" /> Recent Activity Feed
-                </h2>
-                <Link href="/transactions" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                  Ledger <ArrowRight className="w-3 h-3" />
-                </Link>
+            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl space-y-4 relative">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">
+                02
               </div>
+              <h3 className="text-sm font-bold text-white">Set Wallets & Invite Family</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Configure cash wallets, bank balances, and invite up to 5 family members to start collaborative logging.
+              </p>
+            </div>
 
-              {transactions.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-6">No recent transactions.</p>
-              ) : (
-                <div className="space-y-3">
-                  {transactions.slice(0, 4).map((tx) => {
-                    const isIncome = (tx?.type || '').toLowerCase().includes('income') || (tx?.type || '').toLowerCase().includes('inflow');
-                    return (
-                      <div key={tx.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <div className="overflow-hidden pr-2">
-                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{tx?.description}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">{tx?.date || tx?.transaction_date}</p>
-                        </div>
-                        <span className={`text-xs font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                          {isIncome ? '+' : '-'} PKR {Number(tx?.amount || 0).toLocaleString()}
-                        </span>
-                      </div>
-                    );
-                  })}
+            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl space-y-4 relative">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">
+                03
+              </div>
+              <h3 className="text-sm font-bold text-white">Log, Track & Save</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Record daily expenses, monitor category limits, and eliminate impulse spending with automated insights.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison / "Why Switch?" Section */}
+      <section id="comparison" className="py-20 bg-slate-950">
+        <div className="max-w-5xl mx-auto px-6 space-y-12">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Traditional Registers vs. Household Finance</h2>
+            <p className="text-xs text-slate-400">See why modern households are upgrading to a digital control centre.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Traditional Method */}
+            <div className="bg-slate-900/40 border border-rose-900/30 rounded-3xl p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold">
+                  <X className="w-4 h-4" />
                 </div>
-              )}
+                <h3 className="text-base font-bold text-rose-200">Old Manual Registers</h3>
+              </div>
+              <ul className="space-y-3 text-xs text-slate-400">
+                <li className="flex items-center gap-2">❌ Risk of losing physical notebooks or calculation mistakes</li>
+                <li className="flex items-center gap-2">❌ No real-time summary or member-wise tracking</li>
+                <li className="flex items-center gap-2">❌ Difficult to track pending debts and kameti due dates</li>
+                <li className="flex items-center gap-2">❌ Zero data encryption or backup safety</li>
+              </ul>
+            </div>
+
+            {/* HFC Method */}
+            <div className="bg-indigo-950/20 border border-indigo-500/40 rounded-3xl p-8 space-y-6 relative overflow-hidden shadow-xl shadow-indigo-600/5">
+              <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
+                Recommended
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                  <Check className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-indigo-200">Household Finance Control Centre</h3>
+              </div>
+              <ul className="space-y-3 text-xs text-slate-300">
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Instant cloud sync with automatic calculations</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Multi-member tagging and granular access logs</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Automated alerts for debts, bills, and kametis</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Secure encrypted database with Row Level Security</li>
+              </ul>
             </div>
 
           </div>
 
         </div>
+      </section>
 
+      {/* NEW SECTION 2: Core Modules & Features Showcase Grid */}
+      <section className="py-20 bg-slate-900/30 border-y border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-6 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Comprehensive Financial Modules</h2>
+            <p className="text-xs text-slate-400">Everything required to maintain total clarity over household liquidity.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+              <Wallet className="w-6 h-6 text-indigo-400" />
+              <h4 className="text-xs font-bold text-white">Multi-Wallet Sync</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Separate bank balances, petty cash, and credit card limits in unified dashboards.
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+              <TrendingUp className="w-6 h-6 text-emerald-400" />
+              <h4 className="text-xs font-bold text-white">Category Limits</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Define visual thresholds for recurring monthly categories like groceries and utilities.
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+              <Bell className="w-6 h-6 text-amber-400" />
+              <h4 className="text-xs font-bold text-white">Kameti & Debt Logs</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Track pending committee payouts, loans, and payables with due date alerts.
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+              <Shield className="w-6 h-6 text-rose-400" />
+              <h4 className="text-xs font-bold text-white">Encrypted Backups</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Row Level Security guarantees your financial records remain completely confidential.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive Savings Calculator */}
+      <section id="calculator" className="py-20 bg-slate-950">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 md:p-12 space-y-6 shadow-2xl">
+            
+            <div className="text-center space-y-2">
+              <h2 className="text-xl md:text-2xl font-bold text-white">Calculate Potential Monthly Savings</h2>
+              <p className="text-xs text-slate-400">Proper ledger tracking typically reduces impulse spending by 10% to 15%.</p>
+            </div>
+
+            <div className="space-y-6 max-w-2xl mx-auto pt-4">
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-300 mb-2">
+                  <span>Estimated Total Monthly Expense</span>
+                  <span className="text-indigo-400 font-bold">PKR {monthlyExpense.toLocaleString()}</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="30000" 
+                  max="500000" 
+                  step="5000"
+                  value={monthlyExpense}
+                  onChange={(e) => setMonthlyExpense(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="p-6 bg-indigo-950/30 border border-indigo-900/40 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wider">Estimated Monthly Savings</p>
+                  <p className="text-3xl font-extrabold text-emerald-400 mt-1">PKR {estimatedSavings.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ month</span></p>
+                </div>
+                <Link 
+                  href="/signup" 
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/20 whitespace-nowrap"
+                >
+                  Start Saving Now
+                </Link>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* NEW SECTION 3: Transparent Pricing / Subscription Section */}
+      <section id="pricing" className="py-20 bg-slate-900/40 border-t border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-6 space-y-10">
+          <div className="text-center space-y-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Transparent, Honest Pricing</h2>
+            <p className="text-xs text-slate-400">No hidden fees, no data selling. You pay for the software, and you own your data.</p>
+          </div>
+
+          <div className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-8 md:p-10 space-y-6 max-w-lg mx-auto relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
+              34 Days Free Trial
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-white">Household Annual Pass</h3>
+              <p className="text-xs text-slate-400">Full control centre access for your entire family.</p>
+            </div>
+
+            <div className="flex items-baseline gap-2 border-y border-slate-800 py-4">
+              <span className="text-4xl font-extrabold text-white">PKR 10,000</span>
+              <span className="text-xs text-slate-400">/ year</span>
+            </div>
+
+            <ul className="space-y-3 text-xs text-slate-300">
+              <li className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>34-Days full access free trial (No credit card needed)</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Up to 5 Family Member Accounts</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Unlimited Cash, Bank & Wallet Accounts</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Kameti, Loans & Recurring Bill Ledgers</span>
+              </li>
+            </ul>
+
+            <Link 
+              href="/signup" 
+              className="block w-full text-center py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/25"
+            >
+              Claim Your 34-Days Free Trial
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className="py-20 bg-slate-950">
+        <div className="max-w-3xl mx-auto px-6 space-y-10">
+          
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+              <HelpCircle className="w-3.5 h-3.5" /> Got Questions?
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Frequently Asked Questions</h2>
+          </div>
+
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div 
+                key={index}
+                className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden transition"
+              >
+                <button
+                  onClick={() => toggleFaq(index)}
+                  className="w-full px-6 py-4 text-left flex items-center justify-between text-xs md:text-sm font-semibold text-white hover:text-indigo-400 transition cursor-pointer"
+                >
+                  <span>{faq.q}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${openFaq === index ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
+                </button>
+                {openFaq === index && (
+                  <div className="px-6 pb-4 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* Call To Action Banner */}
+      <section className="py-20 border-t border-slate-800/80 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-center">
+        <div className="max-w-3xl mx-auto px-6 space-y-6">
+          <h2 className="text-3xl font-extrabold text-white">Ready to take complete financial control?</h2>
+          <p className="text-xs text-slate-400">Join today and enjoy 34 days of complete full-feature access with no risk.</p>
+          <Link 
+            href="/signup" 
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-xl shadow-indigo-600/30"
+          >
+            <span>Create Your Free Account Now</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Mobile Sticky CTA Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold text-white">34-Days Free Trial</p>
+          <p className="text-[10px] text-slate-400">No credit card required</p>
+        </div>
+        <Link 
+          href="/signup" 
+          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-lg shadow-indigo-600/25 whitespace-nowrap flex items-center gap-1.5"
+        >
+          <span>Start Trial</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
-      {selectedBillToPay && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-emerald-500" /> Confirm Bill Payment
-              </h3>
-              <button
-                onClick={() => setSelectedBillToPay(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-1.5 border border-slate-100 dark:border-slate-800">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Bill Provider</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-white">
-                {selectedBillToPay?.provider || selectedBillToPay?.title || selectedBillToPay?.bill_name || selectedBillToPay?.name || 'Utility Bill'}
-              </p>
-              
-              <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
-                <span className="text-xs text-slate-500 dark:text-slate-400">Amount Due</span>
-                <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-                  PKR {Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_amount ?? 0).toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Select Account to Pay From
-              </label>
-              <select
-                value={paymentAccountId}
-                onChange={(e) => setPaymentAccountId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium"
-              >
-                {accounts.map((acc) => {
-                  const accName = acc?.name || acc?.account_name || '';
-                  const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
-                  return (
-                    <option key={acc.id} value={accName}>
-                      {accName} (Bal: PKR {accBal.toLocaleString()})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setSelectedBillToPay(null)}
-                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleConfirmPayBill}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs cursor-pointer"
-              >
-                {loading ? 'Processing...' : 'Confirm & Pay'}
-              </button>
-            </div>
+      {/* Footer */}
+      <footer className="py-8 border-t border-slate-900 text-center text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p>© {currentYear} Household Finance. All rights reserved.</p>
+          <div className="flex items-center gap-4 text-slate-400">
+            <Link href="/login" className="hover:underline">Sign In</Link>
+            <Link href="/signup" className="hover:underline">Sign Up</Link>
+            <Link href="/dashboard" className="hover:underline">App Dashboard</Link>
           </div>
         </div>
-      )}
+      </footer>
 
-    </main>
+    </div>
   );
 }

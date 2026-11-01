@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/currency';
 import { Plus, CheckCircle, Clock, Calendar, DollarSign, Trash2, ArrowDownLeft, TrendingUp } from 'lucide-react';
 
 export interface Receivable {
@@ -14,6 +15,7 @@ export interface Receivable {
   status: string; // 'Pending' or 'Received'
   notes?: string;
   created_at?: string;
+  user_id?: string;
 }
 
 export default function ReceivablesPage() {
@@ -23,6 +25,7 @@ export default function ReceivablesPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [todayStr, setTodayStr] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [currency, setCurrency] = useState('PKR');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -47,8 +50,29 @@ export default function ReceivablesPage() {
   const fetchReceivablesAndAccounts = async () => {
     setLoading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch User Profile Currency preference
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('preferred_currency')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.preferred_currency) {
+      setCurrency(profile.preferred_currency);
+    }
+
     // Fetch Accounts
-    const { data: accData } = await supabase.from('accounts').select('name');
+    const { data: accData } = await supabase
+      .from('accounts')
+      .select('name')
+      .eq('user_id', user.id);
+
     if (accData && accData.length > 0) {
       const names = accData.map((a: { name: string }) => a.name);
       setAccounts(names);
@@ -59,11 +83,15 @@ export default function ReceivablesPage() {
     const { data: recData } = await supabase
       .from('receivables')
       .select('*')
+      .eq('user_id', user.id)
       .order('expected_date', { ascending: true });
     setReceivables(recData || []);
 
     // Fetch Transactions
-    const { data: txData } = await supabase.from('transactions').select('*');
+    const { data: txData } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id);
     setTransactions(txData || []);
 
     setLoading(false);
@@ -77,6 +105,12 @@ export default function ReceivablesPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const { error } = await supabase.from('receivables').insert([
       {
         title,
@@ -86,6 +120,7 @@ export default function ReceivablesPage() {
         expected_date: expectedDate,
         status: 'Pending',
         notes,
+        user_id: user.id,
       },
     ]);
 
@@ -109,6 +144,9 @@ export default function ReceivablesPage() {
   const handleConfirmReceived = async () => {
     if (!receivingItem || !selectedAccount) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const receiveAmount = Number(receivingItem.amount);
 
     // 1. Record Income Transaction in Transactions Ledger
@@ -122,6 +160,7 @@ export default function ReceivablesPage() {
         party_name: receivingItem.source_person || receivingItem.title,
         description: `Income Received: ${receivingItem.title}`,
         entered_by: 'Husband',
+        user_id: user.id,
       },
     ]);
 
@@ -131,18 +170,29 @@ export default function ReceivablesPage() {
     }
 
     // 2. Add Amount to Selected Account Balance
-    const { data: accList } = await supabase.from('accounts').select('*').eq('name', selectedAccount).limit(1);
+    const { data: accList } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('name', selectedAccount)
+      .eq('user_id', user.id)
+      .limit(1);
+
     if (accList && accList.length > 0) {
       const acc = accList[0];
       const newBal = Number(acc.current_balance || 0) + receiveAmount;
-      await supabase.from('accounts').update({ current_balance: newBal }).eq('id', acc.id);
+      await supabase
+        .from('accounts')
+        .update({ current_balance: newBal })
+        .eq('id', acc.id)
+        .eq('user_id', user.id);
     }
 
     // 3. Update Receivable Status to 'Received'
     const { error: recErr } = await supabase
       .from('receivables')
       .update({ status: 'Received' })
-      .eq('id', receivingItem.id);
+      .eq('id', receivingItem.id)
+      .eq('user_id', user.id);
 
     if (recErr) {
       alert('Error updating receivable status: ' + recErr.message);
@@ -158,7 +208,15 @@ export default function ReceivablesPage() {
   const handleDeleteReceivable = async (id: string) => {
     if (!confirm('Kya aap waqai is entry ko delete karna chahte hain?')) return;
 
-    const { error } = await supabase.from('receivables').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('receivables')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
     if (error) {
       alert('Error deleting receivable: ' + error.message);
     } else {
@@ -232,7 +290,6 @@ export default function ReceivablesPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Income & Receivables</h1>
@@ -240,16 +297,15 @@ export default function ReceivablesPage() {
         </div>
       </div>
 
-      {/* Cards & Filter Month Section */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex gap-3 w-full sm:w-auto flex-1">
-          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-4 rounded-2xl flex-1 md:w-44">
+          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-4 rounded-2xl flex-1 md:w-52">
             <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Pending Income</p>
-            <p className="text-xl font-bold text-amber-950 dark:text-amber-200 mt-0.5">PKR {pendingTotal.toLocaleString()}</p>
+            <p className="text-xl font-bold text-amber-950 dark:text-amber-200 mt-0.5">{formatCurrency(pendingTotal, currency)}</p>
           </div>
-          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-44">
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-52">
             <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Received Income</p>
-            <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {receivedTotal.toLocaleString()}</p>
+            <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">{formatCurrency(receivedTotal, currency)}</p>
           </div>
         </div>
 
@@ -265,7 +321,6 @@ export default function ReceivablesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Form */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
           <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
             <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -298,7 +353,7 @@ export default function ReceivablesPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
                 <input
                   type="number"
                   required
@@ -326,7 +381,7 @@ export default function ReceivablesPage() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
               >
                 <option value="Salary / Business Income">Salary / Business Income</option>
                 <option value="Freelance / Contract">Freelance / Contract</option>
@@ -356,7 +411,6 @@ export default function ReceivablesPage() {
           </form>
         </div>
 
-        {/* Right Column: Receivables List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4">
             <h2 className="text-base font-semibold text-slate-800 dark:text-white">Pending & Received Incomes</h2>
@@ -400,7 +454,7 @@ export default function ReceivablesPage() {
                       <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
                         <div>
                           <p className="text-base font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
-                            PKR {Number(r.amount).toLocaleString()}
+                            {formatCurrency(Number(r.amount), currency)}
                           </p>
                         </div>
 
@@ -434,7 +488,6 @@ export default function ReceivablesPage() {
         </div>
       </div>
 
-      {/* Receive Modal */}
       {receivingItem && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -446,7 +499,7 @@ export default function ReceivablesPage() {
               <div className="mt-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-100 dark:border-emerald-900/50 text-xs flex justify-between items-center">
                 <span className="text-emerald-800 dark:text-emerald-300 font-medium">Deposit Amount:</span>
                 <span className="font-bold text-emerald-950 dark:text-emerald-200 text-sm">
-                  PKR {Number(receivingItem.amount).toLocaleString()}
+                  {formatCurrency(Number(receivingItem.amount), currency)}
                 </span>
               </div>
             </div>
@@ -456,7 +509,7 @@ export default function ReceivablesPage() {
               <select
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
               >
                 {accounts.map((acc) => (
                   <option key={acc} value={acc}>

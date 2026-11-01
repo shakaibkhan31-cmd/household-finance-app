@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/currency';
 import { Plus, PieChart, AlertTriangle, CheckCircle2, DollarSign, Trash2, Edit3, X } from 'lucide-react';
 
 export interface Budget {
   id: string;
   category: string;
   monthly_limit: number;
+  user_id?: string;
 }
 
 export interface Transaction {
@@ -16,6 +18,7 @@ export interface Transaction {
   amount: number;
   type: string;
   date: string;
+  user_id?: string;
 }
 
 const CATEGORIES = [
@@ -35,6 +38,7 @@ export default function BudgetsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentYearMonth, setCurrentYearMonth] = useState<string>('');
+  const [currency, setCurrency] = useState('PKR');
 
   // Form State
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -54,13 +58,38 @@ export default function BudgetsPage() {
   const fetchBudgetsAndTransactions = async () => {
     setLoading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch User Profile Currency preference
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('preferred_currency')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.preferred_currency) {
+      setCurrency(profile.preferred_currency);
+    }
+
     // 1. Fetch Budgets
-    const { data: bData, error: bErr } = await supabase.from('budgets').select('*');
+    const { data: bData, error: bErr } = await supabase
+      .from('budgets')
+      .select('*')
+      .eq('user_id', user.id);
+
     if (bErr) console.error('Error fetching budgets:', bErr.message);
     else setBudgets(bData || []);
 
     // 2. Fetch Transactions
-    const { data: tData, error: tErr } = await supabase.from('transactions').select('*');
+    const { data: tData, error: tErr } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id);
+
     if (tErr) console.error('Error fetching transactions:', tErr.message);
     else setTransactions(tData || []);
 
@@ -77,14 +106,21 @@ export default function BudgetsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const { error } = await supabase.from('budgets').upsert(
       [
         {
           category: finalCategory,
           monthly_limit: parseFloat(monthlyLimit),
+          user_id: user.id,
         },
       ],
-      { onConflict: 'category' }
+      { onConflict: 'user_id, category' }
     );
 
     if (error) {
@@ -102,10 +138,14 @@ export default function BudgetsPage() {
     e.preventDefault();
     if (!editingBudget || !editLimit) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error } = await supabase
       .from('budgets')
       .update({ monthly_limit: parseFloat(editLimit) })
-      .eq('id', editingBudget.id);
+      .eq('id', editingBudget.id)
+      .eq('user_id', user.id);
 
     if (error) {
       alert('Error updating budget: ' + error.message);
@@ -118,7 +158,16 @@ export default function BudgetsPage() {
 
   const handleDeleteBudget = async (id: string) => {
     if (!confirm('Kya aap is category budget ko delete karna chahte hain?')) return;
-    const { error } = await supabase.from('budgets').delete().eq('id', id);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('budgets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
     if (error) alert('Error deleting budget: ' + error.message);
     else fetchBudgetsAndTransactions();
   };
@@ -143,26 +192,24 @@ export default function BudgetsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header & Overview */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Monthly Budget & Limits</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Set category spending thresholds and monitor monthly financial discipline</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-44">
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-52">
             <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Total Limit</p>
-            <p className="text-xl font-bold text-indigo-950 dark:text-indigo-200 mt-0.5">PKR {totalBudgetLimit.toLocaleString()}</p>
+            <p className="text-xl font-bold text-indigo-950 dark:text-indigo-200 mt-0.5">{formatCurrency(totalBudgetLimit, currency)}</p>
           </div>
-          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-44">
+          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-52">
             <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Spent This Month</p>
-            <p className="text-xl font-bold text-rose-950 dark:text-rose-200 mt-0.5">PKR {totalSpent.toLocaleString()}</p>
+            <p className="text-xl font-bold text-rose-950 dark:text-rose-200 mt-0.5">{formatCurrency(totalSpent, currency)}</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Set Budget Form */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
           <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
             <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -175,7 +222,7 @@ export default function BudgetsPage() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
@@ -200,7 +247,7 @@ export default function BudgetsPage() {
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Limit (PKR)</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Limit ({currency})</label>
               <input
                 type="number"
                 required
@@ -213,14 +260,13 @@ export default function BudgetsPage() {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
             >
               Save Budget Limit
             </button>
           </form>
         </div>
 
-        {/* Right Column: Budgets Progress List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
             <h2 className="text-base font-semibold text-slate-800 dark:text-white">Category Budgets & Progress (Current Month)</h2>
@@ -259,14 +305,14 @@ export default function BudgetsPage() {
                               setEditingBudget(b);
                               setEditLimit(b.monthly_limit.toString());
                             }}
-                            className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-lg transition"
+                            className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
                             title="Edit Limit"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteBudget(b.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
                             title="Delete Budget"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -275,11 +321,10 @@ export default function BudgetsPage() {
                       </div>
 
                       <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
-                        <span>Spent This Month: <strong className="text-slate-900 dark:text-white">PKR {spent.toLocaleString()}</strong></span>
-                        <span>Limit: <strong className="text-slate-900 dark:text-white">PKR {limit.toLocaleString()}</strong></span>
+                        <span>Spent This Month: <strong className="text-slate-900 dark:text-white">{formatCurrency(spent, currency)}</strong></span>
+                        <span>Limit: <strong className="text-slate-900 dark:text-white">{formatCurrency(limit, currency)}</strong></span>
                       </div>
 
-                      {/* Progress Bar */}
                       <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 ${
@@ -300,20 +345,19 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {/* Edit Budget Modal */}
       {editingBudget && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Budget — {editingBudget.category}</h3>
-              <button onClick={() => setEditingBudget(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <button onClick={() => setEditingBudget(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleUpdateBudget} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">New Monthly Limit (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">New Monthly Limit ({currency})</label>
                 <input
                   type="number"
                   required
@@ -327,13 +371,13 @@ export default function BudgetsPage() {
                 <button
                   type="button"
                   onClick={() => setEditingBudget(null)}
-                  className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
+                  className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs"
+                  className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs cursor-pointer"
                 >
                   Save Changes
                 </button>

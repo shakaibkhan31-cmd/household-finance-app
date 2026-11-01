@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/currency';
 import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users, Wallet, History, Trash2 } from 'lucide-react';
 
 export interface Debt {
@@ -14,6 +15,7 @@ export interface Debt {
   status: string; 
   notes?: string;
   created_at?: string;
+  user_id?: string;
 }
 
 export interface Kameti {
@@ -24,6 +26,7 @@ export interface Kameti {
   my_turn_month: string;
   status: string;
   notes?: string;
+  user_id?: string;
 }
 
 export interface Transaction {
@@ -34,6 +37,7 @@ export interface Transaction {
   amount: number;
   party_name: string;
   description: string;
+  user_id?: string;
 }
 
 export default function DebtsPage() {
@@ -43,6 +47,7 @@ export default function DebtsPage() {
   const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [todayStr, setTodayStr] = useState('');
+  const [currency, setCurrency] = useState('PKR');
 
   // Debt Form State
   const [personName, setPersonName] = useState('');
@@ -87,7 +92,28 @@ export default function DebtsPage() {
   const fetchData = async () => {
     setLoading(true);
 
-    const { data: accData } = await supabase.from('accounts').select('name');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch User Profile Currency preference
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('preferred_currency')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.preferred_currency) {
+      setCurrency(profile.preferred_currency);
+    }
+
+    const { data: accData } = await supabase
+      .from('accounts')
+      .select('name')
+      .eq('user_id', user.id);
+
     if (accData && accData.length > 0) {
       const names = accData.map((a: { name: string }) => a.name);
       setAccounts(names);
@@ -95,10 +121,18 @@ export default function DebtsPage() {
       setKametiAccount(names[0]);
     }
 
-    const { data: debtData } = await supabase.from('debts').select('*').order('due_date', { ascending: true });
+    const { data: debtData } = await supabase
+      .from('debts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('due_date', { ascending: true });
     setDebts(debtData || []);
 
-    const { data: kametiData } = await supabase.from('kametis').select('*').order('created_at', { ascending: false });
+    const { data: kametiData } = await supabase
+      .from('kametis')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
     setKametis(kametiData || []);
 
     setLoading(false);
@@ -122,6 +156,12 @@ export default function DebtsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const { error } = await supabase.from('debts').insert([
       {
         person_name: personName,
@@ -131,6 +171,7 @@ export default function DebtsPage() {
         due_date: dueDate,
         status: 'Active',
         notes,
+        user_id: user.id,
       },
     ]);
 
@@ -147,7 +188,15 @@ export default function DebtsPage() {
   const handleDeleteDebt = async (id: string, name: string) => {
     if (!confirm(`Kya aap waqai "${name}" ka debt record delete karna chahte hain?`)) return;
 
-    const { error } = await supabase.from('debts').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('debts')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
     if (error) {
       alert('Error deleting debt record: ' + error.message);
     } else {
@@ -162,6 +211,12 @@ export default function DebtsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const { error } = await supabase.from('kametis').insert([
       {
         committee_name: committeeName,
@@ -170,6 +225,7 @@ export default function DebtsPage() {
         my_turn_month: myTurnMonth || 'TBD',
         status: 'Active',
         notes: kametiNotes,
+        user_id: user.id,
       },
     ]);
 
@@ -196,6 +252,9 @@ export default function DebtsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { kameti, actionType } = kametiActionModal;
     const amountVal = parseFloat(kametiActionAmount);
     if (isNaN(amountVal) || amountVal <= 0) {
@@ -219,6 +278,7 @@ export default function DebtsPage() {
         party_name: partyName,
         description: description,
         entered_by: 'Husband',
+        user_id: user.id,
       },
     ]);
 
@@ -227,17 +287,31 @@ export default function DebtsPage() {
       return;
     }
 
-    const { data: accList } = await supabase.from('accounts').select('*').eq('name', kametiAccount).limit(1);
+    const { data: accList } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('name', kametiAccount)
+      .eq('user_id', user.id)
+      .limit(1);
+
     if (accList && accList.length > 0) {
       const acc = accList[0];
       let currentBal = Number(acc.current_balance || 0);
       if (isPay) currentBal -= amountVal;
       else currentBal += amountVal;
-      await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+      await supabase
+        .from('accounts')
+        .update({ current_balance: currentBal })
+        .eq('id', acc.id)
+        .eq('user_id', user.id);
     }
 
     if (!isPay) {
-      await supabase.from('kametis').update({ status: 'Completed' }).eq('id', kameti.id);
+      await supabase
+        .from('kametis')
+        .update({ status: 'Completed' })
+        .eq('id', kameti.id)
+        .eq('user_id', user.id);
     }
 
     setKametiActionModal(null);
@@ -263,9 +337,12 @@ export default function DebtsPage() {
     }
 
     if (payAmount > settlingDebt.amount) {
-      alert(`Settlement amount cannot exceed active balance of PKR ${settlingDebt.amount.toLocaleString()}.`);
+      alert(`Settlement amount cannot exceed active balance of ${formatCurrency(settlingDebt.amount, currency)}.`);
       return;
     }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
     const isReceivable = settlingDebt.direction.includes('Given') || settlingDebt.direction.includes('Receivable');
 
@@ -279,6 +356,7 @@ export default function DebtsPage() {
         party_name: settlingDebt.person_name,
         description: `Partial/Full settlement for ${settlingDebt.type} (${settlingDebt.direction})`,
         entered_by: 'Husband',
+        user_id: user.id,
       },
     ]);
 
@@ -287,21 +365,35 @@ export default function DebtsPage() {
       return;
     }
 
-    const { data: accList } = await supabase.from('accounts').select('*').eq('name', selectedAccount).limit(1);
+    const { data: accList } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('name', selectedAccount)
+      .eq('user_id', user.id)
+      .limit(1);
+
     if (accList && accList.length > 0) {
       const acc = accList[0];
       let currentBal = Number(acc.current_balance || 0);
       if (isReceivable) currentBal += payAmount;
       else currentBal -= payAmount;
 
-      await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+      await supabase
+        .from('accounts')
+        .update({ current_balance: currentBal })
+        .eq('id', acc.id)
+        .eq('user_id', user.id);
     }
 
     const remainingDebt = Math.max(0, settlingDebt.amount - payAmount);
-    await supabase.from('debts').update({
-      amount: remainingDebt,
-      status: remainingDebt === 0 ? 'Settled' : 'Active',
-    }).eq('id', settlingDebt.id);
+    await supabase
+      .from('debts')
+      .update({
+        amount: remainingDebt,
+        status: remainingDebt === 0 ? 'Settled' : 'Active',
+      })
+      .eq('id', settlingDebt.id)
+      .eq('user_id', user.id);
 
     setSettlingDebt(null);
     fetchData();
@@ -309,10 +401,15 @@ export default function DebtsPage() {
 
   const openHistoryModal = async (title: string, type: 'debt' | 'kameti') => {
     setHistoryModalItem({ title, type });
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const searchKeyword = type === 'debt' ? title : `Kameti: ${title}`;
     const { data } = await supabase
       .from('transactions')
       .select('*')
+      .eq('user_id', user.id)
       .ilike('party_name', `%${searchKeyword}%`)
       .order('date', { ascending: false });
 
@@ -384,7 +481,7 @@ export default function DebtsPage() {
             <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-5 rounded-2xl flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Total Receivable (Logay)</p>
-                <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-200 mt-1">PKR {totalReceivable.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-200 mt-1">{formatCurrency(totalReceivable, currency)}</p>
               </div>
               <ArrowDownLeft className="w-8 h-8 text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 p-1.5 rounded-xl shrink-0" />
             </div>
@@ -392,7 +489,7 @@ export default function DebtsPage() {
             <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-5 rounded-2xl flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Total Payable (Denay)</p>
-                <p className="text-2xl font-bold text-rose-900 dark:text-rose-200 mt-1">PKR {totalPayable.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-rose-900 dark:text-rose-200 mt-1">{formatCurrency(totalPayable, currency)}</p>
               </div>
               <ArrowUpRight className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl shrink-0" />
             </div>
@@ -424,7 +521,7 @@ export default function DebtsPage() {
                     <select
                       value={debtType}
                       onChange={(e) => handleDebtTypeChange(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                     >
                       <option value="Personal Loan">Personal Loan</option>
                       <option value="Credit Card">Credit Card</option>
@@ -438,7 +535,7 @@ export default function DebtsPage() {
                       value={direction}
                       onChange={(e) => setDirection(e.target.value)}
                       disabled={debtType === 'Credit Card'}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 dark:text-indigo-300 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 dark:text-indigo-300 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-slate-800 cursor-pointer"
                     >
                       <option value="Given (Receivable)">Given (Logay)</option>
                       <option value="Taken (Payable)">Taken (Denay)</option>
@@ -448,7 +545,7 @@ export default function DebtsPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
                     <input
                       type="number"
                       required
@@ -531,7 +628,7 @@ export default function DebtsPage() {
                           <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
                             <div>
                               <p className={`text-base font-bold whitespace-nowrap ${isSettled ? 'text-slate-400 line-through' : isReceivable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                                PKR {Number(d.amount).toLocaleString()}
+                                {formatCurrency(Number(d.amount), currency)}
                               </p>
                             </div>
                             <div className="flex items-center gap-1.5 justify-end">
@@ -575,7 +672,7 @@ export default function DebtsPage() {
           <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 p-5 rounded-2xl flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">Total Active Kameti Pools</p>
-              <p className="text-2xl font-bold text-indigo-950 dark:text-indigo-200 mt-1">PKR {activeKametisPool.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-indigo-950 dark:text-indigo-200 mt-1">{formatCurrency(activeKametisPool, currency)}</p>
             </div>
             <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 p-1.5 rounded-xl shrink-0" />
           </div>
@@ -602,7 +699,7 @@ export default function DebtsPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Total Pool (PKR)</label>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Total Pool ({currency})</label>
                     <input
                       type="number"
                       required
@@ -681,13 +778,13 @@ export default function DebtsPage() {
                               {isCompleted && <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium">Completed</span>}
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400">{k.notes || 'No remarks'}</p>
-                            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Monthly Installment: <strong className="text-indigo-900 dark:text-indigo-300">PKR {Number(k.monthly_installment).toLocaleString()}</strong></p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Monthly Installment: <strong className="text-indigo-900 dark:text-indigo-300">{formatCurrency(Number(k.monthly_installment), currency)}</strong></p>
                           </div>
 
                           <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
                             <div>
                               <p className="text-[10px] text-slate-400 uppercase tracking-wider text-left sm:text-right">Total Pool</p>
-                              <p className="text-base font-bold text-slate-900 dark:text-white whitespace-nowrap">PKR {Number(k.total_pool_amount).toLocaleString()}</p>
+                              <p className="text-base font-bold text-slate-900 dark:text-white whitespace-nowrap">{formatCurrency(Number(k.total_pool_amount), currency)}</p>
                             </div>
 
                             <div className="flex gap-1.5 justify-end">
@@ -748,7 +845,7 @@ export default function DebtsPage() {
                       <p className="font-semibold text-slate-800 dark:text-white">{tx.description}</p>
                       <p className="text-[10px] text-slate-400 font-mono">{tx.date} • {tx.account_name}</p>
                     </div>
-                    <p className="font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">PKR {Number(tx.amount).toLocaleString()}</p>
+                    <p className="font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">{formatCurrency(Number(tx.amount), currency)}</p>
                   </div>
                 ))
               )}
@@ -782,7 +879,7 @@ export default function DebtsPage() {
                 <select
                   value={kametiAccount}
                   onChange={(e) => setKametiAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -802,13 +899,13 @@ export default function DebtsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
                   <input
                     type="number"
                     required
                     value={kametiActionAmount}
                     onChange={(e) => setKametiActionAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-bold"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                   />
                 </div>
               </div>
@@ -838,7 +935,7 @@ export default function DebtsPage() {
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Settle / Pay Loan Balance</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                For <strong>{settlingDebt.person_name}</strong> (Active Balance: PKR {settlingDebt.amount.toLocaleString()})
+                For <strong>{settlingDebt.person_name}</strong> (Active Balance: {formatCurrency(settlingDebt.amount, currency)})
               </p>
             </div>
 
@@ -850,7 +947,7 @@ export default function DebtsPage() {
                 <select
                   value={selectedAccount}
                   onChange={(e) => setSelectedAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -870,13 +967,13 @@ export default function DebtsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Payment Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Payment Amount ({currency})</label>
                   <input
                     type="number"
                     required
                     value={settlementAmount}
                     onChange={(e) => setSettlementAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-bold text-emerald-800 dark:text-emerald-400"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-emerald-800 dark:text-emerald-400"
                   />
                 </div>
               </div>

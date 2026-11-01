@@ -12,6 +12,7 @@ export interface Debt {
   due_date: string;
   status: 'Active' | 'Settled';
   created_at?: string;
+  user_id?: string;
 }
 
 export default function DebtsTracker() {
@@ -27,9 +28,17 @@ export default function DebtsTracker() {
   // Fetch Debts
   const fetchDebts = async () => {
     setLoading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('debts')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -49,6 +58,12 @@ export default function DebtsTracker() {
     e.preventDefault();
     if (!personName || !amount) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
 
     const { error } = await supabase.from('debts').insert([
@@ -59,6 +74,7 @@ export default function DebtsTracker() {
         remaining_balance: parsedAmount,
         due_date: dueDate || null,
         status: 'Active',
+        user_id: user.id,
       },
     ]);
 
@@ -74,10 +90,14 @@ export default function DebtsTracker() {
 
   // Mark Debt as Settled
   const handleSettleDebt = async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error } = await supabase
       .from('debts')
       .update({ status: 'Settled', remaining_balance: 0 })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (error) {
       alert('Error updating debt: ' + error.message);
@@ -108,7 +128,7 @@ export default function DebtsTracker() {
         </div>
         <button
           onClick={fetchDebts}
-          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-medium transition"
+          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-medium transition cursor-pointer"
         >
           Refresh Debts
         </button>
@@ -167,7 +187,7 @@ export default function DebtsTracker() {
             <select
               value={type}
               onChange={(e) => setType(e.target.value as any)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none font-medium"
             >
               <option value="Given">Udhaar Diya (Given)</option>
               <option value="Taken">Udhaar Liya (Taken)</option>
@@ -183,7 +203,7 @@ export default function DebtsTracker() {
               placeholder="e.g. 20000"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-500 outline-none font-bold"
             />
           </div>
 
@@ -199,7 +219,7 @@ export default function DebtsTracker() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm cursor-pointer"
           >
             Record Debt Entry
           </button>
@@ -257,7 +277,7 @@ export default function DebtsTracker() {
                       {item.status === 'Active' && (
                         <button
                           onClick={() => handleSettleDebt(item.id)}
-                          className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-medium transition"
+                          className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-medium transition cursor-pointer"
                         >
                           Mark Settled
                         </button>

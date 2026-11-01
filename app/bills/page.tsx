@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/currency';
 import { syncCreditCardDebt } from '@/lib/financeSync';
 import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2, AlertTriangle, Search, Filter, Repeat } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export interface Bill {
   notes?: string;
   is_recurring?: boolean;
   created_at?: string;
+  user_id?: string;
 }
 
 export default function BillsPage() {
@@ -23,6 +25,7 @@ export default function BillsPage() {
   const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [todayStr, setTodayStr] = useState<string>('');
+  const [currency, setCurrency] = useState('PKR');
 
   // Filter & Search State
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
@@ -57,7 +60,28 @@ export default function BillsPage() {
   const fetchBillsAndAccounts = async () => {
     setLoading(true);
 
-    const { data: accData } = await supabase.from('accounts').select('name');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch User Profile Currency preference
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('preferred_currency')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.preferred_currency) {
+      setCurrency(profile.preferred_currency);
+    }
+
+    const { data: accData } = await supabase
+      .from('accounts')
+      .select('name')
+      .eq('user_id', user.id);
+
     if (accData && accData.length > 0) {
       const names = accData.map((a: { name: string }) => a.name);
       setAccounts(names);
@@ -69,6 +93,7 @@ export default function BillsPage() {
     const { data, error } = await supabase
       .from('bills')
       .select('*')
+      .eq('user_id', user.id)
       .order('due_date', { ascending: true });
 
     if (error) {
@@ -86,6 +111,12 @@ export default function BillsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const { error } = await supabase.from('bills').insert([
       {
         title,
@@ -96,6 +127,7 @@ export default function BillsPage() {
         status: 'Pending',
         is_recurring: isRecurring,
         notes,
+        user_id: user.id,
       },
     ]);
 
@@ -134,6 +166,9 @@ export default function BillsPage() {
   const handleConfirmMarkPaid = async () => {
     if (!payingBill || !selectedAccount) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error: txErr } = await supabase.from('transactions').insert([
       {
         date: todayStr,
@@ -146,6 +181,7 @@ export default function BillsPage() {
           payingTotalAmount > Number(payingBill.amount) ? '(Includes Late Fee)' : ''
         }`,
         entered_by: 'Husband',
+        user_id: user.id,
       },
     ]);
 
@@ -154,11 +190,21 @@ export default function BillsPage() {
       return;
     }
 
-    const { data: accList } = await supabase.from('accounts').select('*').eq('name', selectedAccount).limit(1);
+    const { data: accList } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('name', selectedAccount)
+      .eq('user_id', user.id)
+      .limit(1);
+
     if (accList && accList.length > 0) {
       const acc = accList[0];
       const newBal = Number(acc.current_balance || 0) - payingTotalAmount;
-      await supabase.from('accounts').update({ current_balance: newBal }).eq('id', acc.id);
+      await supabase
+        .from('accounts')
+        .update({ current_balance: newBal })
+        .eq('id', acc.id)
+        .eq('user_id', user.id);
     }
 
     const { error: billErr } = await supabase
@@ -167,7 +213,8 @@ export default function BillsPage() {
         status: 'Paid',
         amount: payingTotalAmount,
       })
-      .eq('id', payingBill.id);
+      .eq('id', payingBill.id)
+      .eq('user_id', user.id);
 
     if (billErr) {
       alert('Error updating bill status: ' + billErr.message);
@@ -189,6 +236,7 @@ export default function BillsPage() {
           status: 'Pending',
           is_recurring: true,
           notes: 'Auto-generated recurring monthly bill',
+          user_id: user.id,
         },
       ]);
     }
@@ -199,12 +247,16 @@ export default function BillsPage() {
   };
 
   const handleDeleteBill = async (bill: Bill) => {
-    if (!confirm('Kya aap waqai is bill entry ko delete karna chahte hain?')) return;
+    if (!confirm(`Kya aap waqai is bill entry ko delete karna chahte hain?`)) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
     if (bill.status === 'Paid') {
       const { data: txData } = await supabase
         .from('transactions')
         .select('*')
+        .eq('user_id', user.id)
         .ilike('party_name', `%${bill.title}%`)
         .order('date', { ascending: false })
         .limit(1);
@@ -214,18 +266,37 @@ export default function BillsPage() {
         const accName = tx.account_name;
         const paidAmount = Number(tx.amount || bill.amount);
 
-        const { data: accList } = await supabase.from('accounts').select('*').eq('name', accName).limit(1);
+        const { data: accList } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('name', accName)
+          .eq('user_id', user.id)
+          .limit(1);
+
         if (accList && accList.length > 0) {
           const acc = accList[0];
           const restoredBal = Number(acc.current_balance || 0) + paidAmount;
-          await supabase.from('accounts').update({ current_balance: restoredBal }).eq('id', acc.id);
+          await supabase
+            .from('accounts')
+            .update({ current_balance: restoredBal })
+            .eq('id', acc.id)
+            .eq('user_id', user.id);
         }
 
-        await supabase.from('transactions').delete().eq('id', tx.id);
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', tx.id)
+          .eq('user_id', user.id);
       }
     }
 
-    const { error } = await supabase.from('bills').delete().eq('id', bill.id);
+    const { error } = await supabase
+      .from('bills')
+      .delete()
+      .eq('id', bill.id)
+      .eq('user_id', user.id);
+
     if (error) alert('Error deleting bill: ' + error.message);
     else fetchBillsAndAccounts();
   };
@@ -238,6 +309,9 @@ export default function BillsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error: txErr } = await supabase.from('transactions').insert([
       {
         date: todayStr,
@@ -249,6 +323,7 @@ export default function BillsPage() {
         party_name: 'Credit Card Bill Payment',
         description: `Bill Payment for ${transferringBill.title || 'Bill'}`,
         entered_by: 'Husband',
+        user_id: user.id,
       },
     ]);
 
@@ -257,16 +332,36 @@ export default function BillsPage() {
       return;
     }
 
-    const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', sourceAccount).limit(1);
+    const { data: srcAcc } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('name', sourceAccount)
+      .eq('user_id', user.id)
+      .limit(1);
+
     if (srcAcc && srcAcc.length > 0) {
       const newBal = Number(srcAcc[0].current_balance || 0) - transferTotalAmount;
-      await supabase.from('accounts').update({ current_balance: newBal }).eq('id', srcAcc[0].id);
+      await supabase
+        .from('accounts')
+        .update({ current_balance: newBal })
+        .eq('id', srcAcc[0].id)
+        .eq('user_id', user.id);
     }
 
-    const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', targetAccount).limit(1);
+    const { data: destAcc } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('name', targetAccount)
+      .eq('user_id', user.id)
+      .limit(1);
+
     if (destAcc && destAcc.length > 0) {
       const newBal = Number(destAcc[0].current_balance || 0) + transferTotalAmount;
-      await supabase.from('accounts').update({ current_balance: newBal }).eq('id', destAcc[0].id);
+      await supabase
+        .from('accounts')
+        .update({ current_balance: newBal })
+        .eq('id', destAcc[0].id)
+        .eq('user_id', user.id);
     }
 
     if (targetAccount.toLowerCase().includes('credit card') || targetAccount.toLowerCase().includes('card')) {
@@ -279,7 +374,8 @@ export default function BillsPage() {
         status: 'Paid',
         amount: transferTotalAmount,
       })
-      .eq('id', transferringBill.id);
+      .eq('id', transferringBill.id)
+      .eq('user_id', user.id);
 
     if (transferringBill.is_recurring) {
       const nextDate = new Date(transferringBill.due_date);
@@ -296,6 +392,7 @@ export default function BillsPage() {
           status: 'Pending',
           is_recurring: true,
           notes: 'Auto-generated recurring monthly bill',
+          user_id: user.id,
         },
       ]);
     }
@@ -338,7 +435,7 @@ export default function BillsPage() {
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-5 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Total Pending Bills</p>
-            <p className="text-2xl font-bold text-amber-950 dark:text-amber-200 mt-1">PKR {totalPendingAmount.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-amber-950 dark:text-amber-200 mt-1">{formatCurrency(totalPendingAmount, currency)}</p>
           </div>
           <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 p-1.5 rounded-xl shrink-0" />
         </div>
@@ -346,7 +443,7 @@ export default function BillsPage() {
         <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-5 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Overdue Bills ({overdueBillsCount})</p>
-            <p className="text-2xl font-bold text-rose-950 dark:text-rose-200 mt-1">PKR {totalOverdueAmount.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-rose-950 dark:text-rose-200 mt-1">{formatCurrency(totalOverdueAmount, currency)}</p>
           </div>
           <AlertTriangle className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl shrink-0" />
         </div>
@@ -374,7 +471,7 @@ export default function BillsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
                 <input
                   type="number"
                   required
@@ -398,7 +495,7 @@ export default function BillsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Late Charges (PKR)</label>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Late Charges ({currency})</label>
               <input
                 type="number"
                 placeholder="e.g. 850"
@@ -416,7 +513,7 @@ export default function BillsPage() {
                 onChange={(e) => setIsRecurring(e.target.checked)}
                 className="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-slate-700 focus:ring-indigo-500"
               />
-              <label htmlFor="recurring" className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+              <label htmlFor="recurring" className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1 cursor-pointer">
                 <Repeat className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Repeat Monthly (Recurring)
               </label>
             </div>
@@ -458,25 +555,25 @@ export default function BillsPage() {
               <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
                 <button
                   onClick={() => setFilterStatus('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${filterStatus === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   All
                 </button>
                 <button
                   onClick={() => setFilterStatus('pending')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${filterStatus === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Pending
                 </button>
                 <button
                   onClick={() => setFilterStatus('overdue')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'overdue' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${filterStatus === 'overdue' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Overdue
                 </button>
                 <button
                   onClick={() => setFilterStatus('paid')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${filterStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${filterStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   Paid
                 </button>
@@ -536,7 +633,7 @@ export default function BillsPage() {
                             <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
                           </span>
                           {lateFee > 0 && b.status === 'Pending' && (
-                            <span className="text-rose-600 dark:text-rose-400 font-medium">Late Fee: PKR {lateFee.toLocaleString()}</span>
+                            <span className="text-rose-600 dark:text-rose-400 font-medium">Late Fee: {formatCurrency(lateFee, currency)}</span>
                           )}
                           {b.notes && (
                             <span className="text-slate-600 dark:text-slate-400 italic">• {b.notes}</span>
@@ -547,7 +644,7 @@ export default function BillsPage() {
                       <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800 gap-2 shrink-0">
                         <div>
                           <p className={`text-base font-bold whitespace-nowrap ${isOverdue ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                            PKR {effectiveAmount.toLocaleString()}
+                            {formatCurrency(effectiveAmount, currency)}
                           </p>
                         </div>
 
@@ -596,7 +693,7 @@ export default function BillsPage() {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Marking <strong>{payingBill.title}</strong> as paid.</p>
               <div className="mt-2 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center">
                 <span className="text-slate-600 dark:text-slate-300">Total Settlement:</span>
-                <span className="font-bold text-indigo-900 dark:text-indigo-300 text-sm">PKR {payingTotalAmount.toLocaleString()}</span>
+                <span className="font-bold text-indigo-900 dark:text-indigo-300 text-sm">{formatCurrency(payingTotalAmount, currency)}</span>
               </div>
             </div>
 
@@ -605,7 +702,7 @@ export default function BillsPage() {
               <select
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
               >
                 {accounts.map((acc) => (
                   <option key={acc} value={acc}>{acc}</option>
@@ -629,7 +726,7 @@ export default function BillsPage() {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Paying <strong>{transferringBill.title}</strong></p>
               <div className="mt-2 p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50 text-xs flex justify-between items-center">
                 <span className="text-indigo-800 dark:text-indigo-300">Transfer Amount:</span>
-                <span className="font-bold text-indigo-950 dark:text-indigo-200 text-sm">PKR {transferTotalAmount.toLocaleString()}</span>
+                <span className="font-bold text-indigo-950 dark:text-indigo-200 text-sm">{formatCurrency(transferTotalAmount, currency)}</span>
               </div>
             </div>
 
@@ -639,7 +736,7 @@ export default function BillsPage() {
                 <select
                   value={sourceAccount}
                   onChange={(e) => setSourceAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -652,7 +749,7 @@ export default function BillsPage() {
                 <select
                   value={targetAccount}
                   onChange={(e) => setTargetAccount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
                 >
                   {accounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>

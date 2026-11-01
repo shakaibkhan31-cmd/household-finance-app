@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
+import ClientLayout from "@/components/ClientLayout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,8 +31,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Prevent flash of light mode on load */}
-        <script
+        {/* Prevent flash of light mode on load using next/script */}
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               try {
@@ -44,17 +46,8 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
-        {/* Left Sidebar / Mobile Navigation */}
-        <Sidebar />
-
-        {/* Right Main Content Area with Header */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
-          <Header />
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
-        </div>
+      <body className="min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

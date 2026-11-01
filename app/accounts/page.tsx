@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/currency';
 import { Wallet, Plus, Building2, CreditCard, DollarSign, Edit3, X, Trash2, Search, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
 export interface Account {
@@ -12,6 +13,7 @@ export interface Account {
   current_balance: number;
   credit_limit?: number;
   created_at?: string;
+  user_id?: string;
 }
 
 export default function AccountsPage() {
@@ -19,6 +21,7 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [filterType, setFilterType] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [currency, setCurrency] = useState('PKR');
 
   // Form State (Add)
   const [name, setName] = useState('');
@@ -36,9 +39,27 @@ export default function AccountsPage() {
 
   const fetchAccounts = async () => {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch User Profile Currency preference
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('preferred_currency')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.preferred_currency) {
+      setCurrency(profile.preferred_currency);
+    }
+
     const { data, error } = await supabase
       .from('accounts')
       .select('*')
+      .eq('user_id', user.id)
       .order('name', { ascending: true });
 
     if (error) {
@@ -57,6 +78,12 @@ export default function AccountsPage() {
     e.preventDefault();
     if (!name || !balance) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const parsedBalance = parseFloat(balance);
     const parsedLimit = type === 'Credit Card' && creditLimit ? parseFloat(creditLimit) : 0;
     const isCash = type === 'Cash';
@@ -68,6 +95,7 @@ export default function AccountsPage() {
         account_number: isCash ? null : (accountNumber || null),
         current_balance: parsedBalance,
         credit_limit: parsedLimit,
+        user_id: user.id,
       },
     ]);
 
@@ -94,10 +122,14 @@ export default function AccountsPage() {
     e.preventDefault();
     if (!editingAccount) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const updatePayload: any = {
       name: editName,
       current_balance: parseFloat(editBalance),
       account_number: editAccountNumber || null,
+      user_id: user.id,
     };
 
     const isCreditCard = (editingAccount.type || '').trim().toLowerCase().includes('credit');
@@ -108,7 +140,8 @@ export default function AccountsPage() {
     const { error } = await supabase
       .from('accounts')
       .update(updatePayload)
-      .eq('id', editingAccount.id);
+      .eq('id', editingAccount.id)
+      .eq('user_id', user.id);
 
     if (error) {
       alert('Error updating account: ' + error.message);
@@ -121,7 +154,15 @@ export default function AccountsPage() {
   const handleDeleteAccount = async (id: string, name: string) => {
     if (!confirm(`Kya aap waqai "${name}" account ko delete karna chahte hain?`)) return;
 
-    const { error } = await supabase.from('accounts').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('accounts')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
     if (error) {
       alert('Error deleting account: ' + error.message);
     } else {
@@ -129,15 +170,14 @@ export default function AccountsPage() {
     }
   };
 
-  // Correct Net Liquid Worth Calculation: Bank (36,410) + Cash (11,000) - Credit Card Liability (301,000) = -253,590
   const totalNetLiquidWorth = accounts.reduce((sum, acc) => {
     const bal = Number(acc.current_balance || 0);
     const accType = (acc.type || '').trim().toLowerCase();
     
     if (accType === 'credit card' || accType.includes('credit')) {
-      return sum - bal; // Subtract credit card liability
+      return sum - bal;
     }
-    return sum + bal; // Add bank, wallet, cash
+    return sum + bal;
   }, 0);
 
   const totalCreditLimit = accounts
@@ -156,32 +196,28 @@ export default function AccountsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header & Portfolio Stats */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Accounts & Wallets</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage bank accounts, digital wallets, credit cards, and cash reserves</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-48">
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-52">
             <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Net Liquid Worth</p>
             <p className={`text-xl font-bold mt-0.5 whitespace-nowrap ${totalNetLiquidWorth < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-900 dark:text-indigo-200'}`}>
-              PKR {totalNetLiquidWorth.toLocaleString()}
+              {formatCurrency(totalNetLiquidWorth, currency)}
             </p>
           </div>
           {totalCreditLimit > 0 && (
-            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-48">
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 p-4 rounded-2xl flex-1 md:w-52">
               <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Total Credit Limit</p>
-              <p className="text-xl font-bold text-rose-900 dark:text-rose-200 mt-0.5 whitespace-nowrap">PKR {totalCreditLimit.toLocaleString()}</p>
+              <p className="text-xl font-bold text-rose-900 dark:text-rose-200 mt-0.5 whitespace-nowrap">{formatCurrency(totalCreditLimit, currency)}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Form: Add Account */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
           <h2 className="text-base font-semibold text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
             <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -206,7 +242,7 @@ export default function AccountsPage() {
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as any)}
-                className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
               >
                 <option value="Bank">Bank Account</option>
                 <option value="Wallet">Digital Wallet</option>
@@ -232,7 +268,7 @@ export default function AccountsPage() {
 
             {isCreditCard && (
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Credit Limit (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Credit Limit ({currency})</label>
                 <input
                   type="number"
                   required
@@ -246,7 +282,7 @@ export default function AccountsPage() {
 
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                {isCreditCard ? 'Initial Outstanding Liability (PKR)' : 'Initial / Current Balance (PKR)'}
+                {isCreditCard ? `Initial Outstanding Liability (${currency})` : `Initial / Current Balance (${currency})`}
               </label>
               <input
                 type="number"
@@ -267,9 +303,7 @@ export default function AccountsPage() {
           </form>
         </div>
 
-        {/* List: Accounts Cards & Filters */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Filter & Search Bar */}
           <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
               {['All', 'Bank', 'Wallet', 'Credit Card', 'Cash'].map((tab) => (
@@ -299,7 +333,6 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          {/* Accounts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {loading ? (
               <div className="col-span-2 text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
@@ -357,13 +390,13 @@ export default function AccountsPage() {
                         <div>
                           <p className="text-[11px] text-slate-400">Credit Limit</p>
                           <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 whitespace-nowrap">
-                            PKR {Number(acc.credit_limit || 0).toLocaleString()}
+                            {formatCurrency(Number(acc.credit_limit || 0), currency)}
                           </p>
                         </div>
                         <div>
                           <p className="text-[11px] text-slate-400">Outstanding</p>
                           <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 whitespace-nowrap">
-                            PKR {Number(acc.current_balance).toLocaleString()}
+                            {formatCurrency(Number(acc.current_balance), currency)}
                           </p>
                         </div>
                       </div>
@@ -371,7 +404,7 @@ export default function AccountsPage() {
                       <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
                         <p className="text-[11px] text-slate-400">Available Balance</p>
                         <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 whitespace-nowrap">
-                          PKR {Number(acc.current_balance).toLocaleString()}
+                          {formatCurrency(Number(acc.current_balance), currency)}
                         </p>
                       </div>
                     )}
@@ -381,10 +414,8 @@ export default function AccountsPage() {
             )}
           </div>
         </div>
-
       </div>
 
-      {/* Edit Modal */}
       {editingAccount && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -421,7 +452,7 @@ export default function AccountsPage() {
 
               {(editingAccount.type || '').trim().toLowerCase().includes('credit') && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Credit Limit (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Credit Limit ({currency})</label>
                   <input
                     type="number"
                     required
@@ -434,7 +465,7 @@ export default function AccountsPage() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {(editingAccount.type || '').trim().toLowerCase().includes('credit') ? 'Outstanding Liability (PKR)' : 'Current Balance (PKR)'}
+                  {(editingAccount.type || '').trim().toLowerCase().includes('credit') ? `Outstanding Liability (${currency})` : `Current Balance (${currency})`}
                 </label>
                 <input
                   type="number"

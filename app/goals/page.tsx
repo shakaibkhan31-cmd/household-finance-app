@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/currency';
 import { 
   Plus, 
   Target, 
@@ -27,6 +28,7 @@ export interface Goal {
   notes?: string;
   is_archived?: boolean;
   monthly_target?: number;
+  user_id?: string;
 }
 
 export interface Transaction {
@@ -38,6 +40,7 @@ export interface Transaction {
   amount: number;
   party_name: string;
   description: string;
+  user_id?: string;
 }
 
 const GOAL_CATEGORIES = [
@@ -55,6 +58,7 @@ export default function GoalsPage() {
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [viewTab, setViewTab] = useState<'active' | 'archived'>('active');
+  const [currency, setCurrency] = useState('PKR');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -86,17 +90,39 @@ export default function GoalsPage() {
   const fetchGoalsAndAccounts = async () => {
     setLoading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch User Profile Currency preference
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('preferred_currency')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.preferred_currency) {
+      setCurrency(profile.preferred_currency);
+    }
+
     // Fetch Goals
     const { data: gData, error: gError } = await supabase
       .from('goals')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (gError) console.error('Error fetching goals:', gError.message);
     else setGoals(gData || []);
 
     // Fetch Accounts
-    const { data: accData, error: accError } = await supabase.from('accounts').select('name');
+    const { data: accData, error: accError } = await supabase
+      .from('accounts')
+      .select('name')
+      .eq('user_id', user.id);
+
     if (accError) console.error('Error fetching accounts:', accError.message);
     else if (accData && accData.length > 0) {
       const accNames = accData.map((a: { name: string }) => a.name);
@@ -115,6 +141,12 @@ export default function GoalsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const { error } = await supabase.from('goals').insert([
       {
         title,
@@ -124,7 +156,8 @@ export default function GoalsPage() {
         target_date: targetDate || null,
         category,
         notes,
-        is_archived: false
+        is_archived: false,
+        user_id: user.id,
       },
     ]);
 
@@ -140,6 +173,9 @@ export default function GoalsPage() {
     e.preventDefault();
     if (!editingGoal) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error } = await supabase
       .from('goals')
       .update({
@@ -150,7 +186,8 @@ export default function GoalsPage() {
         category: editingGoal.category,
         notes: editingGoal.notes,
       })
-      .eq('id', editingGoal.id);
+      .eq('id', editingGoal.id)
+      .eq('user_id', user.id);
 
     if (error) {
       alert('Error updating goal: ' + error.message);
@@ -161,11 +198,15 @@ export default function GoalsPage() {
   };
 
   const handleToggleArchive = async (goal: Goal) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const updatedStatus = !goal.is_archived;
     const { error } = await supabase
       .from('goals')
       .update({ is_archived: updatedStatus })
-      .eq('id', goal.id);
+      .eq('id', goal.id)
+      .eq('user_id', user.id);
 
     if (error) alert('Error updating status: ' + error.message);
     else fetchGoalsAndAccounts();
@@ -178,6 +219,9 @@ export default function GoalsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const depositAmount = parseFloat(fundAmountInput);
     const newTotal = Number(fundGoal.current_amount || 0) + depositAmount;
     const isSameAccount = sourceAccount === destinationAccount;
@@ -186,7 +230,8 @@ export default function GoalsPage() {
     const { error: goalErr } = await supabase
       .from('goals')
       .update({ current_amount: newTotal })
-      .eq('id', fundGoal.id);
+      .eq('id', fundGoal.id)
+      .eq('user_id', user.id);
 
     if (goalErr) {
       alert('Error updating goal: ' + goalErr.message);
@@ -206,6 +251,7 @@ export default function GoalsPage() {
         description: isSameAccount 
           ? `Internal goal earmark within ${sourceAccount} for: ${fundGoal.title}` 
           : `Savings transfer towards goal: ${fundGoal.title}`,
+        user_id: user.id,
       },
     ]);
 
@@ -215,19 +261,39 @@ export default function GoalsPage() {
 
     // 3. Update Account Balances if accounts are different
     if (!isSameAccount) {
-      const { data: srcList } = await supabase.from('accounts').select('*').eq('name', sourceAccount).limit(1);
+      const { data: srcList } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('name', sourceAccount)
+        .eq('user_id', user.id)
+        .limit(1);
+
       if (srcList && srcList.length > 0) {
         const srcAcc = srcList[0];
         const updatedSrcBal = Number(srcAcc.current_balance || 0) - depositAmount;
-        await supabase.from('accounts').update({ current_balance: updatedSrcBal }).eq('id', srcAcc.id);
+        await supabase
+          .from('accounts')
+          .update({ current_balance: updatedSrcBal })
+          .eq('id', srcAcc.id)
+          .eq('user_id', user.id);
       }
 
       if (destinationAccount) {
-        const { data: destList } = await supabase.from('accounts').select('*').eq('name', destinationAccount).limit(1);
+        const { data: destList } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('name', destinationAccount)
+          .eq('user_id', user.id)
+          .limit(1);
+
         if (destList && destList.length > 0) {
           const destAcc = destList[0];
           const updatedDestBal = Number(destAcc.current_balance || 0) + depositAmount;
-          await supabase.from('accounts').update({ current_balance: updatedDestBal }).eq('id', destAcc.id);
+          await supabase
+            .from('accounts')
+            .update({ current_balance: updatedDestBal })
+            .eq('id', destAcc.id)
+            .eq('user_id', user.id);
         }
       }
     }
@@ -239,10 +305,14 @@ export default function GoalsPage() {
 
   const openHistoryModal = async (goal: Goal) => {
     setHistoryGoal(goal);
-    // Fetch transactions matched with goal title
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data } = await supabase
       .from('transactions')
       .select('*')
+      .eq('user_id', user.id)
       .ilike('party_name', `%Goal Allocation: ${goal.title}%`)
       .order('date', { ascending: false });
 
@@ -251,7 +321,16 @@ export default function GoalsPage() {
 
   const handleDeleteGoal = async (id: string) => {
     if (!confirm('Kya aap is financial goal ko delete karna chahte hain?')) return;
-    const { error } = await supabase.from('goals').delete().eq('id', id);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('goals')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
     if (error) alert('Error deleting goal: ' + error.message);
     else fetchGoalsAndAccounts();
   };
@@ -275,7 +354,6 @@ export default function GoalsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      {/* Header & Summary */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Financial Goals & Targets</h1>
@@ -283,19 +361,18 @@ export default function GoalsPage() {
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
-          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-44">
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex-1 md:w-52">
             <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Active Targets</p>
-            <p className="text-xl font-bold text-indigo-950 dark:text-indigo-200 mt-0.5">PKR {totalTarget.toLocaleString()}</p>
+            <p className="text-xl font-bold text-indigo-950 dark:text-indigo-200 mt-0.5">{formatCurrency(totalTarget, currency)}</p>
           </div>
-          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-44">
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-2xl flex-1 md:w-52">
             <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total Saved</p>
-            <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {totalSaved.toLocaleString()}</p>
+            <p className="text-xl font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">{formatCurrency(totalSaved, currency)}</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Form */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 h-fit space-y-4">
           <h2 className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
             <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -320,7 +397,7 @@ export default function GoalsPage() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
               >
                 {GOAL_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -330,7 +407,7 @@ export default function GoalsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Target Total (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Target Total ({currency})</label>
                 <input
                   type="number"
                   required
@@ -342,7 +419,7 @@ export default function GoalsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Initial Saved (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Initial Saved ({currency})</label>
                 <input
                   type="number"
                   placeholder="0"
@@ -355,7 +432,7 @@ export default function GoalsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Rule (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Rule ({currency})</label>
                 <input
                   type="number"
                   placeholder="e.g. 20000"
@@ -396,11 +473,8 @@ export default function GoalsPage() {
           </form>
         </div>
 
-        {/* Right Section: Goals Grid & Tabs */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 space-y-4">
-            
-            {/* View Tabs */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex gap-2">
                 <button
@@ -496,11 +570,10 @@ export default function GoalsPage() {
                       </div>
 
                       <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
-                        <span>Saved: <strong className="text-emerald-700 dark:text-emerald-400 whitespace-nowrap">PKR {saved.toLocaleString()}</strong></span>
-                        <span>Target: <strong className="text-slate-900 dark:text-white whitespace-nowrap">PKR {target.toLocaleString()}</strong></span>
+                        <span>Saved: <strong className="text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{formatCurrency(saved, currency)}</strong></span>
+                        <span>Target: <strong className="text-slate-900 dark:text-white whitespace-nowrap">{formatCurrency(target, currency)}</strong></span>
                       </div>
 
-                      {/* Progress Bar */}
                       <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 ${
@@ -514,7 +587,7 @@ export default function GoalsPage() {
                         <div className="flex items-center gap-3 flex-wrap">
                           {g.monthly_target && (
                             <span className="flex items-center gap-1 font-medium text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
-                              <Repeat className="w-3 h-3" /> PKR {Number(g.monthly_target).toLocaleString()}/mo
+                              <Repeat className="w-3 h-3" /> {formatCurrency(Number(g.monthly_target), currency)}/mo
                             </span>
                           )}
                           <span>{g.notes || ''}</span>
@@ -537,7 +610,6 @@ export default function GoalsPage() {
         </div>
       </div>
 
-      {/* Add Funds Modal */}
       {fundGoal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -565,7 +637,7 @@ export default function GoalsPage() {
                 <select
                   value={sourceAccount}
                   onChange={(e) => setSourceAccount(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
                 >
                   {availableAccounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -578,7 +650,7 @@ export default function GoalsPage() {
                 <select
                   value={destinationAccount}
                   onChange={(e) => setDestinationAccount(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
                 >
                   {availableAccounts.map((acc) => (
                     <option key={acc} value={acc}>{acc}</option>
@@ -587,7 +659,7 @@ export default function GoalsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Deposit Amount (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Deposit Amount ({currency})</label>
                 <input
                   type="number"
                   required
@@ -618,7 +690,6 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* Goal Deposit History Trail Modal */}
       {historyGoal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-lg w-full p-6 space-y-4">
@@ -642,7 +713,7 @@ export default function GoalsPage() {
                       <p className="font-semibold text-slate-800 dark:text-white">{tx.account_name} {tx.transfer_to ? `➔ ${tx.transfer_to}` : ''}</p>
                       <p className="text-[10px] text-slate-400 font-mono">{tx.date}</p>
                     </div>
-                    <p className="font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">+ PKR {Number(tx.amount).toLocaleString()}</p>
+                    <p className="font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">+ {formatCurrency(Number(tx.amount), currency)}</p>
                   </div>
                 ))
               )}
@@ -658,7 +729,6 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* Edit Goal Modal */}
       {editingGoal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -682,7 +752,7 @@ export default function GoalsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Target Amount (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Target Amount ({currency})</label>
                 <input
                   type="number"
                   required
@@ -693,7 +763,7 @@ export default function GoalsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Rule (PKR)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Rule ({currency})</label>
                 <input
                   type="number"
                   value={editingGoal.monthly_target || ''}

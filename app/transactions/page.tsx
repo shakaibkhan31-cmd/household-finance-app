@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar, Download, CheckSquare, Square, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
+import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar, Download, CheckSquare, Square, ChevronLeft, ChevronRight, User } from 'lucide-react';
 
 export interface Transaction {
   id: string;
@@ -14,8 +15,9 @@ export interface Transaction {
   amount: number;
   party_name: string;
   description: string;
-  entered_by: string;
+  entered_by?: string;
   created_at?: string;
+  user_id?: string;
 }
 
 export interface Debt {
@@ -24,6 +26,7 @@ export interface Debt {
   direction: string;
   amount: number;
   type: string;
+  user_id?: string;
 }
 
 const TRANSACTION_TYPES = [
@@ -63,6 +66,8 @@ export default function TransactionsPage() {
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentMonthPrefix, setCurrentMonthPrefix] = useState<string>('');
+  const [currency, setCurrency] = useState('PKR');
+  const [memberName, setMemberName] = useState('Member');
 
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -76,7 +81,6 @@ export default function TransactionsPage() {
   const [amount, setAmount] = useState('');
   const [partyName, setPartyName] = useState('');
   const [description, setDescription] = useState('');
-  const [enteredBy, setEnteredBy] = useState('Husband');
   const [date, setDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [adjustmentDirection, setAdjustmentDirection] = useState<'add' | 'subtract'>('add');
@@ -106,8 +110,47 @@ export default function TransactionsPage() {
 
   const fetchDataAndSync = async () => {
     setLoading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     
-    const { data: accData, error: accError } = await supabase.from('accounts').select('name');
+    // 1. Fetch User Profile Currency preference and Full Name
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('preferred_currency, full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.preferred_currency) {
+      setCurrency(profile.preferred_currency);
+    }
+
+    // 2. Resolve Member Name properly from profiles or family_members or user email
+    let computedName = user.email ? user.email.split('@')[0] : 'Member';
+    
+    if (profile && profile.full_name) {
+      computedName = profile.full_name;
+    } else {
+      const { data: familyMemberMatch } = await supabase
+        .from('family_members')
+        .select('member_name')
+        .eq('member_email', user.email?.toLowerCase() || '')
+        .maybeSingle();
+
+      if (familyMemberMatch && familyMemberMatch.member_name) {
+        computedName = familyMemberMatch.member_name;
+      }
+    }
+    setMemberName(computedName);
+
+    const { data: accData, error: accError } = await supabase
+      .from('accounts')
+      .select('name')
+      .eq('user_id', user.id);
+
     if (accError) {
       console.error('Error fetching accounts:', accError.message);
     } else if (accData && accData.length > 0) {
@@ -127,7 +170,11 @@ export default function TransactionsPage() {
       setTransferTo('');
     }
 
-    const { data: bData } = await supabase.from('budgets').select('category');
+    const { data: bData } = await supabase
+      .from('budgets')
+      .select('category')
+      .eq('user_id', user.id);
+
     if (bData && bData.length > 0) {
       const budgetCats = bData.map((b: { category: string }) => b.category);
       const combinedCats = Array.from(new Set([...budgetCats, ...DEFAULT_CATEGORIES]));
@@ -140,6 +187,7 @@ export default function TransactionsPage() {
     const { data: debtsData } = await supabase
       .from('debts')
       .select('id, person_name, direction, amount, type')
+      .eq('user_id', user.id)
       .eq('status', 'Active');
 
     if (debtsData && debtsData.length > 0) {
@@ -153,6 +201,7 @@ export default function TransactionsPage() {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
+      .eq('user_id', user.id)
       .order('date', { ascending: false });
 
     if (error) {
@@ -189,6 +238,12 @@ export default function TransactionsPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('User not authenticated!');
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
     const isTransfer = type === 'Transfer';
     const isRepayment = type === 'Loan Repayment';
@@ -204,7 +259,7 @@ export default function TransactionsPage() {
       if (targetDebt) {
         const debtMaxAmount = Number(targetDebt.amount);
         if (parsedAmount > debtMaxAmount) {
-          alert(`Repayment amount cannot be greater than the outstanding loan balance of PKR ${debtMaxAmount.toLocaleString()}.`);
+          alert(`Repayment amount cannot be greater than the outstanding loan balance of ${formatCurrency(debtMaxAmount, currency)}.`);
           return;
         }
       }
@@ -232,9 +287,9 @@ export default function TransactionsPage() {
           amount: parsedAmount,
           party_name: isTransfer ? 'Self Transfer' : finalPartyName,
           description,
-          entered_by: enteredBy,
         })
-        .eq('id', editingId);
+        .eq('id', editingId)
+        .eq('user_id', user.id);
 
       if (error) {
         alert('Error updating transaction: ' + error.message);
@@ -252,7 +307,8 @@ export default function TransactionsPage() {
           amount: parsedAmount,
           party_name: isTransfer ? 'Self Transfer' : finalPartyName,
           description,
-          entered_by: enteredBy,
+          entered_by: memberName,
+          user_id: user.id,
         },
       ]);
 
@@ -261,37 +317,50 @@ export default function TransactionsPage() {
         return;
       }
 
-      // ACCURATE AUTO-SYNC FOR ACCOUNTS & CREDIT CARDS
       if (isTransfer) {
-        const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
+        const { data: srcAcc } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('name', accountName)
+          .eq('user_id', user.id)
+          .limit(1);
+
         if (srcAcc && srcAcc.length > 0) {
           const accObj = srcAcc[0];
-          const isSrcCard = (accObj.type || '').trim().toLowerCase().includes('credit');
           let currentBal = Number(accObj.current_balance || 0);
-          
-          if (isSrcCard) {
-            currentBal -= parsedAmount; // Payment out of card / Bill payment reduces card liability
-          } else {
-            currentBal -= parsedAmount; 
-          }
-          await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', accObj.id);
+          currentBal -= parsedAmount; 
+          await supabase
+            .from('accounts')
+            .update({ current_balance: currentBal })
+            .eq('id', accObj.id)
+            .eq('user_id', user.id);
         }
 
-        const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', transferTo).limit(1);
+        const { data: destAcc } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('name', transferTo)
+          .eq('user_id', user.id)
+          .limit(1);
+
         if (destAcc && destAcc.length > 0) {
           const accObj = destAcc[0];
-          const isDestCard = (accObj.type || '').trim().toLowerCase().includes('credit');
           let currentBal = Number(accObj.current_balance || 0);
-
-          if (isDestCard) {
-            currentBal += parsedAmount; // Transfer into card increases card liability
-          } else {
-            currentBal += parsedAmount;
-          }
-          await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', accObj.id);
+          currentBal += parsedAmount;
+          await supabase
+            .from('accounts')
+            .update({ current_balance: currentBal })
+            .eq('id', accObj.id)
+            .eq('user_id', user.id);
         }
       } else {
-        const { data: accList } = await supabase.from('accounts').select('*').eq('name', accountName).limit(1);
+        const { data: accList } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('name', accountName)
+          .eq('user_id', user.id)
+          .limit(1);
+
         if (accList && accList.length > 0) {
           const acc = accList[0];
           const isCardType = (acc.type || '').trim().toLowerCase().includes('credit');
@@ -318,7 +387,11 @@ export default function TransactionsPage() {
             }
           }
 
-          await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+          await supabase
+            .from('accounts')
+            .update({ current_balance: currentBal })
+            .eq('id', acc.id)
+            .eq('user_id', user.id);
         }
       }
 
@@ -332,6 +405,7 @@ export default function TransactionsPage() {
             due_date: dueDate || date,
             status: 'Active',
             notes: description || `Loan Given via ${accountName}`,
+            user_id: user.id,
           },
         ]);
       } else if (type === 'Loan Received') {
@@ -344,6 +418,7 @@ export default function TransactionsPage() {
             due_date: dueDate || date,
             status: 'Active',
             notes: description || `Loan Received in ${accountName}`,
+            user_id: user.id,
           },
         ]);
       } else if (type === 'Loan Repayment' && selectedDebtId) {
@@ -356,7 +431,8 @@ export default function TransactionsPage() {
               amount: updatedAmount,
               status: updatedAmount === 0 ? 'Settled' : 'Active'
             })
-            .eq('id', targetDebt.id);
+            .eq('id', targetDebt.id)
+            .eq('user_id', user.id);
         }
       }
     }
@@ -375,29 +451,57 @@ export default function TransactionsPage() {
     setAmount(t.amount.toString());
     setPartyName(t.party_name || '');
     setDescription(t.description || '');
-    setEnteredBy(t.entered_by || 'Husband');
   };
 
   const handleDeleteTransaction = async (t: Transaction) => {
     if (!confirm('Kya aap waqai is transaction ko delete karna chahte hain? Account balance wapas adjust ho jayega.')) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
     const txAmount = Number(t.amount);
     const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
     const isTransfer = t.type === 'Transfer';
 
     if (isTransfer && t.transfer_to) {
-      const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+      const { data: srcAcc } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('name', t.account_name)
+        .eq('user_id', user.id)
+        .limit(1);
+
       if (srcAcc && srcAcc.length > 0) {
         let bal = Number(srcAcc[0].current_balance || 0) + txAmount;
-        await supabase.from('accounts').update({ current_balance: bal }).eq('id', srcAcc[0].id);
+        await supabase
+          .from('accounts')
+          .update({ current_balance: bal })
+          .eq('id', srcAcc[0].id)
+          .eq('user_id', user.id);
       }
-      const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
+      const { data: destAcc } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('name', t.transfer_to)
+        .eq('user_id', user.id)
+        .limit(1);
+
       if (destAcc && destAcc.length > 0) {
         let bal = Number(destAcc[0].current_balance || 0) - txAmount;
-        await supabase.from('accounts').update({ current_balance: bal }).eq('id', destAcc[0].id);
+        await supabase
+          .from('accounts')
+          .update({ current_balance: bal })
+          .eq('id', destAcc[0].id)
+          .eq('user_id', user.id);
       }
     } else {
-      const { data: accList } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+      const { data: accList } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('name', t.account_name)
+        .eq('user_id', user.id)
+        .limit(1);
+
       if (accList && accList.length > 0) {
         const acc = accList[0];
         const isCard = (acc.type || '').trim().toLowerCase().includes('credit');
@@ -411,11 +515,20 @@ export default function TransactionsPage() {
           else currentBal += txAmount;
         }
 
-        await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+        await supabase
+          .from('accounts')
+          .update({ current_balance: currentBal })
+          .eq('id', acc.id)
+          .eq('user_id', user.id);
       }
     }
 
-    const { error } = await supabase.from('transactions').delete().eq('id', t.id);
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', t.id)
+      .eq('user_id', user.id);
+
     if (error) {
       alert('Error deleting transaction: ' + error.message);
     } else {
@@ -427,6 +540,9 @@ export default function TransactionsPage() {
     if (selectedIds.length === 0) return;
     if (!confirm(`Kya aap waqai selected ${selectedIds.length} transactions ko delete karna chahte hain?`)) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     for (const id of selectedIds) {
       const t = transactions.find(item => item.id === id);
       if (t) {
@@ -435,18 +551,44 @@ export default function TransactionsPage() {
         const isTransfer = t.type === 'Transfer';
 
         if (isTransfer && t.transfer_to) {
-          const { data: srcAcc } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+          const { data: srcAcc } = await supabase
+            .from('accounts')
+            .select('*')
+            .eq('name', t.account_name)
+            .eq('user_id', user.id)
+            .limit(1);
+
           if (srcAcc && srcAcc.length > 0) {
             let bal = Number(srcAcc[0].current_balance || 0) + txAmount;
-            await supabase.from('accounts').update({ current_balance: bal }).eq('id', srcAcc[0].id);
+            await supabase
+              .from('accounts')
+              .update({ current_balance: bal })
+              .eq('id', srcAcc[0].id)
+              .eq('user_id', user.id);
           }
-          const { data: destAcc } = await supabase.from('accounts').select('*').eq('name', t.transfer_to).limit(1);
+          const { data: destAcc } = await supabase
+            .from('accounts')
+            .select('*')
+            .eq('name', t.transfer_to)
+            .eq('user_id', user.id)
+            .limit(1);
+
           if (destAcc && destAcc.length > 0) {
             let bal = Number(destAcc[0].current_balance || 0) - txAmount;
-            await supabase.from('accounts').update({ current_balance: bal }).eq('id', destAcc[0].id);
+            await supabase
+              .from('accounts')
+              .update({ current_balance: bal })
+              .eq('id', destAcc[0].id)
+              .eq('user_id', user.id);
           }
         } else {
-          const { data: accList } = await supabase.from('accounts').select('*').eq('name', t.account_name).limit(1);
+          const { data: accList } = await supabase
+            .from('accounts')
+            .select('*')
+            .eq('name', t.account_name)
+            .eq('user_id', user.id)
+            .limit(1);
+
           if (accList && accList.length > 0) {
             const acc = accList[0];
             const isCard = (acc.type || '').trim().toLowerCase().includes('credit');
@@ -460,13 +602,22 @@ export default function TransactionsPage() {
               else currentBal += txAmount;
             }
 
-            await supabase.from('accounts').update({ current_balance: currentBal }).eq('id', acc.id);
+            await supabase
+              .from('accounts')
+              .update({ current_balance: currentBal })
+              .eq('id', acc.id)
+              .eq('user_id', user.id);
           }
         }
       }
     }
 
-    const { error } = await supabase.from('transactions').delete().in('id', selectedIds);
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .in('id', selectedIds)
+      .eq('user_id', user.id);
+
     if (error) {
       alert('Error performing bulk delete: ' + error.message);
     } else {
@@ -476,7 +627,7 @@ export default function TransactionsPage() {
   };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Type', 'Category', 'Party Name', 'Account', 'Transfer To', 'Amount (PKR)', 'Entered By', 'Description'];
+    const headers = ['Date', 'Type', 'Category', 'Party Name', 'Account', 'Transfer To', `Amount (${currency})`, 'Entered By', 'Description'];
     const rows = filteredTransactions.map(t => [
       t.date,
       t.type,
@@ -485,7 +636,7 @@ export default function TransactionsPage() {
       t.account_name,
       t.transfer_to || '',
       t.amount,
-      t.entered_by || '',
+      t.entered_by || 'System',
       `"${t.description || ''}"`
     ]);
 
@@ -521,7 +672,8 @@ export default function TransactionsPage() {
       t.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.party_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.account_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.transfer_to?.toLowerCase().includes(searchTerm.toLowerCase());
+      t.transfer_to?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.entered_by?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory = selectedCategory === 'All' || t.category === selectedCategory;
     const matchesAccount = selectedAccount === 'All' || t.account_name === selectedAccount || t.transfer_to === selectedAccount;
@@ -566,17 +718,17 @@ export default function TransactionsPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Transactions Ledger</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Excel-style detailed records, transfers, and dynamically synced budget categories</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Excel-style detailed records, transfers, and family member logs</p>
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
-          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-3.5 rounded-2xl flex-1 md:w-40">
+          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-3.5 rounded-2xl flex-1 md:w-44">
             <p className="text-[11px] font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">This Month Expense</p>
-            <p className="text-lg font-bold text-rose-950 dark:text-rose-200 mt-0.5">PKR {monthlyExpenses.toLocaleString()}</p>
+            <p className="text-lg font-bold text-rose-950 dark:text-rose-200 mt-0.5">{formatCurrency(monthlyExpenses, currency)}</p>
           </div>
-          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-3.5 rounded-2xl flex-1 md:w-40">
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-3.5 rounded-2xl flex-1 md:w-44">
             <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">This Month Income</p>
-            <p className="text-lg font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">PKR {monthlyIncome.toLocaleString()}</p>
+            <p className="text-lg font-bold text-emerald-950 dark:text-emerald-200 mt-0.5">{formatCurrency(monthlyIncome, currency)}</p>
           </div>
         </div>
       </div>
@@ -710,7 +862,7 @@ export default function TransactionsPage() {
                     >
                       {activeDebts.map((d) => (
                         <option key={d.id} value={d.id}>
-                          {d.person_name} ({d.direction}) - PKR {Number(d.amount).toLocaleString()}
+                          {d.person_name} ({d.direction}) - {formatCurrency(Number(d.amount), currency)}
                         </option>
                       ))}
                     </select>
@@ -737,7 +889,7 @@ export default function TransactionsPage() {
                 )}
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (PKR)</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
                   <input
                     type="number"
                     required
@@ -788,18 +940,6 @@ export default function TransactionsPage() {
               )}
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Entered By</label>
-                <select
-                  value={enteredBy}
-                  onChange={(e) => setEnteredBy(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="Husband">Husband</option>
-                  <option value="Wife">Wife</option>
-                </select>
-              </div>
-
-              <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description / Remarks</label>
                 <input
                   type="text"
@@ -812,13 +952,13 @@ export default function TransactionsPage() {
                   }
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2 cursor-pointer"
               >
                 {editingId ? 'Update Transaction' : 'Record Transaction'}
               </button>
@@ -833,7 +973,7 @@ export default function TransactionsPage() {
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Search by party, note, category, account..."
+                  placeholder="Search by party, note, category, account, member..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none"
@@ -844,7 +984,7 @@ export default function TransactionsPage() {
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
                 >
                   <option value="All">All Types</option>
                   {TRANSACTION_TYPES.map((t) => (
@@ -855,7 +995,7 @@ export default function TransactionsPage() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
                 >
                   <option value="All">All Categories</option>
                   {categories.map((cat) => (
@@ -865,7 +1005,7 @@ export default function TransactionsPage() {
 
                 <button
                   onClick={exportToCSV}
-                  className="px-3 py-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 transition shadow-xs"
+                  className="px-3 py-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 transition shadow-xs cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" /> CSV
                 </button>
@@ -891,7 +1031,7 @@ export default function TransactionsPage() {
               {(fromDate || toDate) && (
                 <button
                   onClick={() => { setFromDate(''); setToDate(''); }}
-                  className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-medium ml-auto"
+                  className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-medium ml-auto cursor-pointer"
                 >
                   Clear Dates
                 </button>
@@ -903,7 +1043,7 @@ export default function TransactionsPage() {
                 <span className="font-semibold text-indigo-900 dark:text-indigo-300">{selectedIds.length} transaction(s) selected</span>
                 <button
                   onClick={handleBulkDelete}
-                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition"
+                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition cursor-pointer"
                 >
                   Delete Selected
                 </button>
@@ -917,7 +1057,7 @@ export default function TransactionsPage() {
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">
-                      <button onClick={toggleSelectAll}>
+                      <button onClick={toggleSelectAll} className="cursor-pointer">
                         {selectedIds.length > 0 && selectedIds.length === paginatedTransactions.length ? (
                           <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         ) : (
@@ -950,7 +1090,7 @@ export default function TransactionsPage() {
                       return (
                         <tr key={t.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : ''}`}>
                           <td className="py-3.5 px-3 text-center">
-                            <button onClick={() => toggleSelectOne(t.id)}>
+                            <button onClick={() => toggleSelectOne(t.id)} className="cursor-pointer">
                               {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> : <Square className="w-4 h-4 text-slate-400" />}
                             </button>
                           </td>
@@ -964,6 +1104,10 @@ export default function TransactionsPage() {
                           <td className="py-3.5 px-4">
                             <p className="font-semibold text-indigo-900 dark:text-indigo-300">{t.party_name || 'N/A'}</p>
                             <p className="text-[10px] text-slate-400 dark:text-slate-500">{t.description || '-'}</p>
+                            <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                              <User className="w-3 h-3 text-indigo-500" />
+                              <span>{t.entered_by || memberName}</span>
+                            </div>
                           </td>
                           <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                             {isTransferRow ? (
@@ -989,18 +1133,18 @@ export default function TransactionsPage() {
                                   <ArrowUpRight className="w-4 h-4 text-rose-500" />
                                 )
                               )}
-                              PKR {Number(t.amount).toLocaleString()}
+                              {formatCurrency(Number(t.amount), currency)}
                             </div>
                             <div className="flex items-center justify-end gap-2 mt-1.5">
                               <button
                                 onClick={() => handleEditClick(t)}
-                                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium flex items-center gap-0.5 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded"
+                                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium flex items-center gap-0.5 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded cursor-pointer"
                               >
                                 <Edit3 className="w-3 h-3" /> Edit
                               </button>
                               <button
                                 onClick={() => handleDeleteTransaction(t)}
-                                className="text-[10px] text-rose-600 dark:text-rose-400 hover:text-rose-800 font-medium flex items-center gap-0.5 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded"
+                                className="text-[10px] text-rose-600 dark:text-rose-400 hover:text-rose-800 font-medium flex items-center gap-0.5 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" /> Delete
                               </button>
@@ -1020,14 +1164,14 @@ export default function TransactionsPage() {
                 <button
                   onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1 cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" /> Previous
                 </button>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg disabled:opacity-50 flex items-center gap-1 cursor-pointer"
                 >
                   Next <ChevronRight className="w-4 h-4" />
                 </button>

@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, Calculator, X, Delete, PlusCircle, Sun, Moon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { Calendar, Calculator, X, Delete, PlusCircle, Sun, Moon, LogOut } from 'lucide-react';
 
 export default function Header() {
   const [currentDateTime, setCurrentDateTime] = useState<{ dateStr: string; dayStr: string }>({ dateStr: '', dayStr: '' });
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [calcInput, setCalcInput] = useState('0');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const now = new Date();
@@ -35,6 +38,15 @@ export default function Header() {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
       setIsDarkMode(true);
+    }
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Logout error:', error.message);
+    } else {
+      router.push('/login');
     }
   };
 
@@ -78,7 +90,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Right: Quick Action, Theme Toggle & Calculator */}
+      {/* Right: Quick Action, Theme Toggle, Calculator & Logout */}
       <div className="flex items-center gap-3">
         {/* Quick Shortcut Button */}
         <Link
@@ -93,7 +105,7 @@ export default function Header() {
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}
-          className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition"
+          className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition cursor-pointer"
           title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
@@ -103,7 +115,7 @@ export default function Header() {
         <div className="relative">
           <button
             onClick={() => setIsCalculatorOpen(!isCalculatorOpen)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer"
           >
             <Calculator className="w-4 h-4" />
             <span>Calculator</span>
@@ -118,7 +130,7 @@ export default function Header() {
                 </span>
                 <button 
                   onClick={() => setIsCalculatorOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -131,32 +143,41 @@ export default function Header() {
 
               {/* Keypad Grid */}
               <div className="grid grid-cols-4 gap-1.5 text-xs">
-                <button onClick={clearCalculator} className="p-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold rounded-lg hover:bg-rose-100 col-span-2">AC</button>
-                <button onClick={deleteLastChar} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center"><Delete className="w-3.5 h-3.5" /></button>
-                <button onClick={() => handleCalcClick('÷')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100">÷</button>
+                <button onClick={clearCalculator} className="p-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold rounded-lg hover:bg-rose-100 col-span-2 cursor-pointer">AC</button>
+                <button onClick={deleteLastChar} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer"><Delete className="w-3.5 h-3.5" /></button>
+                <button onClick={() => handleCalcClick('÷')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100 cursor-pointer">÷</button>
 
-                <button onClick={() => handleCalcClick('7')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">7</button>
-                <button onClick={() => handleCalcClick('8')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">8</button>
-                <button onClick={() => handleCalcClick('9')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">9</button>
-                <button onClick={() => handleCalcClick('*')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100">×</button>
+                <button onClick={() => handleCalcClick('7')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">7</button>
+                <button onClick={() => handleCalcClick('8')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">8</button>
+                <button onClick={() => handleCalcClick('9')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">9</button>
+                <button onClick={() => handleCalcClick('*')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100 cursor-pointer">×</button>
 
-                <button onClick={() => handleCalcClick('4')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">4</button>
-                <button onClick={() => handleCalcClick('5')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">5</button>
-                <button onClick={() => handleCalcClick('6')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">6</button>
-                <button onClick={() => handleCalcClick('-')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100">-</button>
+                <button onClick={() => handleCalcClick('4')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">4</button>
+                <button onClick={() => handleCalcClick('5')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">5</button>
+                <button onClick={() => handleCalcClick('6')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">6</button>
+                <button onClick={() => handleCalcClick('-')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100 cursor-pointer">-</button>
 
-                <button onClick={() => handleCalcClick('1')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">1</button>
-                <button onClick={() => handleCalcClick('2')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">2</button>
-                <button onClick={() => handleCalcClick('3')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">3</button>
-                <button onClick={() => handleCalcClick('+')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100">+</button>
+                <button onClick={() => handleCalcClick('1')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">1</button>
+                <button onClick={() => handleCalcClick('2')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">2</button>
+                <button onClick={() => handleCalcClick('3')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">3</button>
+                <button onClick={() => handleCalcClick('+')} className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg hover:bg-indigo-100 cursor-pointer">+</button>
 
-                <button onClick={() => handleCalcClick('0')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 col-span-2">0</button>
-                <button onClick={() => handleCalcClick('.')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">.</button>
-                <button onClick={calculateResult} className="p-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">=</button>
+                <button onClick={() => handleCalcClick('0')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 col-span-2 cursor-pointer">0</button>
+                <button onClick={() => handleCalcClick('.')} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">.</button>
+                <button onClick={calculateResult} className="p-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 cursor-pointer">=</button>
               </div>
             </div>
           )}
         </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="p-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 rounded-xl transition cursor-pointer"
+          title="Logout Session"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </header>
   );
