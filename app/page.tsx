@@ -14,8 +14,9 @@ export default function LandingPage() {
   const [monthlyExpense, setMonthlyExpense] = useState<number>(100000);
   const [currentYear, setCurrentYear] = useState<number | string>('2026');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Auto-redirect if user already has an active session/token in localStorage
+  // Fast Session Check to prevent microsecond landing page flickering
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
 
@@ -24,9 +25,12 @@ export default function LandingPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           window.location.replace('/dashboard');
+        } else {
+          setIsCheckingAuth(false);
         }
       } catch (err) {
         console.error('Session check error:', err);
+        setIsCheckingAuth(false);
       }
     };
     checkActiveSession();
@@ -64,6 +68,18 @@ export default function LandingPage() {
       a: "Yes! Unlike basic expense trackers, our platform includes dedicated ledgers specifically engineered to monitor receivables, payables, and committee payouts with exact due date tracking."
     }
   ];
+
+  // Prevent flash of landing page content while checking session
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
+          <span className="text-xs font-semibold text-slate-400">Loading Control Centre...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white transition-colors pb-24 md:pb-0 overflow-x-hidden">
@@ -164,7 +180,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Live Visual Analytics Preview Mockup - Cleaned up URL text for mobile */}
+          {/* Live Visual Analytics Preview Mockup */}
           <div className="relative">
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 backdrop-blur-xl">
               
@@ -560,7 +576,7 @@ export default function LandingPage() {
           <p className="text-[11px] font-bold text-white">34-Days Free Trial</p>
           <p className="text-[10px] text-slate-400">No credit card required</p>
         </div>
-        <Link 
+        Link 
           href="/signup" 
           className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-lg shadow-indigo-600/25 whitespace-nowrap flex items-center gap-1.5"
         >
