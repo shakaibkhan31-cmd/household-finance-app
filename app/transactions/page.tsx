@@ -59,6 +59,16 @@ const DEFAULT_CATEGORIES = [
   'Other'
 ];
 
+// Helper function to format date from YYYY-MM-DD to DD-MM-YYYY for display
+const formatDateDisplay = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+};
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
@@ -630,7 +640,7 @@ export default function TransactionsPage() {
   const exportToCSV = () => {
     const headers = ['Date', 'Type', 'Category', 'Party Name', 'Account', 'Transfer To', `Amount (${currency})`, 'Entered By', 'Description'];
     const rows = filteredTransactions.map(t => [
-      t.date,
+      formatDateDisplay(t.date),
       t.type,
       t.category,
       `"${t.party_name || ''}"`,
@@ -761,7 +771,7 @@ export default function TransactionsPage() {
             <form onSubmit={handleSaveTransaction} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date (DD-MM-YYYY)</label>
                   <input
                     type="date"
                     required
@@ -1072,7 +1082,7 @@ export default function TransactionsPage() {
                         )}
                       </button>
                     </th>
-                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Date (DD-MM-YYYY)</th>
                     <th className="py-3 px-4">Type & Category</th>
                     <th className="py-3 px-4">Party / Note</th>
                     <th className="py-3 px-4">Account</th>
@@ -1101,7 +1111,7 @@ export default function TransactionsPage() {
                               {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> : <Square className="w-4 h-4 text-slate-400" />}
                             </button>
                           </td>
-                          <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-mono text-[11px]">{t.date}</td>
+                          <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-mono text-[11px]">{formatDateDisplay(t.date)}</td>
                           <td className="py-3.5 px-4">
                             <span className="font-semibold text-slate-800 dark:text-white text-[11px] block">{t.type}</span>
                             <span className="inline-block mt-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md font-medium">
@@ -1187,7 +1197,7 @@ export default function TransactionsPage() {
                           <button onClick={() => toggleSelectOne(t.id)} className="cursor-pointer">
                             {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4 text-slate-400" />}
                           </button>
-                          <span className="text-[11px] font-mono text-slate-400">{t.date}</span>
+                          <span className="text-[11px] font-mono text-slate-400">{formatDateDisplay(t.date)}</span>
                         </div>
                         <div className={`text-base font-bold flex items-center gap-1 ${
                           isCredit ? 'text-emerald-600 dark:text-emerald-400' : isTransferRow ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'
