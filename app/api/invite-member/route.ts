@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://household-finance-app-live.vercel.app';
-    const targetRedirect = redirectTo || `${siteUrl}/update-password`; // Yahan /update-password set hai
+    const targetRedirect = redirectTo || `${siteUrl}/reset-password`; // Yahan /update-password set hai
 
     let { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
