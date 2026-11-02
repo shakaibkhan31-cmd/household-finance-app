@@ -27,26 +27,32 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh auth token
+  // Refreshing the auth token
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
 
-  // Protected Routes Check: Agar user logged in nahi hai aur protected routes (jaise /dashboard) par ja raha hai
+  // Agar user logged in nahi hai aur protected route (/dashboard) par ja raha hai
   if (!user && pathname.startsWith('/dashboard')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // Auth/Public Pages Check: Agar user already logged in hai aur login/signup par ja raha hai
-  if (user && (pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
-  }
-
   return supabaseResponse;
 }
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
