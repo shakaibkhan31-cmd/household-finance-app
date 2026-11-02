@@ -186,7 +186,8 @@ export default function Sidebar() {
                 )}
                 {section.items.map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname === item.href;
+                  // Fix: Handle mapping root '/' link when pathname is '/dashboard'
+                  const isActive = pathname === item.href || (item.href === '/' && pathname === '/dashboard');
                   const badgeCount = item.badgeKey === 'bills' ? pendingBillsCount : item.badgeKey === 'debts' ? activeDebtsCount : 0;
 
                   return (
