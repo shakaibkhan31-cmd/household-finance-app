@@ -153,19 +153,26 @@ function DashboardContent() {
     try {
       setLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
+      // Fast Session Fallback Check
+      const { data: { session } } = await supabase.auth.getSession();
+      let activeUser = session?.user;
+
+      if (!activeUser) {
+        const { data: { user: fetchedUser } } = await supabase.auth.getUser();
+        if (!fetchedUser) {
+          setLoading(false);
+          return;
+        }
+        activeUser = fetchedUser;
       }
 
-      setUserId(user.id);
+      setUserId(activeUser.id);
 
       // Fetch User Profile Currency preference and Tutorial status
       const { data: profile } = await supabase
         .from('profiles')
         .select('preferred_currency, has_seen_tutorial')
-        .eq('id', user.id)
+        .eq('id', activeUser.id)
         .maybeSingle();
 
       if (profile) {
@@ -180,7 +187,7 @@ function DashboardContent() {
       const { data: accData, error: accErr } = await supabase
         .from('accounts')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', activeUser.id);
 
       if (!accErr && accData && accData.length > 0) {
         setAccounts(accData);
@@ -192,14 +199,14 @@ function DashboardContent() {
       const { data: txData, error: txErr } = await supabase
         .from('transactions')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', activeUser.id);
 
       if (!txErr && txData) setTransactions(txData);
 
       const { data: billData, error: billErr } = await supabase
         .from('bills')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', activeUser.id);
 
       if (!billErr && billData) {
         const pendingBills = billData.filter(b => {
@@ -212,7 +219,7 @@ function DashboardContent() {
       const { data: budgetData, error: budgetErr } = await supabase
         .from('budgets')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', activeUser.id);
 
       if (!budgetErr && budgetData) {
         setBudgets(budgetData);
@@ -220,7 +227,7 @@ function DashboardContent() {
 
     } catch (err) {
       console.error('Fetch error caught:', err);
-    } finally {
+    } fontally {
       setLoading(false);
     }
   };
@@ -248,8 +255,10 @@ function DashboardContent() {
 
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id || userId;
+
+      if (!currentUserId) {
         alert('User not authenticated!');
         setLoading(false);
         return;
@@ -265,7 +274,7 @@ function DashboardContent() {
           account_name: selectedAccount,
           date: currentDate,
           transaction_date: currentDate,
-          user_id: user.id,
+          user_id: currentUserId,
         },
       ]);
 
@@ -289,8 +298,10 @@ function DashboardContent() {
 
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id || userId;
+
+      if (!currentUserId) {
         setLoading(false);
         return;
       }
@@ -303,7 +314,7 @@ function DashboardContent() {
         .from('bills')
         .update({ status: 'Paid', payment_status: 'PAID' })
         .eq('id', selectedBillToPay.id)
-        .eq('user_id', user.id);
+        .eq('user_id', currentUserId);
 
       await supabase.from('transactions').insert([
         {
@@ -314,7 +325,7 @@ function DashboardContent() {
           account_name: paymentAccountId,
           date: currentDate,
           transaction_date: currentDate,
-          user_id: user.id,
+          user_id: currentUserId,
         },
       ]);
 
@@ -503,7 +514,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Executive Metrics Overview (Filtered with Dynamic Currency) */}
+        {/* Executive Metrics Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
@@ -549,7 +560,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Cash Flow Trend Visual & Budget Progress Health */}
+        {/* Cash Flow Ratio & Budget Health */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
@@ -865,7 +876,7 @@ function DashboardContent() {
               <button
                 type="button"
                 onClick={() => setSelectedBillToPay(null)}
-                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300text-xs font-semibold rounded-xl transition cursor-pointer"
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
               >
                 Cancel
               </button>
