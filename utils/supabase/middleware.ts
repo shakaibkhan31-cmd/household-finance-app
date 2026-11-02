@@ -27,15 +27,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refreshing the auth token
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  // Skip deep getUser network call in middleware to prevent session dropping loops
+  const { data: { session } } = await supabase.auth.getSession();
   const pathname = request.nextUrl.pathname;
 
-  // Agar user logged in nahi hai aur protected route (/dashboard) par ja raha hai
-  if (!user && pathname.startsWith('/dashboard')) {
+  // Sirf tab redirect karein jab user bilkul unauthenticated ho aur dashboard par ho
+  if (!session && pathname.startsWith('/dashboard')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
@@ -46,13 +43,6 @@ export async function updateSession(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/dashboard/:path*',
   ],
 };
