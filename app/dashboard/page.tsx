@@ -153,14 +153,15 @@ function DashboardContent() {
     try {
       setLoading(true);
 
-      // Fast Session Fallback Check
+      // Fast Session Fallback Check & Client-side Guard
       const { data: { session } } = await supabase.auth.getSession();
       let activeUser = session?.user;
 
       if (!activeUser) {
         const { data: { user: fetchedUser } } = await supabase.auth.getUser();
         if (!fetchedUser) {
-          setLoading(false);
+          // Agar session ya user nahi mila toh login page par redirect kar dein
+          window.location.href = '/login';
           return;
         }
         activeUser = fetchedUser;
