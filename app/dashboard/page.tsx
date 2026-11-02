@@ -149,7 +149,7 @@ function DashboardContent() {
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [modalType, setModalType] = useState<'Expense' | 'Income'>('Expense');
   const [quickAmount, setQuickAmount] = useState('');
-  const [quickCategory, setQuickCategory] = useState('Groceries & Food');
+  const [quickCategory, setQuickCategory] = useState('');
   const [quickAccount, setQuickAccount] = useState('');
 
   // Bill Pay Modal States
@@ -230,6 +230,10 @@ function DashboardContent() {
 
       if (!budgetErr && budgetData) {
         setBudgets(budgetData);
+        if (budgetData.length > 0 && !quickCategory) {
+          const firstBudgetName = budgetData[0]?.category || budgetData[0]?.name || budgetData[0]?.title || 'General';
+          setQuickCategory(firstBudgetName);
+        }
       }
 
     } catch (err) {
@@ -305,6 +309,8 @@ function DashboardContent() {
       return alert('Amount and Account are required!');
     }
 
+    const finalCategory = quickCategory || (modalType === 'Expense' ? (budgets[0]?.category || budgets[0]?.name || 'General') : 'Salary / Inflow');
+
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -321,8 +327,8 @@ function DashboardContent() {
         {
           type: modalType,
           amount: parseFloat(quickAmount),
-          description: `${modalType} - ${quickCategory}`,
-          category: quickCategory,
+          description: `${modalType} - ${finalCategory}`,
+          category: finalCategory,
           entered_by: 'User',
           account_name: quickAccount || selectedAccount,
           date: currentDate,
@@ -566,7 +572,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Professional Customer-Facing Overview Cards */}
+        {/* Overview Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
@@ -877,20 +883,30 @@ function DashboardContent() {
       {/* Mobile Persistent Quick Action Sticky Bar */}
       <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3">
         <button
-          onClick={() => { setModalType('Expense'); setShowQuickModal(true); if(accounts.length > 0) setQuickAccount(accounts[0]?.name || accounts[0]?.account_name || ''); }}
+          onClick={() => { 
+            setModalType('Expense'); 
+            setShowQuickModal(true); 
+            if(accounts.length > 0) setQuickAccount(accounts[0]?.name || accounts[0]?.account_name || ''); 
+            if(budgets.length > 0) setQuickCategory(budgets[0]?.category || budgets[0]?.name || 'General');
+          }}
           className="flex-1 py-2.5 bg-rose-600/90 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-rose-600/20 cursor-pointer"
         >
           <span>+ Add Expense</span>
         </button>
         <button
-          onClick={() => { setModalType('Income'); setShowQuickModal(true); if(accounts.length > 0) setQuickAccount(accounts[0]?.name || accounts[0]?.account_name || ''); }}
+          onClick={() => { 
+            setModalType('Income'); 
+            setShowQuickModal(true); 
+            if(accounts.length > 0) setQuickAccount(accounts[0]?.name || accounts[0]?.account_name || ''); 
+            setQuickCategory('Salary / Inflow');
+          }}
           className="flex-1 py-2.5 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20 cursor-pointer"
         >
           <span>+ Add Income</span>
         </button>
       </div>
 
-      {/* Quick Entry Modal Popup */}
+      {/* Quick Entry Modal Popup with Dynamic Categories */}
       {showQuickModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in slide-in-from-bottom-4">
@@ -926,7 +942,7 @@ function DashboardContent() {
                 />
               </div>
 
-              {/* Priority 2: Category */}
+              {/* Priority 2: Dynamic Category based on Expense or Income */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Category *
@@ -936,12 +952,28 @@ function DashboardContent() {
                   onChange={(e) => setQuickCategory(e.target.value)}
                   className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
                 >
-                  <option value="Groceries & Food">Groceries & Food</option>
-                  <option value="Utilities & Bills">Utilities & Bills</option>
-                  <option value="Fuel & Transport">Fuel & Transport</option>
-                  <option value="Dining Out">Dining Out</option>
-                  <option value="Salary / Inflow">Salary / Inflow</option>
-                  <option value="General Miscellaneous">General Miscellaneous</option>
+                  {modalType === 'Expense' ? (
+                    budgets.length > 0 ? (
+                      budgets.map((b) => {
+                        const bName = b?.category || b?.name || b?.title || 'General';
+                        return (
+                          <option key={b.id} value={bName}>
+                            {bName}
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <option value="General">General Expenses</option>
+                    )
+                  ) : (
+                    <>
+                      <option value="Salary / Inflow">Salary / Inflow</option>
+                      <option value="Business Income">Business Income</option>
+                      <option value="Support / Gift">Support / Gift</option>
+                      <option value="Rental Income">Rental Income</option>
+                      <option value="Other Inflow">Other Inflow</option>
+                    </>
+                  )}
                 </select>
               </div>
 
