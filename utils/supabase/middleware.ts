@@ -27,21 +27,24 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // User session check karne ke liye
+  // Refresh auth token
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Agar user login nahi hai aur woh root (/) ya public pages ke ilawa kisi protected page par ja raha hai, toh login page par redirect karein
-  if (
-    !user &&
-    request.nextUrl.pathname !== '/' &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/signup') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
+  const pathname = request.nextUrl.pathname;
+
+  // Protected Routes Check: Agar user logged in nahi hai aur protected routes (jaise /dashboard) par ja raha hai
+  if (!user && pathname.startsWith('/dashboard')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // Auth/Public Pages Check: Agar user already logged in hai aur login/signup par ja raha hai
+  if (user && (pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 
