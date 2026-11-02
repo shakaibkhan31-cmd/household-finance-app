@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 import { 
   Sparkles, ArrowRight, CheckCircle2, 
   Users, PieChart, Landmark, ShieldCheck, Lock, 
@@ -14,8 +15,21 @@ export default function LandingPage() {
   const [currentYear, setCurrentYear] = useState<number | string>('2026');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  // Auto-redirect if user already has an active session/token in localStorage
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
+
+    const checkActiveSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          window.location.replace('/dashboard');
+        }
+      } catch (err) {
+        console.error('Session check error:', err);
+      }
+    };
+    checkActiveSession();
   }, []);
 
   const estimatedSavings = Math.round(monthlyExpense * 0.12);
@@ -390,7 +404,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Interactive Savings Calculator - Fixed mobile alignment issues */}
+      {/* Interactive Savings Calculator */}
       <section id="calculator" className="py-20 bg-slate-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-12 space-y-6 shadow-2xl">
