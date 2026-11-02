@@ -51,6 +51,7 @@ export default function FamilyManagementPage() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'editor' | 'viewer'>('editor');
   const [perms, setPerms] = useState<Permissions>(defaultPermissions);
+  const [submitting, setSubmitting] = useState(false);
   
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -94,31 +95,60 @@ export default function FamilyManagementPage() {
       return;
     }
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    setSubmitting(true);
 
-      const { error } = await supabase.from('family_members').insert([
+    try {
+      const trimmedEmail = email.trim().toLowerCase();
+
+      // 1. Call Backend API Route to send Supabase Automated Invite Email
+      const inviteResponse = await fetch('/api/invite-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: trimmedEmail,
+          redirectTo: `${window.location.origin}/reset-password`
+        }),
+      });
+
+      const inviteResult = await inviteResponse.json();
+
+      if (!inviteResponse.ok) {
+        setError(inviteResult.error || 'Failed to send automated invitation email.');
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. Insert member into 'family_members' table
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('User not authenticated.');
+        setSubmitting(false);
+        return;
+      }
+
+      const { error: dbError } = await supabase.from('family_members').insert([
         {
           owner_id: user.id,
           member_name: name.trim(),
-          member_email: email.trim().toLowerCase(),
+          member_email: trimmedEmail,
           role,
           permissions: perms
         }
       ]);
 
-      if (error) {
-        setError(error.message);
+      if (dbError) {
+        setError(dbError.message);
       } else {
-        setMessage('Family member access privileges ke sath successfully add ho gaya!');
+        setMessage('Family member added successfully & automated invitation email sent!');
         resetForm();
         setIsAdding(false);
         fetchMembers();
-        setTimeout(() => setMessage(''), 4000);
+        setTimeout(() => setMessage(''), 5000);
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'An unexpected error occurred.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -198,7 +228,7 @@ export default function FamilyManagementPage() {
               Family Access Control Centre
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Apne account ka up to 5 family members tak granular module-level access set karein.
+              Apne account ka up to 5 family members tak granular module-level access set karein aur automated invite bhejein.
             </p>
           </div>
           <button
@@ -249,7 +279,7 @@ export default function FamilyManagementPage() {
           <form onSubmit={handleAddMember} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl animate-in fade-in">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-bold flex items-center gap-2">
-                <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> New Member Configuration
+                <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> New Member Configuration & Automated Invite
               </h3>
               <button type="button" onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
                 <X className="w-4 h-4" />
@@ -275,7 +305,7 @@ export default function FamilyManagementPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Member Email</label>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Member Email (Auto-Invite will be sent)</label>
                 <input
                   type="email"
                   required
@@ -342,9 +372,10 @@ export default function FamilyManagementPage() {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition shadow-md shadow-indigo-600/20"
+                disabled={submitting}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition shadow-md shadow-indigo-600/20 cursor-pointer"
               >
-                Save Member Access
+                {submitting ? 'Sending Invite & Saving...' : 'Send Invite & Save Access'}
               </button>
             </div>
           </form>

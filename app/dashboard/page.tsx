@@ -181,19 +181,33 @@ function DashboardContent() {
         .eq('id', activeUser.id)
         .maybeSingle();
 
-      if (profile) {
-        if (profile.preferred_currency) {
-          setCurrency(profile.preferred_currency);
-        }
-        if (profile.has_seen_tutorial === false) {
-          setShowTutorial(true);
+      if (profile && profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
+      }
+
+      // Target User ID mapping for family members to view owner's shared records
+      let targetUserId = activeUser.id;
+      if (activeUser.email) {
+        const { data: memberRecord } = await supabase
+          .from('family_members')
+          .select('*')
+          .eq('member_email', activeUser.email.toLowerCase())
+          .maybeSingle();
+
+        if (memberRecord && memberRecord.user_id) {
+          targetUserId = memberRecord.user_id;
+          setShowTutorial(false); // Bypass tutorial for family members
+        } else {
+          if (profile && profile.has_seen_tutorial === false) {
+            setShowTutorial(true);
+          }
         }
       }
 
       const { data: accData, error: accErr } = await supabase
         .from('accounts')
         .select('*')
-        .eq('user_id', activeUser.id);
+        .eq('user_id', targetUserId);
 
       if (!accErr && accData && accData.length > 0) {
         setAccounts(accData);
@@ -206,14 +220,14 @@ function DashboardContent() {
       const { data: txData, error: txErr } = await supabase
         .from('transactions')
         .select('*')
-        .eq('user_id', activeUser.id);
+        .eq('user_id', targetUserId);
 
       if (!txErr && txData) setTransactions(txData);
 
       const { data: billData, error: billErr } = await supabase
         .from('bills')
         .select('*')
-        .eq('user_id', activeUser.id);
+        .eq('user_id', targetUserId);
 
       if (!billErr && billData) {
         const pendingBills = billData.filter(b => {
@@ -226,7 +240,7 @@ function DashboardContent() {
       const { data: budgetData, error: budgetErr } = await supabase
         .from('budgets')
         .select('*')
-        .eq('user_id', activeUser.id);
+        .eq('user_id', targetUserId);
 
       if (!budgetErr && budgetData) {
         setBudgets(budgetData);
