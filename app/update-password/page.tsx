@@ -39,7 +39,7 @@ export default function UpdatePasswordPage() {
       } else {
         setMessage('Password successfully set ho gaya hai! Redirecting to Dashboard...');
         setTimeout(() => {
-          router.push('/');
+          router.push('/dashboard'); // Yahan / ki jagah /dashboard kar diya hai
         }, 2000);
       }
     } catch (err: any) {

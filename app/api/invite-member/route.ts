@@ -19,25 +19,19 @@ export async function POST(request: Request) {
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://household-finance-app-live.vercel.app';
-    const targetRedirect = redirectTo || `${siteUrl}/update-password`;
+    const targetRedirect = redirectTo || `${siteUrl}/update-password`; // Yahan /update-password set hai
 
-    // 1. Generate Invite Link from Supabase pointing to /update-password
     let { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
       email: email,
-      options: {
-        redirectTo: targetRedirect,
-      },
+      options: { redirectTo: targetRedirect },
     });
 
-    // Agar user pehle se registered hai, toh recovery/password reset link generate karein
     if (error && error.message.includes('already been registered')) {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: email,
-        options: {
-          redirectTo: targetRedirect,
-        },
+        options: { redirectTo: targetRedirect },
       });
 
       if (linkError) {
@@ -50,11 +44,6 @@ export async function POST(request: Request) {
 
     const inviteLink = data?.properties?.action_link;
 
-    if (!inviteLink) {
-      return NextResponse.json({ error: 'Failed to generate invite link' }, { status: 400 });
-    }
-
-    // 2. Setup Nodemailer Transporter using Gmail
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -63,7 +52,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // 3. Send Email
     await transporter.sendMail({
       from: `"Household Finance" <${process.env.GMAIL_USER}>`,
       to: email,
