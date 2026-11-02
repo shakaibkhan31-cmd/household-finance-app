@@ -27,11 +27,10 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Skip deep getUser network call in middleware to prevent session dropping loops
+  // Session check taake Vercel par cookie drop na ho
   const { data: { session } } = await supabase.auth.getSession();
   const pathname = request.nextUrl.pathname;
 
-  // Sirf tab redirect karein jab user bilkul unauthenticated ho aur dashboard par ho
   if (!session && pathname.startsWith('/dashboard')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
@@ -40,9 +39,3 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse;
 }
-
-export const config = {
-  matcher: [
-    '/dashboard/:path*',
-  ],
-};
