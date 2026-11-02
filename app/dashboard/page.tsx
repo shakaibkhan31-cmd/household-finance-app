@@ -174,6 +174,7 @@ function DashboardContent() {
       }
 
       setUserId(activeUser.id);
+      console.log("Logged-in User Email:", activeUser.email, "ID:", activeUser.id);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -185,19 +186,24 @@ function DashboardContent() {
         setCurrency(profile.preferred_currency);
       }
 
-      // Target User ID mapping for family members to view owner's shared records using owner_id
+      // Target User ID mapping for family members with fallback check
       let targetUserId = activeUser.id;
       if (activeUser.email) {
-        const { data: memberRecord } = await supabase
+        const cleanEmail = activeUser.email.trim().toLowerCase();
+        const { data: memberRecord, error: memberErr } = await supabase
           .from('family_members')
           .select('*')
-          .eq('member_email', activeUser.email.toLowerCase())
+          .ilike('member_email', cleanEmail)
           .maybeSingle();
 
+        console.log("Family Member Lookup Result:", memberRecord, "Error:", memberErr);
+
         if (memberRecord && memberRecord.owner_id) {
-          targetUserId = memberRecord.owner_id; // Correctly mapped to owner_id
+          targetUserId = memberRecord.owner_id;
           setShowTutorial(false); // Bypass tutorial for family members
+          console.log("Mapped successfully to Owner ID:", targetUserId);
         } else {
+          console.log("No family member record found for:", cleanEmail);
           if (profile && profile.has_seen_tutorial === false) {
             setShowTutorial(true);
           }
@@ -215,6 +221,8 @@ function DashboardContent() {
         if (!selectedAccount) setSelectedAccount(firstAccName);
         if (!paymentAccountId) setPaymentAccountId(firstAccName);
         if (!quickAccount) setQuickAccount(firstAccName);
+      } else {
+        console.warn("Accounts fetch error or empty:", accErr);
       }
 
       const { data: txData, error: txErr } = await supabase
@@ -1082,7 +1090,7 @@ function DashboardContent() {
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
               >
                 {accounts.map((acc) => {
-                  const accName = acc?.name || acc?.account_name || '';
+                  const accName = acc?.name || acc@.account_name || '';
                   const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
                   return (
                     <option key={acc.id} value={accName}>

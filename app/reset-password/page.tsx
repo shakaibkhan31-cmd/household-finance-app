@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
 import { Lock, CheckCircle2 } from 'lucide-react';
 
 export default function UpdatePasswordPage() {
@@ -11,7 +10,6 @@ export default function UpdatePasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const router = useRouter();
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,8 +37,9 @@ export default function UpdatePasswordPage() {
       } else {
         setMessage('Password successfully set ho gaya hai! Redirecting to Dashboard...');
         setTimeout(() => {
-          router.push('/dashboard'); // Yahan / ki jagah /dashboard kar diya hai
-        }, 2000);
+          // Hard reload execution to force auth session refresh and avoid router cache issues
+          window.location.href = '/dashboard';
+        }, 1500);
       }
     } catch (err: any) {
       setError(err.message || 'Error setting password');
