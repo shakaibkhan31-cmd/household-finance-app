@@ -227,7 +227,7 @@ function DashboardContent() {
 
     } catch (err) {
       console.error('Fetch error caught:', err);
-    } fontally {
+    } finally {
       setLoading(false);
     }
   };
