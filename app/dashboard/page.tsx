@@ -1090,7 +1090,7 @@ function DashboardContent() {
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
               >
                 {accounts.map((acc) => {
-                  const accName = acc?.name || acc@.account_name || '';
+                  const accName = acc?.name || acc.account_name || '';
                   const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
                   return (
                     <option key={acc.id} value={accName}>
