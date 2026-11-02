@@ -31,8 +31,8 @@ export default function LoginPage() {
         setErrorMessage(error.message);
         setLoading(false);
       } else {
-        // Updated redirection to dashboard route
-        window.location.href = '/dashboard';
+        // Use replace to ensure clean history stack and smooth session handoff
+        window.location.replace('/dashboard');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Login ke dauran unexpected error aya hai.');
