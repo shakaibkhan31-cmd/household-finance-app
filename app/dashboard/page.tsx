@@ -186,22 +186,37 @@ function DashboardContent() {
         setCurrency(profile.preferred_currency);
       }
 
-      // Target User ID mapping for family members with fallback check
+      // Robust Target User ID mapping for family members
       let targetUserId = activeUser.id;
+      
       if (activeUser.email) {
         const cleanEmail = activeUser.email.trim().toLowerCase();
-        const { data: memberRecord, error: memberErr } = await supabase
+        
+        // 1. Primary lookup by email (case-insensitive)
+        let { data: memberRecord } = await supabase
           .from('family_members')
           .select('*')
           .ilike('member_email', cleanEmail)
           .maybeSingle();
 
-        console.log("Family Member Lookup Result:", memberRecord, "Error:", memberErr);
+        // 2. Fallback lookup incase email column casing differs
+        if (!memberRecord) {
+          const { data: allMembers } = await supabase
+            .from('family_members')
+            .select('*');
+          
+          if (allMembers) {
+            const matched = allMembers.find(m => m.member_email && m.member_email.trim().toLowerCase() === cleanEmail);
+            if (matched) {
+              memberRecord = matched;
+            }
+          }
+        }
 
         if (memberRecord && memberRecord.owner_id) {
           targetUserId = memberRecord.owner_id;
-          setShowTutorial(false); // Bypass tutorial for family members
-          console.log("Mapped successfully to Owner ID:", targetUserId);
+          setShowTutorial(false); // Force bypass tutorial for family members
+          console.log("SUCCESS: Family member mapped to Owner ID:", targetUserId);
         } else {
           console.log("No family member record found for:", cleanEmail);
           if (profile && profile.has_seen_tutorial === false) {
@@ -1090,7 +1105,7 @@ function DashboardContent() {
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
               >
                 {accounts.map((acc) => {
-                  const accName = acc?.name || acc.account_name || '';
+                  const accName = acc?.name || acc?.account_name || '';
                   const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
                   return (
                     <option key={acc.id} value={accName}>
