@@ -185,7 +185,7 @@ function DashboardContent() {
         setCurrency(profile.preferred_currency);
       }
 
-      // Target User ID mapping for family members to view owner's shared records
+      // Target User ID mapping for family members to view owner's shared records using owner_id
       let targetUserId = activeUser.id;
       if (activeUser.email) {
         const { data: memberRecord } = await supabase
@@ -194,8 +194,8 @@ function DashboardContent() {
           .eq('member_email', activeUser.email.toLowerCase())
           .maybeSingle();
 
-        if (memberRecord && memberRecord.user_id) {
-          targetUserId = memberRecord.user_id;
+        if (memberRecord && memberRecord.owner_id) {
+          targetUserId = memberRecord.owner_id; // Correctly mapped to owner_id
           setShowTutorial(false); // Bypass tutorial for family members
         } else {
           if (profile && profile.has_seen_tutorial === false) {
