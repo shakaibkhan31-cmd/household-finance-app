@@ -78,20 +78,26 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs transition-colors">
+    <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30 shadow-xs transition-colors">
+      
       {/* Left: Live Date & Day */}
-      <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
-        <div className="p-2 bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl">
-          <Calendar className="w-4 h-4" />
+      <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300 w-full sm:w-auto justify-between sm:justify-start">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl shrink-0">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-900 dark:text-white">{currentDateTime.dateStr || 'Loading Date...'}</p>
+            <p className="text-[11px] text-slate-400 font-medium truncate max-w-[200px] sm:max-w-none">Household Financial Control Centre</p>
+          </div>
         </div>
-        <div>
-          <p className="text-xs font-bold text-slate-900 dark:text-white">{currentDateTime.dateStr || 'Loading Date...'}</p>
-          <p className="text-[11px] text-slate-400 font-medium">Household Financial Control Centre</p>
-        </div>
+
+        {/* Mobile Quick Action / Logout right-aligned block inside top row for extra compact layout if needed */}
       </div>
 
       {/* Right: Quick Action, Theme Toggle, Calculator & Logout */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end flex-wrap">
+        
         {/* Quick Shortcut Button */}
         <Link
           href="/transactions"
@@ -115,10 +121,10 @@ export default function Header() {
         <div className="relative">
           <button
             onClick={() => setIsCalculatorOpen(!isCalculatorOpen)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer"
           >
             <Calculator className="w-4 h-4" />
-            <span>Calculator</span>
+            <span className="hidden sm:inline">Calculator</span>
           </button>
 
           {/* Floating Calculator Modal / Dropdown */}
