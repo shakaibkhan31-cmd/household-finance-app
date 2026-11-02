@@ -257,7 +257,7 @@ function DashboardContent() {
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !description || !selectedAccount) {
-      return alert('Amount, Description aur Account sab zaroori hain!');
+      return alert('Amount, Description, and Account are required!');
     }
 
     try {
@@ -302,7 +302,7 @@ function DashboardContent() {
   const handleMobileQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickAmount || !quickAccount) {
-      return alert('Amount aur Account zaroori hain!');
+      return alert('Amount and Account are required!');
     }
 
     try {
@@ -347,7 +347,7 @@ function DashboardContent() {
 
   const handleConfirmPayBill = async () => {
     if (!selectedBillToPay) return;
-    if (!paymentAccountId) return alert('Kripya Bill Pay karne ke liye ek account select karein!');
+    if (!paymentAccountId) return alert('Please select an account to pay from!');
 
     try {
       setLoading(true);
@@ -471,14 +471,14 @@ function DashboardContent() {
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">My Household Overview</h1>
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-medium">Aapke ghar ki kul raqam, aamadani, kharchay aur zaroori bills ka mukammal jaiza[cite: 7]</p>
+            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-medium">Complete summary of your available funds, income, expenses, and pending bills.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={fetchData}
               className="flex items-center gap-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition border border-slate-200 dark:border-slate-700 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Data Refresh Karein[cite: 7]
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
             </button>
           </div>
         </div>
@@ -488,10 +488,10 @@ function DashboardContent() {
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 p-4 rounded-2xl flex items-center justify-between text-xs font-medium shadow-xs">
             <div className="flex items-center gap-2.5">
               <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-              <span><strong>Zaroori Tawajjoh:</strong> Aapke {urgentBillsCount} bills ki adaiyagi ki tareekh qareeb hai ya guzar chuki hai[cite: 7].</span>
+              <span><strong>Attention Required:</strong> You have {urgentBillsCount} bill(s) due or overdue for payment.</span>
             </div>
             <Link href="/bills" className="font-bold underline hover:text-amber-800 dark:hover:text-amber-300">
-              Bills Dekhein[cite: 7]
+              View Bills
             </Link>
           </div>
         )}
@@ -506,7 +506,7 @@ function DashboardContent() {
                 filterMode === 'month' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
-              Mahana (Monthly)[cite: 7]
+              Monthly
             </button>
             <button
               onClick={() => setFilterMode('year')}
@@ -514,7 +514,7 @@ function DashboardContent() {
                 filterMode === 'year' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
-              Salaana (Yearly)[cite: 7]
+              Yearly
             </button>
             <button
               onClick={() => setFilterMode('custom')}
@@ -522,7 +522,7 @@ function DashboardContent() {
                 filterMode === 'custom' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
-              Apni Marzi ki Dates[cite: 7]
+              Custom Range
             </button>
           </div>
 
@@ -554,7 +554,7 @@ function DashboardContent() {
                   onChange={(e) => setCustomStart(e.target.value)}
                   className="px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                 />
-                <span className="text-xs text-slate-400">se</span>
+                <span className="text-xs text-slate-400">to</span>
                 <input
                   type="date"
                   value={customEnd}
@@ -566,64 +566,64 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Customer-Friendly Key Metrics Overview */}
+        {/* Professional Customer-Facing Overview Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Available Money[cite: 7]</span>
+              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Available Money</span>
               <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
                 <Wallet className="w-5 h-5" />
               </div>
             </div>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-3">
-              {formatCurrency(Number(totalAvailableCash || 0), currency)}[cite: 7]
+              {formatCurrency(Number(totalAvailableCash || 0), currency)}
             </h3>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-2 flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" /> Kul {accounts.length} Wallets aur Banks mein[cite: 7]
+              <TrendingUp className="w-3.5 h-3.5" /> Across {accounts.length} Accounts & Wallets
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Income (Aamadani)[cite: 7]</span>
+              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Total Income</span>
               <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl">
                 <ArrowUpCircle className="w-5 h-5" />
               </div>
             </div>
             <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-3">
-              {formatCurrency(Number(filteredIncome || 0), currency)}[cite: 7]
+              {formatCurrency(Number(filteredIncome || 0), currency)}
             </h3>
-            <p className="text-[11px] text-slate-400 font-medium mt-2">Is period ki kul aamadani[cite: 7]</p>
+            <p className="text-[11px] text-slate-400 font-medium mt-2">Selected Period Inflow</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Expenses (Kharchay)[cite: 7]</span>
+              <span className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Total Expenses</span>
               <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-xl">
                 <ArrowDownCircle className="w-5 h-5" />
               </div>
             </div>
             <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-3">
-              {formatCurrency(Number(filteredExpense || 0), currency)}[cite: 7]
+              {formatCurrency(Number(filteredExpense || 0), currency)}
             </h3>
             <p className="text-[11px] text-rose-500 font-medium mt-2 flex items-center gap-1">
-              <TrendingDown className="w-3.5 h-3.5" /> Is period ke kul kharchay[cite: 7]
+              <TrendingDown className="w-3.5 h-3.5" /> Selected Period Outflow
             </p>
           </div>
         </div>
 
-        {/* Cash Flow Summary & Budget Status */}
+        {/* Income vs Expense Balance & Budget Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
             <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-500" /> Aamadani vs Kharchay ka Balance[cite: 7]
+              <Activity className="w-4 h-4 text-indigo-500" /> Income vs Expense Balance
             </h3>
             
             <div className="space-y-3 pt-2">
               <div className="flex justify-between text-xs font-semibold">
-                <span className="text-blue-600 dark:text-blue-400">Aamadani: {formatCurrency(Number(filteredIncome || 0), currency)}[cite: 7]</span>
-                <span className="text-rose-600 dark:text-rose-400">Kharchay: {formatCurrency(Number(filteredExpense || 0), currency)}[cite: 7]</span>
+                <span className="text-blue-600 dark:text-blue-400">Income: {formatCurrency(Number(filteredIncome || 0), currency)}</span>
+                <span className="text-rose-600 dark:text-rose-400">Expenses: {formatCurrency(Number(filteredExpense || 0), currency)}</span>
               </div>
               
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden flex">
@@ -636,29 +636,29 @@ function DashboardContent() {
                   style={{ width: `${filteredIncome + filteredExpense > 0 ? (filteredExpense / (filteredIncome + filteredExpense)) * 100 : 50}%` }}
                 ></div>
               </div>
-              <p className="text-[11px] text-slate-400 text-center">Bacha huwa balance: {formatCurrency(Number((filteredIncome || 0) - (filteredExpense || 0)), currency)}[cite: 7]</p>
+              <p className="text-[11px] text-slate-400 text-center">Remaining Period Balance: {formatCurrency(Number((filteredIncome || 0) - (filteredExpense || 0)), currency)}</p>
             </div>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-emerald-500" /> Budgets ki Halat[cite: 7]
+                <PieChart className="w-4 h-4 text-emerald-500" /> Category Budget Limits
               </h3>
               <Link href="/budgets" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-                Sab Dekhein[cite: 7]
+                View All
               </Link>
             </div>
 
             {processedBudgets.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">Abhi tak koi budget set nahi kiya gaya[cite: 7].</p>
+              <p className="text-xs text-slate-400 text-center py-6">No budgets configured yet.</p>
             ) : (
               <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
                 {processedBudgets.map((b, idx) => (
                   <div key={b.id || idx} className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">{b.bName}[cite: 7]</span>
-                      <span className="text-slate-400">{formatCurrency(b.spent, currency)} / {formatCurrency(b.alloc, currency)}[cite: 7]</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{b.bName}</span>
+                      <span className="text-slate-400">{formatCurrency(b.spent, currency)} / {formatCurrency(b.alloc, currency)}</span>
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                       <div 
@@ -682,10 +682,10 @@ function DashboardContent() {
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-indigo-500" /> Wallets & Accounts Balance[cite: 7]
+                  <CreditCard className="w-4 h-4 text-indigo-500" /> Accounts & Wallets Summary
                 </h3>
                 <Link href="/accounts" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                  Manage Karein <ArrowRight className="w-3 h-3" />[cite: 7]
+                  Manage <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
 
@@ -697,11 +697,11 @@ function DashboardContent() {
                   return (
                     <div key={acc.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
                       <div>
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{accName}[cite: 7]</p>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{accType}[cite: 7]</p>
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{accName}</p>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{accType}</p>
                       </div>
                       <p className="text-base font-bold text-slate-900 dark:text-white">
-                        {formatCurrency(accBal, currency)}[cite: 7]
+                        {formatCurrency(accBal, currency)}
                       </p>
                     </div>
                   );
@@ -711,24 +711,24 @@ function DashboardContent() {
 
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <PlusCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Fauri Entry (Quick Transaction Entry)[cite: 7]
+                <PlusCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Quick Transaction Entry
               </h3>
 
               <form onSubmit={handleAddTransaction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Qisam (Type)[cite: 7]</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Transaction Type</label>
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
                   >
-                    <option value="Expense">Kharcha (Expense)[cite: 7]</option>
-                    <option value="Income">Aamadani (Income)[cite: 7]</option>
+                    <option value="Expense">Expense</option>
+                    <option value="Income">Income</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Account / Wallet[cite: 7]</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Account / Wallet</label>
                   <select
                     value={selectedAccount}
                     onChange={(e) => setSelectedAccount(e.target.value)}
@@ -738,7 +738,7 @@ function DashboardContent() {
                       const accName = acc?.name || acc?.account_name || '';
                       return (
                         <option key={acc.id} value={accName}>
-                          {accName}[cite: 7]
+                          {accName}
                         </option>
                       );
                     })}
@@ -746,7 +746,7 @@ function DashboardContent() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})[cite: 7]</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
                   <input
                     type="number"
                     placeholder="0.00"
@@ -758,10 +758,10 @@ function DashboardContent() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Details (Description)[cite: 7]</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description / Note</label>
                   <input
                     type="text"
-                    placeholder="jaise: Grocery / Petrol"
+                    placeholder="e.g. Groceries / Fuel"
                     required
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -775,7 +775,7 @@ function DashboardContent() {
                     disabled={loading}
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition text-xs shadow-sm cursor-pointer"
                   >
-                    {loading ? 'Save ho raha hai...' : 'Entry Save Karein'}[cite: 7]
+                    {loading ? 'Saving Entry...' : 'Save Quick Entry'}
                   </button>
                 </div>
               </form>
@@ -788,15 +788,15 @@ function DashboardContent() {
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-amber-500" /> Ada Karne Wale Bills[cite: 7]
+                  <Receipt className="w-5 h-5 text-amber-500" /> Pending Bills Due
                 </h2>
                 <Link href="/bills" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                  Sab Dekhein <ArrowRight className="w-3 h-3" />[cite: 7]
+                  View All <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
 
               {bills.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-6">Abhi koi pending bill nahi hai[cite: 7].</p>
+                <p className="text-xs text-slate-400 text-center py-6">No pending bills right now.</p>
               ) : (
                 <div className="space-y-3">
                   {bills.map((bill) => {
@@ -807,16 +807,16 @@ function DashboardContent() {
                       <div key={bill.id} className="p-3.5 rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40 space-y-2">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}[cite: 7]</h4>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Akhri Tareekh: {bill?.due_date}[cite: 7]</p>
+                            <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}</h4>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due Date: {bill?.due_date}</p>
                           </div>
                           <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
-                            Due[cite: 7]
+                            Due
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center pt-1">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(billAmt, currency)}[cite: 7]</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(billAmt, currency)}</span>
                           <button
                             onClick={() => {
                               setSelectedBillToPay(bill);
@@ -826,7 +826,7 @@ function DashboardContent() {
                             }}
                             className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
                           >
-                            <CheckCircle className="w-3 h-3" /> Pay Karein[cite: 7]
+                            <CheckCircle className="w-3 h-3" /> Pay Now
                           </button>
                         </div>
                       </div>
@@ -839,15 +839,15 @@ function DashboardContent() {
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-indigo-500" /> Hal hi ke Transactions (Recent Transactions)[cite: 7]
+                  <Activity className="w-5 h-5 text-indigo-500" /> Recent Transactions
                 </h2>
                 <Link href="/transactions" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                  Mukammal Ledger <ArrowRight className="w-3 h-3" />[cite: 7]
+                  Full Ledger <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
 
               {transactions.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-6">Abhi koi transaction nahi hui[cite: 7].</p>
+                <p className="text-xs text-slate-400 text-center py-6">No recent transactions recorded.</p>
               ) : (
                 <div className="space-y-3">
                   {transactions.slice(0, 4).map((tx) => {
@@ -855,11 +855,11 @@ function DashboardContent() {
                     return (
                       <div key={tx.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
                         <div className="overflow-hidden pr-2">
-                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{tx?.description}[cite: 7]</p>
-                          <p className="text-[10px] text-slate-400 font-mono">{tx?.date || tx?.transaction_date}[cite: 7]</p>
+                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{tx?.description}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">{tx?.date || tx?.transaction_date}</p>
                         </div>
                         <span className={`text-xs font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                          {isIncome ? '+' : '-'} {formatCurrency(Number(tx?.amount || 0), currency)}[cite: 7]
+                          {isIncome ? '+' : '-'} {formatCurrency(Number(tx?.amount || 0), currency)}
                         </span>
                       </div>
                     );
@@ -898,7 +898,7 @@ function DashboardContent() {
             <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span className={`w-3 h-3 rounded-full ${modalType === 'Expense' ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
-                Fauri {modalType === 'Expense' ? 'Kharcha' : 'Aamadani'} Darj Karein
+                Quick {modalType} Entry
               </h3>
               <button
                 onClick={() => setShowQuickModal(false)}
@@ -913,7 +913,7 @@ function DashboardContent() {
               {/* Priority 1: Amount */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Raqam (Amount) ({currency}) *
+                  Amount ({currency}) *
                 </label>
                 <input
                   type="number"
@@ -969,7 +969,7 @@ function DashboardContent() {
               {/* Automatic Current Date Info Note */}
               <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span>Transaction Date:</span>
-                <span className="font-mono font-semibold text-indigo-400">{todayStr} (Aaj)</span>
+                <span className="font-mono font-semibold text-indigo-400">{todayStr} (Today)</span>
               </div>
 
               <div className="pt-2 flex gap-3">
@@ -987,7 +987,7 @@ function DashboardContent() {
                     modalType === 'Expense' ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
                   }`}
                 >
-                  {loading ? 'Save ho raha hai...' : `Save ${modalType}`}
+                  {loading ? 'Saving...' : `Save ${modalType}`}
                 </button>
               </div>
 
@@ -1002,7 +1002,7 @@ function DashboardContent() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-emerald-500" /> Bill Payment Confirm Karein[cite: 7]
+                <Receipt className="w-5 h-5 text-emerald-500" /> Confirm Bill Payment
               </h3>
               <button
                 onClick={() => setSelectedBillToPay(null)}
@@ -1013,22 +1013,22 @@ function DashboardContent() {
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-1.5 border border-slate-100 dark:border-slate-800">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Bill Provider[cite: 7]</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Bill Provider</p>
               <p className="text-sm font-bold text-slate-900 dark:text-white">
-                {selectedBillToPay?.provider || selectedBillToPay?.title || selectedBillToPay?.bill_name || selectedBillToPay?.name || 'Utility Bill'}[cite: 7]
+                {selectedBillToPay?.provider || selectedBillToPay?.title || selectedBillToPay?.bill_name || selectedBillToPay?.name || 'Utility Bill'}
               </p>
               
               <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
-                <span className="text-xs text-slate-500 dark:text-slate-400">Ada Karne Wali Raqam[cite: 7]</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Amount Due</span>
                 <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_amount ?? 0), currency)}[cite: 7]
+                  {formatCurrency(Number(selectedBillToPay?.amount ?? selectedBillToPay?.bill_amount ?? 0), currency)}
                 </span>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Account Select Karein Jiss se Payment Karni Hai[cite: 7]
+                Select Account to Pay From
               </label>
               <select
                 value={paymentAccountId}
@@ -1040,7 +1040,7 @@ function DashboardContent() {
                   const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
                   return (
                     <option key={acc.id} value={accName}>
-                      {accName} (Balance: {formatCurrency(accBal, currency)})[cite: 7]
+                      {accName} (Balance: {formatCurrency(accBal, currency)})
                     </option>
                   );
                 })}
@@ -1053,7 +1053,7 @@ function DashboardContent() {
                 onClick={() => setSelectedBillToPay(null)}
                 className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
               >
-                Cancel[cite: 7]
+                Cancel
               </button>
               <button
                 type="button"
@@ -1061,7 +1061,7 @@ function DashboardContent() {
                 onClick={handleConfirmPayBill}
                 className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs cursor-pointer"
               >
-                {loading ? 'Processing...' : 'Confirm & Pay'}[cite: 7]
+                {loading ? 'Processing...' : 'Confirm & Pay'}
               </button>
             </div>
           </div>
