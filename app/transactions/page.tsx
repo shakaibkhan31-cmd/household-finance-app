@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
-import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar, Download, CheckSquare, Square, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar, Download, CheckSquare, Square, ChevronLeft, ChevronRight, User, ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface Transaction {
   id: string;
@@ -100,6 +100,9 @@ export default function TransactionsPage() {
   // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  // Mobile Expanded Details State
+  const [expandedMobileIds, setExpandedMobileIds] = useState<string[]>([]);
+
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     setDate(today);
@@ -117,7 +120,6 @@ export default function TransactionsPage() {
       return;
     }
     
-    // 1. Fetch User Profile Currency preference and Full Name
     const { data: profile } = await supabase
       .from('profiles')
       .select('preferred_currency, full_name')
@@ -128,7 +130,6 @@ export default function TransactionsPage() {
       setCurrency(profile.preferred_currency);
     }
 
-    // 2. Resolve Member Name properly from profiles or family_members or user email
     let computedName = user.email ? user.email.split('@')[0] : 'Member';
     
     if (profile && profile.full_name) {
@@ -660,6 +661,10 @@ export default function TransactionsPage() {
     setDueDate(today);
   };
 
+  const toggleMobileExpand = (id: string) => {
+    setExpandedMobileIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
   const isTransferType = type === 'Transfer';
   const isLoanType = type === 'Loan Given' || type === 'Loan Received';
   const isRepaymentType = type === 'Loan Repayment';
@@ -718,7 +723,7 @@ export default function TransactionsPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Transactions Ledger</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Excel-style detailed records, transfers, and family member logs</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Detailed records, transfers, and family member logs</p>
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
@@ -980,7 +985,7 @@ export default function TransactionsPage() {
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
@@ -1012,7 +1017,7 @@ export default function TransactionsPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
               <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span className="font-medium text-[11px] text-slate-500 dark:text-slate-400">Date Range:</span>
               <input
@@ -1052,7 +1057,9 @@ export default function TransactionsPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            
+            {/* DESKTOP VIEW: Spreadsheet-Style Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider">
@@ -1156,6 +1163,106 @@ export default function TransactionsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* MOBILE VIEW: Card-Based Layout with Tap-to-Expand Details */}
+            <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {loading ? (
+                <div className="text-center py-8 text-slate-400 text-xs">Loading transactions...</div>
+              ) : paginatedTransactions.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs">No transactions match your query.</div>
+              ) : (
+                paginatedTransactions.map((t) => {
+                  const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
+                  const isTransferRow = t.type === 'Transfer';
+                  const isExpanded = expandedMobileIds.includes(t.id);
+                  const isSelected = selectedIds.includes(t.id);
+
+                  return (
+                    <div key={t.id} className={`p-4 space-y-3 transition ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/30' : 'bg-white dark:bg-slate-900'}`}>
+                      
+                      {/* Top Row: Checkbox, Date & Amount */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <button onClick={() => toggleSelectOne(t.id)} className="cursor-pointer">
+                            {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+                          </button>
+                          <span className="text-[11px] font-mono text-slate-400">{t.date}</span>
+                        </div>
+                        <div className={`text-base font-bold flex items-center gap-1 ${
+                          isCredit ? 'text-emerald-600 dark:text-emerald-400' : isTransferRow ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'
+                        }`}>
+                          {!isTransferRow && (
+                            isCredit ? <ArrowDownLeft className="w-4 h-4 text-emerald-500" /> : <ArrowUpRight className="w-4 h-4 text-rose-500" />
+                          )}
+                          {formatCurrency(Number(t.amount), currency)}
+                        </div>
+                      </div>
+
+                      {/* Middle Row: Type, Category & Account */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 dark:text-white block">{t.type}</span>
+                          <span className="inline-block mt-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-medium">
+                            {t.category || 'General'}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                            {t.account_name} {isTransferRow && t.transfer_to ? `➔ ${t.transfer_to}` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Tap to Expand / Collapse Detailed Information */}
+                      <div>
+                        <button
+                          onClick={() => toggleMobileExpand(t.id)}
+                          className="w-full pt-1.5 flex items-center justify-between text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 cursor-pointer"
+                        >
+                          <span>{isExpanded ? 'Hide Details' : 'Tap for Detailed Information'}</span>
+                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
+
+                        {isExpanded && (
+                          <div className="mt-2.5 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-2 text-xs border border-slate-100 dark:border-slate-800 animate-in fade-in">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Party / Merchant:</span>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">{t.party_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Description / Note:</span>
+                              <span className="font-medium text-slate-700 dark:text-slate-300">{t.description || '-'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Recorded By:</span>
+                              <span className="font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                                <User className="w-3 h-3" /> {t.entered_by || memberName}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                              <button
+                                onClick={() => handleEditClick(t)}
+                                className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold rounded-lg flex items-center gap-1 text-[11px] cursor-pointer"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(t)}
+                                className="px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-semibold rounded-lg flex items-center gap-1 text-[11px] cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
