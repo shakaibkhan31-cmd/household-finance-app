@@ -41,7 +41,7 @@ const TRANSACTION_TYPES = [
   'Bill Payment'
 ];
 
-const DEFAULT_CATEGORIES = [
+const DEFAULT_EXPENSE_CATEGORIES = [
   'Groceries & Food',
   'Utilities & Bills',
   'Rent & Housing',
@@ -51,12 +51,21 @@ const DEFAULT_CATEGORIES = [
   'Shopping & Personal',
   'Entertainment & Dining',
   'Maintenance & Repairs',
-  'Salary / Business Income',
-  'Support / Gift',
   'Donation / Charity',
-  'Loan / Debt Related',
   'Misc',
   'Other'
+];
+
+const INCOME_CATEGORIES = [
+  'Salary / Business Income',
+  'Support / Gift',
+  'Rental Income',
+  'Investment Return',
+  'Other Inflow'
+];
+
+const LOAN_CATEGORIES = [
+  'Loan / Debt Related'
 ];
 
 // Helper function to format date from YYYY-MM-DD to DD-MM-YYYY for display
@@ -73,7 +82,7 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [activeDebts, setActiveDebts] = useState<Debt[]>([]);
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [budgetCategories, setBudgetCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentMonthPrefix, setCurrentMonthPrefix] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
@@ -87,7 +96,7 @@ export default function TransactionsPage() {
   const [accountName, setAccountName] = useState('');
   const [transferTo, setTransferTo] = useState('');
   const [selectedDebtId, setSelectedDebtId] = useState('');
-  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
+  const [category, setCategory] = useState(DEFAULT_EXPENSE_CATEGORIES[0]);
   const [amount, setAmount] = useState('');
   const [partyName, setPartyName] = useState('');
   const [description, setDescription] = useState('');
@@ -188,11 +197,11 @@ export default function TransactionsPage() {
 
     if (bData && bData.length > 0) {
       const budgetCats = bData.map((b: { category: string }) => b.category);
-      const combinedCats = Array.from(new Set([...budgetCats, ...DEFAULT_CATEGORIES]));
-      setCategories(combinedCats);
-      if (!category) setCategory(combinedCats[0]);
+      const combinedCats = Array.from(new Set([...budgetCats, ...DEFAULT_EXPENSE_CATEGORIES]));
+      setBudgetCategories(combinedCats);
+      if (!category && type === 'Expense') setCategory(combinedCats[0]);
     } else {
-      setCategories(DEFAULT_CATEGORIES);
+      setBudgetCategories(DEFAULT_EXPENSE_CATEGORIES);
     }
 
     const { data: debtsData } = await supabase
@@ -223,22 +232,38 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
+  // Dynamically compute relevant categories based on selected Transaction Type
+  const getCategoriesForType = (currentType: string) => {
+    switch (currentType) {
+      case 'Income Receipt':
+        return INCOME_CATEGORIES;
+      case 'Loan Given':
+      case 'Loan Received':
+      case 'Loan Repayment':
+        return LOAN_CATEGORIES;
+      case 'Transfer':
+        return ['Internal Transfer'];
+      case 'Adjustment':
+        return ['Account Adjustment'];
+      case 'Expense':
+      case 'Bill Payment':
+      case 'Refund':
+      default:
+        return budgetCategories;
+    }
+  };
+
   const handleTypeChange = (newType: string) => {
     setType(newType);
+
+    const availableCats = getCategoriesForType(newType);
+    if (availableCats.length > 0) {
+      setCategory(availableCats[0]);
+    }
 
     if (newType === 'Transfer' && transferTo === accountName) {
       const diff = availableAccounts.find(acc => acc !== accountName);
       if (diff) setTransferTo(diff);
-    }
-
-    if (['Loan Given', 'Loan Received', 'Loan Repayment'].includes(newType)) {
-      setCategory('Loan / Debt Related');
-    } else if (newType === 'Income Receipt') {
-      setCategory('Salary / Business Income');
-    } else if (newType === 'Bill Payment') {
-      setCategory('Utilities & Bills');
-    } else if (newType === 'Adjustment') {
-      setCategory('Other');
     }
   };
 
@@ -728,6 +753,8 @@ export default function TransactionsPage() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
+  const currentCategoriesList = getCategoriesForType(type);
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -896,7 +923,7 @@ export default function TransactionsPage() {
                       onChange={(e) => setCategory(e.target.value)}
                       className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                     >
-                      {categories.map((cat) => (
+                      {currentCategoriesList.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -1013,7 +1040,7 @@ export default function TransactionsPage() {
                   className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
                 >
                   <option value="All">All Categories</option>
-                  {categories.map((cat) => (
+                  {budgetCategories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
