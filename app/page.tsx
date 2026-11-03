@@ -7,7 +7,7 @@ import {
   Sparkles, ArrowRight, CheckCircle2, 
   Users, PieChart, Landmark, ShieldCheck, Lock, 
   HelpCircle, ChevronDown, Check, X, Zap,
-  CreditCard, TrendingUp, Bell, Layers, Shield, Wallet
+  CreditCard, TrendingUp, Bell, Layers, Shield, Wallet, BookOpen, Smartphone
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -16,7 +16,6 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Fast Session Check to prevent microsecond landing page flickering
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
 
@@ -44,32 +43,47 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      q: "Is my financial data 100% safe & secure?",
-      a: "Absolutely! We use Supabase Row Level Security (RLS) and strict multi-tenant database isolation, which means that your data can only be viewed by you and the family members you have invited. There’s a saying that if you’re not paying for the product, YOU’RE the product. When it comes to something as private and confidential as your financial data, we want the reins in your hand. We only want to make money from you paying us money, with you fully knowing and understanding what’s going on. You pay us the subscription price, and there you have it. That’s it. Transaction complete. That’s how we make our money."
+      q: "What is Household Finance?",
+      a: "Household Finance is a household financial management application that helps you track income, expenses, accounts, budgets, bills, debts, Kameti and savings goals in one place[cite: 12]."
     },
     {
-      q: "How much can I expect to save with this app?",
-      a: "On average, active households experience a 10% to 15% reduction in monthly wasteful or impulse spending simply by having clear, centralized visibility over category budgets, recurring bills, and daily ledger trails."
+      q: "I have never tracked my expenses. Can I still use it?",
+      a: "Absolutely[cite: 12]. You can start with your basic accounts and everyday income and expenses[cite: 12]. You don't need prior accounting knowledge[cite: 12]."
     },
     {
-      q: "Can I add multiple family members to my household control centre?",
-      a: "Yes! You can invite up to 5 family members to your workspace. Each member can securely record transactions, view wallet balances, and track shared expenses with real-time synchronization."
+      q: "I already use Excel or a notebook. Why should I switch?",
+      a: "Household Finance brings your financial records, accounts, budgets, bills and family access together in one connected system rather than maintaining scattered records[cite: 12]."
     },
     {
-      q: "Is the app fully optimized for mobile devices?",
-      a: "Yes, the platform features a fully responsive design built with Tailwind CSS, ensuring a seamless, lightning-fast experience across mobile phones, tablets, and desktop computers."
+      q: "Is there a free trial?",
+      a: "Yes[cite: 12]. You get 34 days of full access without needing a credit card[cite: 12]."
     },
     {
-      q: "What happens after my 34-days free trial ends?",
-      a: "Once your 34-days full access trial concludes, there are no automatic charges or credit card locks. You can easily choose a subscription plan to continue managing your finances without interruption."
+      q: "Can my spouse or family members use it?",
+      a: "Yes[cite: 12]. You can invite authorised family members and assign roles and permissions[cite: 12]."
     },
     {
-      q: "Can I track debts, loans, and committee (kameti) payouts?",
-      a: "Yes! Unlike basic expense trackers, our platform includes dedicated ledgers specifically engineered to monitor receivables, payables, and committee payouts with exact due date tracking."
+      q: "Can I manage multiple bank accounts and wallets?",
+      a: "Yes[cite: 12]. You can manage cash, bank accounts, digital wallets and credit cards[cite: 12]."
+    },
+    {
+      q: "Can I track loans and Kameti?",
+      a: "Yes[cite: 12]. The application includes debt and Kameti management[cite: 12]."
+    },
+    {
+      q: "Can I use it on my mobile phone?",
+      a: "Yes[cite: 12]. Household Finance is designed to work on mobile devices and larger screens[cite: 12]."
+    },
+    {
+      q: "Is my financial information private?",
+      a: "The application includes account authentication and household-level access controls[cite: 12]. Refer to the Privacy Policy for more information[cite: 12]."
+    },
+    {
+      q: "What happens after my free trial?",
+      a: "After your 34-day trial, you can continue with the annual subscription at PKR 10,000, subject to the subscription terms presented in your account[cite: 12]."
     }
   ];
 
-  // Prevent flash of landing page content while checking session
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -84,25 +98,24 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white transition-colors pb-24 md:pb-0 overflow-x-hidden">
       
-      {/* Navigation Header - Fixed mobile alignment */}
+      {/* Navigation Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
           
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/30 shrink-0">
-              HFC
+              HF
             </div>
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-bold tracking-tight text-white truncate">Household Finance</h1>
-              <p className="text-[9px] sm:text-[10px] text-indigo-400 font-medium truncate">Control Centre & Ledger</p>
+              <p className="text-[9px] sm:text-[10px] text-indigo-400 font-medium truncate">Financial Control & Clarity</p>
             </div>
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-xs font-medium text-slate-300">
+            <a href="#why-us" className="hover:text-indigo-400 transition">Why Household Finance</a>
             <a href="#features" className="hover:text-indigo-400 transition">Features</a>
             <a href="#how-it-works" className="hover:text-indigo-400 transition">How It Works</a>
-            <a href="#comparison" className="hover:text-indigo-400 transition">Why Switch?</a>
-            <a href="#calculator" className="hover:text-indigo-400 transition">Calculator</a>
             <a href="#pricing" className="hover:text-indigo-400 transition">Pricing</a>
             <a href="#faq" className="hover:text-indigo-400 transition">FAQ</a>
           </nav>
@@ -118,7 +131,7 @@ export default function LandingPage() {
               href="/signup" 
               className="px-3 sm:px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition shadow-lg shadow-indigo-600/20 whitespace-nowrap"
             >
-              Free Trial
+              Start Free Trial
             </Link>
           </div>
 
@@ -133,54 +146,44 @@ export default function LandingPage() {
           
           <div className="space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5" /> 34-Days Full Access Free Trial
+              <Sparkles className="w-3.5 h-3.5" /> 34-DAY FREE TRIAL · NO CREDIT CARD REQUIRED
             </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight">
-              Master Your Household Budget & Multi-Member Cash Flow.
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
+              Know Where Your Money Goes. Take Control of Where It Goes Next.
             </h1>
 
             <p className="text-xs sm:text-sm md:text-base text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
-              Track bank accounts, cash wallets, recurring bills, kametis, and member-wise expense ledgers in one encrypted real-time control centre.
+              Managing household finances shouldn't feel complicated[cite: 12]. Whether you already track your expenses or have never kept a proper record, Household Finance helps you understand and manage your family's money in one simple place[cite: 12]. Track income, expenses, budgets, bills, debts and savings — without complicated spreadsheets or scattered records[cite: 12].
             </p>
-
-            {/* Security Trust Badges */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 py-2 text-xs text-slate-300">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                <Lock className="w-3.5 h-3.5 text-indigo-400" /> End-to-End Encrypted
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Strict RLS Isolation
-              </span>
-            </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
               <Link 
                 href="/signup" 
                 className="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-xl shadow-indigo-600/25 text-center flex items-center justify-center gap-2"
               >
-                <span>Start Your 34-Days Free Trial</span>
+                <span>Start Your Free Trial</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <a 
-                href="#calculator" 
+                href="#how-it-works" 
                 className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition text-center"
               >
-                Calculate Savings
+                Explore How It Works
               </a>
             </div>
 
             <div className="flex items-center justify-center lg:justify-start gap-6 pt-4 text-xs text-slate-400 border-t border-slate-800/80">
               <span className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> No Credit Card Required
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 34 days of full access
               </span>
               <span className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Granular Access Control
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> No credit card required
               </span>
             </div>
           </div>
 
-          {/* Live Visual Analytics Preview Mockup */}
+          {/* Hero Visual Mockup */}
           <div className="relative">
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 backdrop-blur-xl">
               
@@ -190,45 +193,44 @@ export default function LandingPage() {
                   <span className="w-3 h-3 rounded-full bg-amber-500/80"></span>
                   <span className="w-3 h-3 rounded-full bg-emerald-500/80"></span>
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 truncate max-w-[180px] sm:max-w-none">app.household-finance.com/dashboard</span>
+                <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 truncate">app.household-finance.com/dashboard</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-rose-950/30 border border-rose-900/40 p-3 sm:p-4 rounded-2xl">
-                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-rose-400">This Month Expense</p>
-                  <p className="text-base sm:text-lg font-bold text-rose-200 mt-1">PKR 45,200</p>
+                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-rose-400">Monthly Expenses</p>
+                  <p className="text-base sm:text-lg font-bold text-rose-200 mt-1">PKR 84,500</p>
                 </div>
                 <div className="bg-emerald-950/30 border border-emerald-900/40 p-3 sm:p-4 rounded-2xl">
-                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-emerald-400">This Month Income</p>
-                  <p className="text-base sm:text-lg font-bold text-emerald-200 mt-1">PKR 120,000</p>
+                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-emerald-400">Monthly Income</p>
+                  <p className="text-base sm:text-lg font-bold text-emerald-200 mt-1">PKR 150,000</p>
                 </div>
               </div>
 
-              {/* Category Live Progress Bars */}
               <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4 space-y-3">
                 <p className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                  <span>Category Threshold Monitors</span>
-                  <span className="text-[10px] text-indigo-400 font-semibold">Live Sync</span>
+                  <span>Household Budget Performance</span>
+                  <span className="text-[10px] text-indigo-400 font-semibold">Active Sync</span>
                 </p>
                 
                 <div className="space-y-2">
                   <div>
                     <div className="flex justify-between text-[11px] text-slate-400 mb-1">
                       <span>Groceries & Food</span>
-                      <span className="text-slate-200">18,500 / 25,000</span>
+                      <span className="text-slate-200">32,000 / 40,000</span>
                     </div>
                     <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
-                      <div className="bg-indigo-500 h-full w-[74%] rounded-full"></div>
+                      <div className="bg-indigo-500 h-full w-[80%] rounded-full"></div>
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between text-[11px] text-slate-400 mb-1">
                       <span>Utilities & Bills</span>
-                      <span className="text-slate-200">12,300 / 15,000</span>
+                      <span className="text-slate-200">18,500 / 22,000</span>
                     </div>
                     <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
-                      <div className="bg-amber-500 h-full w-[82%] rounded-full"></div>
+                      <div className="bg-amber-500 h-full w-[84%] rounded-full"></div>
                     </div>
                   </div>
                 </div>
@@ -241,187 +243,298 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Feature Highlights Grid */}
-      <section id="features" className="py-20 bg-slate-900/50 border-y border-slate-800/80">
+      {/* Problem Awareness Section */}
+      <section className="py-20 bg-slate-900/50 border-y border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10 text-center">
+          <div className="space-y-3 max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Salary Comes In. Expenses Add Up. But Where Does the Money Go?[cite: 12]</h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              You earn, spend, pay bills and manage family commitments every month[cite: 12]. But without a clear picture of your finances, it can be difficult to understand[cite: 12]:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>How much money is actually available?[cite: 12]</span>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Where is most of your money going?[cite: 12]</span>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Are household expenses staying within budget?[cite: 12]</span>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Which bills and payments are coming up?[cite: 12]</span>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 sm:col-span-2 lg:col-span-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>How much can you realistically save?[cite: 12]</span>
+            </div>
+          </div>
+
+          <div className="bg-indigo-950/30 border border-indigo-900/40 p-6 rounded-2xl max-w-xl mx-auto space-y-2">
+            <p className="text-xs text-indigo-300 font-medium">
+              You don't need to become an accountant to answer these questions[cite: 12]. You just need a simple way to keep track[cite: 12].
+            </p>
+            <p className="text-xs font-bold text-white pt-2">
+              Household Finance brings your financial picture together so you can make decisions with greater clarity and confidence[cite: 12].
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Who Is It For? Section */}
+      <section id="why-us" className="py-20 bg-slate-950 border-b border-slate-800/80">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Whether You Track Every Rupee or Have Never Tracked Your Spending — Start Here.[cite: 12]</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-white">Already Managing Your Finances?[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Replace scattered spreadsheets, notebooks and separate records with one organised household finance system[cite: 12]. Keep your accounts, transactions, budgets, bills and financial commitments connected[cite: 12].
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-white">Never Kept a Proper Expense Record?[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Start without complicated accounting or bookkeeping[cite: 12]. Record everyday income and expenses, and let the application organise your financial information into a clearer picture[cite: 12].
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-indigo-400 font-semibold">
+            You don't need to be good at accounting[cite: 12]. You just need a better way to understand your money[cite: 12].
+          </p>
+        </div>
+      </section>
+
+      {/* Main Features / Modules Section */}
+      <section id="features" className="py-20 bg-slate-900/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
           
           <div className="text-center max-w-2xl mx-auto space-y-3">
-            <h2 className="text-2xl md:text-3xl font-bold text-white">Engineered for Complete Financial Control</h2>
-            <p className="text-xs text-slate-400">Say goodbye to scattered manual registers and unorganized spreadsheets.</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Everything You Need to Manage Your Household Money.[cite: 12]</h2>
+            <p className="text-xs text-slate-400">Comprehensive financial modules designed for total clarity.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Income & Expense Tracking[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Know how much money comes in and where it goes[cite: 12]. Record salaries, business income, household expenses, personal spending and other transactions[cite: 12].
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                <Wallet className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Accounts & Wallet Management[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Bring your cash, bank accounts, digital wallets and credit cards into one organised view[cite: 12].
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
+                <PieChart className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Budgets & Spending Control[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Set monthly budgets for household categories and monitor your spending as the month progresses[cite: 12]. Understand how much you have spent and how much budget remains[cite: 12].
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold">
+                <Bell className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Bills & Recurring Payments[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Organise electricity, gas, internet, school fees and other recurring household commitments[cite: 12]. Track due dates and payment status[cite: 12].
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
+                <Landmark className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Loans, Debts & Kameti[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Keep track of money you owe, money others owe you, repayments and Kameti contributions[cite: 12].
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                <Layers className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Savings Goals[cite: 12]</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Set financial targets, monitor progress and keep your household savings plans visible[cite: 12].
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Family Collaboration Section */}
+      <section className="py-20 bg-slate-950 border-t border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 text-center">
+          <div className="space-y-3 max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Better Financial Clarity Starts With Better Family Coordination.[cite: 12]</h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Household expenses are not always managed by one person[cite: 12]. Invite your spouse or authorised family members to participate in household financial tracking[cite: 12].
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-xl mx-auto">
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl text-xs text-slate-300 flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Invite family members[cite: 12]</span>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl text-xs text-slate-300 flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Assign appropriate roles and permissions[cite: 12]</span>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl text-xs text-slate-300 flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Keep household transactions organised[cite: 12]</span>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl text-xs text-slate-300 flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Maintain a shared view of household finances[cite: 12]</span>
+            </div>
+          </div>
+
+          <div>
+            <Link 
+              href="/signup" 
+              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition shadow-lg shadow-indigo-600/20"
+            >
+              <span>Start Managing Money Together</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-20 bg-slate-900/40 border-t border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Start Understanding Your Money in Three Simple Steps.[cite: 12]</h2>
+            <p className="text-xs text-slate-400">Start simple. Build better financial habits over time[cite: 12].</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 hover:border-indigo-500/50 transition">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
-                <Users className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Multi-Member Granular Access</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">Assign roles to up to 5 family members. Automatic entry tagging guarantees complete record clarity.</p>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 hover:border-indigo-500/50 transition">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
-                <PieChart className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Category Budget Thresholds</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">Set monthly limits on groceries, dining, and utility categories with live visual progress monitors.</p>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 hover:border-indigo-500/50 transition">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
-                <Landmark className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Debts & Kameti Ledgers</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">Track receivables, payables, and committee payouts with exact due date tracking and repayment logs.</p>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works / Onboarding Flow */}
-      <section id="how-it-works" className="py-20 bg-slate-950 border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
-              <Zap className="w-3.5 h-3.5" /> Fast Onboarding
-            </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-white">Get Started in 3 Simple Steps</h2>
-            <p className="text-xs text-slate-400">Set up your household workspace in under two minutes.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl space-y-4 relative">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
                 01
               </div>
-              <h3 className="text-sm font-bold text-white">Create Your Account</h3>
+              <h3 className="text-sm font-bold text-white">Create Your Account[cite: 12]</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Sign up in seconds and claim your instant 34-days full access free trial with no credit card required.
+                Sign up and start your 34-day free trial[cite: 12]. No credit card required[cite: 12].
               </p>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl space-y-4 relative">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
                 02
               </div>
-              <h3 className="text-sm font-bold text-white">Set Wallets & Invite Family</h3>
+              <h3 className="text-sm font-bold text-white">Set Up Your Household[cite: 12]</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Configure cash wallets, bank balances, and invite up to 5 family members to start collaborative logging.
+                Add your cash, bank accounts and wallets[cite: 12]. Set budgets and invite family members if needed[cite: 12].
               </p>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl space-y-4 relative">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
                 03
               </div>
-              <h3 className="text-sm font-bold text-white">Log, Track & Save</h3>
+              <h3 className="text-sm font-bold text-white">Track, Understand and Manage[cite: 12]</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Record daily expenses, monitor category limits, and eliminate impulse spending with automated insights.
+                Record income and expenses, monitor bills and review your household financial position[cite: 12].
               </p>
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* Comparison / "Why Switch?" Section */}
-      <section id="comparison" className="py-20 bg-slate-950">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
-          
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <h2 className="text-2xl md:text-3xl font-bold text-white">Traditional Registers vs. Household Finance</h2>
-            <p className="text-xs text-slate-400">See why modern households are upgrading to a digital control centre.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Traditional Method */}
-            <div className="bg-slate-900/40 border border-rose-900/30 rounded-3xl p-6 sm:p-8 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold">
-                  <X className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-bold text-rose-200">Old Manual Registers</h3>
-              </div>
-              <ul className="space-y-3 text-xs text-slate-400">
-                <li className="flex items-center gap-2">❌ Risk of losing physical notebooks or calculation mistakes</li>
-                <li className="flex items-center gap-2">❌ No real-time summary or member-wise tracking</li>
-                <li className="flex items-center gap-2">❌ Difficult to track pending debts and kameti due dates</li>
-                <li className="flex items-center gap-2">❌ Zero data encryption or backup safety</li>
-              </ul>
+      {/* Mobile Experience Section */}
+      <section className="py-20 bg-slate-950 border-t border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 text-center">
+          <div className="space-y-3 max-w-2xl mx-auto">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+              <Smartphone className="w-3.5 h-3.5" /> Fully Responsive
             </div>
-
-            {/* HFC Method */}
-            <div className="bg-indigo-950/20 border border-indigo-500/40 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-xl shadow-indigo-600/5">
-              <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
-                Recommended
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
-                  <Check className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-bold text-indigo-200">Household Finance Control Centre</h3>
-              </div>
-              <ul className="space-y-3 text-xs text-slate-300">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Instant cloud sync with automatic calculations</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Multi-member tagging and granular access logs</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Automated alerts for debts, bills, and kametis</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Secure encrypted database with Row Level Security</li>
-              </ul>
-            </div>
-
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Your Household Finances, Wherever Life Takes You.[cite: 12]</h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Record expenses as they happen[cite: 12]. Check account balances, review transactions and stay connected with your household financial position[cite: 12]. Household Finance works on mobile devices as well as larger screens[cite: 12].
+            </p>
           </div>
-
         </div>
       </section>
 
-      {/* Core Modules & Features Showcase Grid */}
-      <section className="py-20 bg-slate-900/30 border-y border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <h2 className="text-2xl md:text-3xl font-bold text-white">Comprehensive Financial Modules</h2>
-            <p className="text-xs text-slate-400">Everything required to maintain total clarity over household liquidity.</p>
+      {/* Financial Awareness Section */}
+      <section className="py-20 bg-slate-900/40 border-t border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10 text-center">
+          <div className="space-y-3 max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">You Can't Take Control of What You Can't See.[cite: 12]</h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Small expenses can go unnoticed[cite: 12]. Multiple bills can become difficult to manage[cite: 12]. Savings goals can get pushed aside[cite: 12].
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
-              <Wallet className="w-6 h-6 text-indigo-400" />
-              <h4 className="text-xs font-bold text-white">Multi-Wallet Sync</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Separate bank balances, petty cash, and credit card limits in unified dashboards.
-              </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
+              ✓ Identify where your money is going[cite: 12]
             </div>
-
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
-              <TrendingUp className="w-6 h-6 text-emerald-400" />
-              <h4 className="text-xs font-bold text-white">Category Limits</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Define visual thresholds for recurring monthly categories like groceries and utilities.
-              </p>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
+              ✓ Understand your spending patterns[cite: 12]
             </div>
-
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
-              <Bell className="w-6 h-6 text-amber-400" />
-              <h4 className="text-xs font-bold text-white">Kameti & Debt Logs</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Track pending committee payouts, loans, and payables with due date alerts.
-              </p>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
+              ✓ Recognise unnecessary expenses[cite: 12]
             </div>
-
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
-              <Shield className="w-6 h-6 text-rose-400" />
-              <h4 className="text-xs font-bold text-white">Encrypted Backups</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Row Level Security guarantees your financial records remain completely confidential.
-              </p>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
+              ✓ Monitor your budget[cite: 12]
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300 sm:col-span-2 lg:col-span-2">
+              ✓ Make more informed financial decisions[cite: 12]
             </div>
           </div>
+
+          <p className="text-xs font-bold text-indigo-400">
+            Financial clarity is the first step towards better financial control[cite: 12].
+          </p>
         </div>
       </section>
 
       {/* Interactive Savings Calculator */}
-      <section id="calculator" className="py-20 bg-slate-950">
+      <section className="py-20 bg-slate-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-12 space-y-6 shadow-2xl">
             
@@ -467,60 +580,128 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Transparent Pricing / Subscription Section */}
-      <section id="pricing" className="py-20 bg-slate-900/40 border-t border-slate-800/80">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10">
-          <div className="text-center space-y-3">
-            <h2 className="text-2xl md:text-3xl font-bold text-white">Transparent, Honest Pricing</h2>
-            <p className="text-xs text-slate-400">No hidden fees, no data selling. You pay for the software, and you own your data.</p>
+      {/* Privacy & Security Section */}
+      <section className="py-20 bg-slate-900/40 border-t border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 text-center">
+          <div className="space-y-3 max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Your Household Financial Information Deserves Protection.[cite: 12]</h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Your household's financial records are personal[cite: 12]. Household Finance includes account authentication and household-level access controls designed to keep financial information organised and accessible only to authorised users[cite: 12].
+            </p>
           </div>
 
-          <div className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-6 sm:p-10 space-y-6 max-w-lg mx-auto relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
-              34 Days Free Trial
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
+              🔒 Secure account authentication[cite: 12]
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
+              🛡️ Household-level data isolation[cite: 12]
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
+              👥 Role-based family access[cite: 12]
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Transparent Pricing Section */}
+      <section id="pricing" className="py-20 bg-slate-950 border-t border-slate-800/80">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">One Simple Subscription for Your Household Financial Management.[cite: 12]</h2>
+            <p className="text-xs text-slate-400">Give yourself 34 days to experience a clearer way to manage your household finances[cite: 12].</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+            
+            {/* Free Trial Card */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 flex flex-col justify-between">
+              <div className="space-y-4">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
+                  34-Day Free Trial
+                </span>
+                <div>
+                  <h3 className="text-xl font-bold text-white">PKR 0[cite: 12]</h3>
+                  <p className="text-xs text-slate-400 mt-1">Full access during the trial[cite: 12]. No credit card required[cite: 12].</p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-slate-300 pt-2">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Full access during the trial[cite: 12]</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>No credit card required[cite: 12]</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Explore the application before subscribing[cite: 12]</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link 
+                href="/signup" 
+                className="block w-full text-center py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition"
+              >
+                Start Your Free Trial[cite: 12]
+              </Link>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold text-white">Household Annual Pass</h3>
-              <p className="text-xs text-slate-400">Full control centre access for your entire family.</p>
+            {/* Annual Subscription Card */}
+            <div className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-xl shadow-indigo-600/5 flex flex-col justify-between">
+              <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
+                Recommended
+              </div>
+
+              <div className="space-y-4">
+                <span className="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+                  Annual Subscription
+                </span>
+                <div>
+                  <h3 className="text-xl font-bold text-white">PKR 10,000 <span className="text-xs font-normal text-slate-400">/ year[cite: 12]</span></h3>
+                  <p className="text-xs text-slate-400 mt-1">Approximately PKR 833 per month[cite: 12].</p>
+                </div>
+
+                <ul className="space-y-2.5 text-xs text-slate-300 pt-2">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Up to 5 family member accounts[cite: 12]</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Unlimited cash, bank and wallet accounts[cite: 12]</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Income and expense tracking[cite: 12]</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Category-wise budgets[cite: 12]</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Bills, debt and Kameti management[cite: 12]</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link 
+                href="/signup" 
+                className="block w-full text-center py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/20"
+              >
+                Get Started[cite: 12]
+              </Link>
             </div>
 
-            <div className="flex items-baseline gap-2 border-y border-slate-800 py-4">
-              <span className="text-3xl sm:text-4xl font-extrabold text-white">PKR 10,000</span>
-              <span className="text-xs text-slate-400">/ year</span>
-            </div>
-
-            <ul className="space-y-3 text-xs text-slate-300">
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>34-Days full access free trial (No credit card needed)</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Up to 5 Family Member Accounts</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Unlimited Cash, Bank & Wallet Accounts</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Kameti, Loans & Recurring Bill Ledgers</span>
-              </li>
-            </ul>
-
-            <Link 
-              href="/signup" 
-              className="block w-full text-center py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/25"
-            >
-              Claim Your 34-Days Free Trial
-            </Link>
           </div>
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 bg-slate-950">
+      <section id="faq" className="py-20 bg-slate-900/30 border-t border-slate-800/80">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-10">
           
           <div className="text-center space-y-3">
@@ -555,25 +736,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Call To Action Banner */}
+      {/* Final Conversion Section */}
       <section className="py-20 border-t border-slate-800/80 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-center">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Ready to take complete financial control?</h2>
-          <p className="text-xs text-slate-400">Join today and enjoy 34 days of complete full-feature access with no risk.</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">It's Time to Understand Your Household Finances.[cite: 12]</h2>
+          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xl mx-auto">
+            You work hard for your money[cite: 12]. Make sure you know where it goes[cite: 12]. Bring your income, expenses, bills, budgets and family financial records together[cite: 12]. Start with a clearer picture[cite: 12]. Build better financial habits[cite: 12]. Take greater control of your household finances[cite: 12].
+          </p>
           <Link 
             href="/signup" 
             className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-xl shadow-indigo-600/30"
           >
-            <span>Create Your Free Account Now</span>
+            <span>Start Your 34-Day Free Trial[cite: 12]</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
+          <p className="text-[11px] text-slate-500">No credit card required[cite: 12]. Get started today[cite: 12].</p>
         </div>
       </section>
 
       {/* Mobile Sticky CTA Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 flex items-center justify-between gap-3 shadow-2xl">
         <div>
-          <p className="text-[11px] font-bold text-white">34-Days Free Trial</p>
+          <p className="text-[11px] font-bold text-white">34-Day Free Trial</p>
           <p className="text-[10px] text-slate-400">No credit card required</p>
         </div>
         <Link 
@@ -586,14 +770,31 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-slate-900 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© {currentYear} Household Finance. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-slate-400">
-            <Link href="/login" className="hover:underline">Sign In</Link>
-            <Link href="/signup" className="hover:underline">Sign Up</Link>
-            <Link href="/dashboard" className="hover:underline">App Dashboard</Link>
+      <footer className="py-12 border-t border-slate-900 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center sm:text-left">
+          <div className="space-y-2">
+            <h4 className="font-bold text-white text-sm">Household Finance</h4>
+            <p className="text-slate-400">Financial control and clarity for every household[cite: 12].</p>
           </div>
+          <div className="space-y-2">
+            <h4 className="font-bold text-white">Product & Account</h4>
+            <div className="flex flex-col space-y-1.5 text-slate-400">
+              <a href="#features" className="hover:underline">Features</a>
+              <a href="#how-it-works" className="hover:underline">How It Works</a>
+              <a href="#pricing" className="hover:underline">Pricing</a>
+              <Link href="/login" className="hover:underline">Sign In</Link>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h4 className="font-bold text-white">Legal</h4>
+            <div className="flex flex-col space-y-1.5 text-slate-400">
+              <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+              <Link href="/terms" className="hover:underline">Terms & Conditions</Link>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 mt-8 border-t border-slate-900/60 text-center">
+          <p>© {currentYear} Household Finance. All rights reserved[cite: 12].</p>
         </div>
       </footer>
 
