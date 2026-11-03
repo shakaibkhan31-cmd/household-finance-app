@@ -29,6 +29,7 @@ interface NavItem {
   href: string;
   icon: LucideIcon;
   badgeKey?: string;
+  permKey?: string;
 }
 
 interface NavSection {
@@ -40,24 +41,24 @@ const navSections: NavSection[] = [
   {
     title: 'Overview',
     items: [
-      { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-      { name: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
-      { name: 'Accounts', href: '/accounts', icon: Wallet },
+      { name: 'Dashboard', href: '/', icon: LayoutDashboard, permKey: 'dashboard' },
+      { name: 'Transactions', href: '/transactions', icon: ArrowLeftRight, permKey: 'transactions' },
+      { name: 'Accounts', href: '/accounts', icon: Wallet, permKey: 'accounts' },
     ]
   },
   {
     title: 'Planning & Budgets',
     items: [
-      { name: 'Income & Receivables', href: '/receivables', icon: TrendingUp },
-      { name: 'Budgets', href: '/budgets', icon: PieChart },
-      { name: 'Goals', href: '/goals', icon: Target },
+      { name: 'Income & Receivables', href: '/receivables', icon: TrendingUp, permKey: 'income' },
+      { name: 'Budgets', href: '/budgets', icon: PieChart, permKey: 'budgets' },
+      { name: 'Goals', href: '/goals', icon: Target, permKey: 'goals' },
     ]
   },
   {
     title: 'Liabilities',
     items: [
-      { name: 'Bills & Payables', href: '/bills', icon: Receipt, badgeKey: 'bills' },
-      { name: 'Debts & Kameti', href: '/debts', icon: HandCoins, badgeKey: 'debts' },
+      { name: 'Bills & Payables', href: '/bills', icon: Receipt, badgeKey: 'bills', permKey: 'bills' },
+      { name: 'Debts & Kameti', href: '/debts', icon: HandCoins, badgeKey: 'debts', permKey: 'debts' },
     ]
   },
   {
@@ -77,9 +78,20 @@ export default function Sidebar() {
   const [pendingBillsCount, setPendingBillsCount] = useState(0);
   const [activeDebtsCount, setActiveDebtsCount] = useState(0);
   
-  // User Dynamic States
+  // User Dynamic & Permissions States
   const [userName, setUserName] = useState('User');
   const [userInitials, setUserInitials] = useState('U');
+  const [isFamilyMember, setIsFamilyMember] = useState(false);
+  const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({
+    dashboard: true,
+    transactions: true,
+    accounts: true,
+    income: true,
+    budgets: true,
+    goals: true,
+    bills: true,
+    debts: true
+  });
 
   useEffect(() => {
     fetchSidebarData();
@@ -101,6 +113,23 @@ export default function Sidebar() {
       .toUpperCase()
       .slice(0, 2);
     setUserInitials(initials || 'U');
+
+    // Check if user is a family member and fetch permissions
+    if (user.email) {
+      const cleanEmail = user.email.trim().toLowerCase();
+      const { data: memberRecord } = await supabase
+        .from('family_members')
+        .select('*')
+        .ilike('member_email', cleanEmail)
+        .maybeSingle();
+
+      if (memberRecord) {
+        setIsFamilyMember(true);
+        if (memberRecord.permissions) {
+          setUserPermissions(memberRecord.permissions);
+        }
+      }
+    }
 
     const { count: billCount } = await supabase
       .from('bills')
@@ -177,49 +206,64 @@ export default function Sidebar() {
 
           {/* Grouped Navigation Sections */}
           <div className="space-y-6">
-            {navSections.map((section, idx) => (
-              <div key={idx} className="space-y-1">
-                {(!isCollapsed || isMobileOpen) && (
-                  <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                    {section.title}
-                  </p>
-                )}
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  // Fix: Handle mapping root '/' link when pathname is '/dashboard'
-                  const isActive = pathname === item.href || (item.href === '/' && pathname === '/dashboard');
-                  const badgeCount = item.badgeKey === 'bills' ? pendingBillsCount : item.badgeKey === 'debts' ? activeDebtsCount : 0;
+            {navSections.map((section, idx) => {
+              // Settings & Access section ko family member ke liye poora hide kar dein
+              if (isFamilyMember && section.title === 'Settings & Access') {
+                return null;
+              }
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsMobileOpen(false)}
-                      title={isCollapsed ? item.name : undefined}
-                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition group ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-md font-semibold'
-                          : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                      } ${isCollapsed ? 'lg:justify-center lg:px-0' : ''}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                        {(!isCollapsed || isMobileOpen) && <span className="truncate">{item.name}</span>}
-                      </div>
+              // Filter items based on permissions if user is a family member
+              const filteredItems = section.items.filter(item => {
+                if (!isFamilyMember) return true;
+                if (!item.permKey) return true;
+                return userPermissions[item.permKey] === true;
+              });
 
-                      {/* Notification Badges */}
-                      {badgeCount > 0 && (!isCollapsed || isMobileOpen) && (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isActive ? 'bg-indigo-800 text-white' : 'bg-slate-800 text-indigo-400 border border-slate-700'
-                        }`}>
-                          {badgeCount}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
+              if (filteredItems.length === 0) return null;
+
+              return (
+                <div key={idx} className="space-y-1">
+                  {(!isCollapsed || isMobileOpen) && (
+                    <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                      {section.title}
+                    </p>
+                  )}
+                  {filteredItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href || (item.href === '/' && pathname === '/dashboard');
+                    const badgeCount = item.badgeKey === 'bills' ? pendingBillsCount : item.badgeKey === 'debts' ? activeDebtsCount : 0;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsMobileOpen(false)}
+                        title={isCollapsed ? item.name : undefined}
+                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition group ${
+                          isActive
+                            ? 'bg-indigo-600 text-white shadow-md font-semibold'
+                            : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                        } ${isCollapsed ? 'lg:justify-center lg:px-0' : ''}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                          {(!isCollapsed || isMobileOpen) && <span className="truncate">{item.name}</span>}
+                        </div>
+
+                        {/* Notification Badges */}
+                        {badgeCount > 0 && (!isCollapsed || isMobileOpen) && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isActive ? 'bg-indigo-800 text-white' : 'bg-slate-800 text-indigo-400 border border-slate-700'
+                          }`}>
+                            {badgeCount}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
 
