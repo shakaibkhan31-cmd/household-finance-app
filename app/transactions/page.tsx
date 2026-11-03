@@ -41,21 +41,6 @@ const TRANSACTION_TYPES = [
   'Bill Payment'
 ];
 
-const DEFAULT_EXPENSE_CATEGORIES = [
-  'Groceries & Food',
-  'Utilities & Bills',
-  'Rent & Housing',
-  'Vehicle & Fuel',
-  'Healthcare & Medical',
-  'Education',
-  'Shopping & Personal',
-  'Entertainment & Dining',
-  'Maintenance & Repairs',
-  'Donation / Charity',
-  'Misc',
-  'Other'
-];
-
 const INCOME_CATEGORIES = [
   'Salary / Business Income',
   'Support / Gift',
@@ -82,11 +67,15 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [activeDebts, setActiveDebts] = useState<Debt[]>([]);
-  const [budgetCategories, setBudgetCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
+  const [budgetCategories, setBudgetCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentMonthPrefix, setCurrentMonthPrefix] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
   const [memberName, setMemberName] = useState('Member');
+
+  // Custom Category State for Expense
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -96,7 +85,7 @@ export default function TransactionsPage() {
   const [accountName, setAccountName] = useState('');
   const [transferTo, setTransferTo] = useState('');
   const [selectedDebtId, setSelectedDebtId] = useState('');
-  const [category, setCategory] = useState(DEFAULT_EXPENSE_CATEGORIES[0]);
+  const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [partyName, setPartyName] = useState('');
   const [description, setDescription] = useState('');
@@ -190,18 +179,20 @@ export default function TransactionsPage() {
       setTransferTo('');
     }
 
+    // Fetch strictly only user's created budget categories
     const { data: bData } = await supabase
       .from('budgets')
       .select('category')
       .eq('user_id', user.id);
 
+    let fetchedBudgetCats: string[] = [];
     if (bData && bData.length > 0) {
-      const budgetCats = bData.map((b: { category: string }) => b.category);
-      const combinedCats = Array.from(new Set([...budgetCats, ...DEFAULT_EXPENSE_CATEGORIES]));
-      setBudgetCategories(combinedCats);
-      if (!category && type === 'Expense') setCategory(combinedCats[0]);
-    } else {
-      setBudgetCategories(DEFAULT_EXPENSE_CATEGORIES);
+      fetchedBudgetCats = bData.map((b: { category: string }) => b.category).filter(Boolean);
+    }
+    setBudgetCategories(fetchedBudgetCats);
+    
+    if (!category && type === 'Expense' && fetchedBudgetCats.length > 0) {
+      setCategory(fetchedBudgetCats[0]);
     }
 
     const { data: debtsData } = await supabase
@@ -255,10 +246,14 @@ export default function TransactionsPage() {
 
   const handleTypeChange = (newType: string) => {
     setType(newType);
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
 
     const availableCats = getCategoriesForType(newType);
     if (availableCats.length > 0) {
       setCategory(availableCats[0]);
+    } else {
+      setCategory('');
     }
 
     if (newType === 'Transfer' && transferTo === accountName) {
@@ -271,6 +266,12 @@ export default function TransactionsPage() {
     e.preventDefault();
     if (!amount || !accountName) {
       alert('Please select an account and enter an amount.');
+      return;
+    }
+
+    const finalCategory = isCustomCategory ? customCategoryInput.trim() : category;
+    if (!finalCategory && !['Transfer'].includes(type)) {
+      alert('Please select or enter a valid category.');
       return;
     }
 
@@ -319,7 +320,7 @@ export default function TransactionsPage() {
           type,
           account_name: accountName,
           transfer_to: isTransfer ? transferTo : null,
-          category: isTransfer ? 'Internal Transfer' : category,
+          category: isTransfer ? 'Internal Transfer' : finalCategory,
           amount: parsedAmount,
           party_name: isTransfer ? 'Self Transfer' : finalPartyName,
           description,
@@ -339,7 +340,7 @@ export default function TransactionsPage() {
           type,
           account_name: accountName,
           transfer_to: isTransfer ? transferTo : null,
-          category: isTransfer ? 'Internal Transfer' : category,
+          category: isTransfer ? 'Internal Transfer' : finalCategory,
           amount: parsedAmount,
           party_name: isTransfer ? 'Self Transfer' : finalPartyName,
           description,
@@ -483,7 +484,15 @@ export default function TransactionsPage() {
     setType(t.type);
     setAccountName(t.account_name);
     setTransferTo(t.transfer_to || availableAccounts.find(acc => acc !== t.account_name) || availableAccounts[0]);
-    setCategory(t.category);
+    
+    if (budgetCategories.includes(t.category) || ['Income Receipt', 'Loan Given', 'Loan Received', 'Loan Repayment'].includes(t.type)) {
+      setIsCustomCategory(false);
+      setCategory(t.category);
+    } else {
+      setIsCustomCategory(true);
+      setCustomCategoryInput(t.category);
+    }
+
     setAmount(t.amount.toString());
     setPartyName(t.party_name || '');
     setDescription(t.description || '');
@@ -691,6 +700,8 @@ export default function TransactionsPage() {
     setAmount('');
     setPartyName('');
     setDescription('');
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
     const today = new Date().toISOString().split('T')[0];
     setDate(today);
     setDueDate(today);
@@ -705,6 +716,7 @@ export default function TransactionsPage() {
   const isRepaymentType = type === 'Loan Repayment';
   const isRefundType = type === 'Refund';
   const isAdjustmentType = type === 'Adjustment';
+  const showCustomCategoryOption = ['Expense', 'Bill Payment', 'Refund'].includes(type);
 
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch = 
@@ -918,15 +930,52 @@ export default function TransactionsPage() {
                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                       {isRefundType ? 'Expense Category to Offset' : 'Category (Synced)'}
                     </label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                    >
-                      {currentCategoriesList.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
+
+                    {showCustomCategoryOption && isCustomCategory ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Enter new category name..."
+                          value={customCategoryInput}
+                          onChange={(e) => setCustomCategoryInput(e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setIsCustomCategory(false); setCustomCategoryInput(''); }}
+                          className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline block"
+                        >
+                          ← Select from existing budget categories
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={category}
+                        onChange={(e) => {
+                          if (e.target.value === '__add_custom__') {
+                            setIsCustomCategory(true);
+                            setCategory('');
+                          } else {
+                            setCategory(e.target.value);
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                      >
+                        {currentCategoriesList.length === 0 ? (
+                          <option value="">No budget categories found</option>
+                        ) : (
+                          currentCategoriesList.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))
+                        )}
+                        {showCustomCategoryOption && (
+                          <option value="__add_custom__" className="font-bold text-indigo-600 dark:text-indigo-400">
+                            + Add Custom Category...
+                          </option>
+                        )}
+                      </select>
+                    )}
                   </div>
                 )}
 
