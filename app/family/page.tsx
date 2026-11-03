@@ -91,7 +91,7 @@ export default function FamilyManagementPage() {
     setMessage('');
 
     if (members.length >= 5) {
-      setError('Aap max 5 family members hi add kar sakte hain.');
+      setError('You can add a maximum of 5 family members.');
       return;
     }
 
@@ -169,7 +169,7 @@ export default function FamilyManagementPage() {
       if (error) {
         setError(error.message);
       } else {
-        setMessage('Member access rights update ho gaye hain!');
+        setMessage('Member access rights have been successfully updated!');
         setEditingMember(null);
         fetchMembers();
         setTimeout(() => setMessage(''), 4000);
@@ -180,7 +180,7 @@ export default function FamilyManagementPage() {
   };
 
   const handleDeleteMember = async (id: string) => {
-    if (!confirm('Kya aap is family member ka access revoke karna chahte hain?')) return;
+    if (!confirm('Are you sure you want to revoke access for this family member?')) return;
 
     const { error } = await supabase.from('family_members').delete().eq('id', id);
     if (!error) {
@@ -228,7 +228,7 @@ export default function FamilyManagementPage() {
               Family Access Control Centre
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Apne account ka up to 5 family members tak granular module-level access set karein aur automated invite bhejein.
+              Configure granular module-level access for up to 5 family members and dispatch automated email invitations.
             </p>
           </div>
           <button
@@ -298,7 +298,7 @@ export default function FamilyManagementPage() {
                 <input
                   type="text"
                   required
-                  placeholder="Misal: Wajiha Khan"
+                  placeholder="e.g. Wajiha Khan"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-indigo-500"
@@ -476,7 +476,7 @@ export default function FamilyManagementPage() {
             <div className="p-12 text-center space-y-2">
               <Users className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto" />
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {searchQuery ? 'Koi matching family member nahi mila.' : 'Abhi tak koi family member add nahi kiya gaya hai.'}
+                {searchQuery ? 'No matching family members found.' : 'No family members have been added yet.'}
               </p>
             </div>
           ) : (
@@ -518,7 +518,7 @@ export default function FamilyManagementPage() {
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="files flex items-center justify-end gap-2">
                           <button
                             onClick={() => { setEditingMember(m); setIsAdding(false); }}
                             className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition cursor-pointer"
