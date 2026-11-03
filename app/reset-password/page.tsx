@@ -16,12 +16,12 @@ export default function UpdatePasswordPage() {
     setError('');
 
     if (password.length < 6) {
-      setError('Password kam se kam 6 characters ka hona chahiye.');
+      setError('Password must be at least 6 characters long.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords match nahi kar rahe hain.');
+      setError('Passwords do not match. Please verify and try again.');
       return;
     }
 
@@ -35,14 +35,14 @@ export default function UpdatePasswordPage() {
       if (updateError) {
         setError(updateError.message);
       } else {
-        setMessage('Password successfully set ho gaya hai! Redirecting to Dashboard...');
+        setMessage('Password successfully configured! Redirecting to your dashboard...');
         setTimeout(() => {
           // Hard reload execution to force auth session refresh and avoid router cache issues
           window.location.href = '/dashboard';
         }, 1500);
       }
     } catch (err: any) {
-      setError(err.message || 'Error setting password');
+      setError(err.message || 'An error occurred while setting your password.');
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function UpdatePasswordPage() {
           </div>
           <h2 className="text-xl font-bold">Set Your Account Password</h2>
           <p className="text-xs text-slate-400">
-            Household Finance App mein login karne ke liye apna password set karein.
+            Please enter a secure password to access your Household Finance account.
           </p>
         </div>
 
@@ -69,7 +69,7 @@ export default function UpdatePasswordPage() {
 
         {message && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{message}</span>
           </div>
         )}
@@ -104,7 +104,7 @@ export default function UpdatePasswordPage() {
             disabled={loading}
             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-indigo-600/20 cursor-pointer"
           >
-            {loading ? 'Saving Password...' : 'Set Password & Join'}
+            {loading ? 'Securing Account & Joining...' : 'Set Password & Join'}
           </button>
         </form>
       </div>
