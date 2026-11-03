@@ -83,11 +83,11 @@ export default function SettingsPage() {
       if (error) {
         alert('Error updating settings: ' + error.message);
       } else {
-        setMessage('Preferences successfully update ho gayi hain!');
+        setMessage('Preferences have been successfully updated!');
         setTimeout(() => setMessage(''), 4000);
       }
     } catch (err: any) {
-      alert('Kuch masla ho gaya hai: ' + err.message);
+      alert('An unexpected error occurred: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -96,7 +96,7 @@ export default function SettingsPage() {
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      setPassMessage('Password kam az kam 6 characters ka hona chahiye.');
+      setPassMessage('Password must be at least 6 characters long.');
       return;
     }
 
@@ -108,7 +108,7 @@ export default function SettingsPage() {
       if (error) {
         setPassMessage('Error: ' + error.message);
       } else {
-        setPassMessage('Password successfully update ho gaya hai!');
+        setPassMessage('Password has been successfully updated!');
         setNewPassword('');
         setTimeout(() => setPassMessage(''), 4000);
       }
@@ -133,7 +133,7 @@ export default function SettingsPage() {
               Settings & Preferences
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Apni currency formatting, security credentials aur membership status manage karein.
+              Manage your currency formatting, security credentials, and membership status.
             </p>
           </div>
           <button
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-400 pt-1">
-                  Yeh currency aapke dashboard, transactions, aur accounts mein values format karne ke liye istemal hogi.
+                  This currency will be used to format values across your dashboard, transactions, and accounts.
                 </p>
               </div>
 
