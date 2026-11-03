@@ -253,7 +253,8 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+          {/* Grid with 3 columns, centering the last elements nicely */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-left justify-center">
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>How much money is actually available?</span>
@@ -266,11 +267,11 @@ export default function LandingPage() {
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>Are household expenses staying within budget?</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 lg:col-start-1 lg:col-end-2">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>Which bills and payments are coming up?</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 md:col-span-2 lg:col-span-2">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 lg:col-start-2 lg:col-end-3">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>How much can you realistically save?</span>
             </div>
@@ -509,7 +510,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-left justify-center">
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>Identify where your money is going</span>
@@ -522,11 +523,11 @@ export default function LandingPage() {
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>Recognise unnecessary expenses</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 lg:col-start-1 lg:col-end-2">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>Monitor your budget</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 md:col-span-2 lg:col-span-2">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 lg:col-start-2 lg:col-end-3">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>Make more informed financial decisions</span>
             </div>
@@ -752,7 +753,7 @@ export default function LandingPage() {
             href="/signup" 
             className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-xl shadow-indigo-600/30"
           >
-            <span>Start Your 34-Day Free Trial</span>
+            <span>Start Your 34-Days Free Trial</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
           <p className="text-[11px] text-slate-500">No credit card required. Get started today.</p>
