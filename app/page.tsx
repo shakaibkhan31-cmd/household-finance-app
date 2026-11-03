@@ -80,7 +80,7 @@ export default function LandingPage() {
     },
     {
       q: "What happens after my free trial?",
-      a: "After your 34-day trial, you can continue with the annual subscription at PKR 10,000, subject to the subscription terms presented in your account."
+      a: "After your 34-days trial, you can continue with the annual subscription at PKR 10,000, subject to the subscription terms presented in your account."
     }
   ];
 
@@ -146,7 +146,7 @@ export default function LandingPage() {
           
           <div className="space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5" /> 34-DAY FREE TRIAL · NO CREDIT CARD REQUIRED
+              <Sparkles className="w-3.5 h-3.5" /> 34-DAYS FREE TRIAL · NO CREDIT CARD REQUIRED
             </div>
 
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
@@ -245,7 +245,7 @@ export default function LandingPage() {
 
       {/* Problem Awareness Section */}
       <section className="py-20 bg-slate-900/50 border-y border-slate-800/80">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10 text-center">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-10 text-center">
           <div className="space-y-3 max-w-2xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-white">Salary Comes In. Expenses Add Up. But Where Does the Money Go?</h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
@@ -253,7 +253,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>How much money is actually available?</span>
@@ -270,7 +270,7 @@ export default function LandingPage() {
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>Which bills and payments are coming up?</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 sm:col-span-2 lg:col-span-2">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 md:col-span-2 lg:col-span-2">
               <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
               <span>How much can you realistically save?</span>
             </div>
@@ -456,7 +456,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-sm font-bold text-white">Create Your Account</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Sign up and start your 34-day free trial. No credit card required.
+                Sign up and start your 34-days free trial. No credit card required.
               </p>
             </div>
 
@@ -501,7 +501,7 @@ export default function LandingPage() {
 
       {/* Financial Awareness Section */}
       <section className="py-20 bg-slate-900/40 border-t border-slate-800/80">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10 text-center">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-10 text-center">
           <div className="space-y-3 max-w-2xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-white">You Can't Take Control of What You Can't See.</h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
@@ -509,25 +509,30 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
-              ✓ Identify where your money is going
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Identify where your money is going</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
-              ✓ Understand your spending patterns
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Understand your spending patterns</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
-              ✓ Recognise unnecessary expenses
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Recognise unnecessary expenses</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300">
-              ✓ Monitor your budget
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Monitor your budget</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-slate-300 sm:col-span-2 lg:col-span-2">
-              ✓ Make more informed financial decisions
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs text-slate-300 flex items-center gap-3 md:col-span-2 lg:col-span-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+              <span>Make more informed financial decisions</span>
             </div>
           </div>
 
-          <p className="text-xs font-bold text-indigo-400">
+          <p className="text-xs font-bold text-indigo-400 pt-2">
             Financial clarity is the first step towards better financial control.
           </p>
         </div>
@@ -619,7 +624,7 @@ export default function LandingPage() {
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 flex flex-col justify-between">
               <div className="space-y-4">
                 <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
-                  34-Day Free Trial
+                  34-Days Free Trial
                 </span>
                 <div>
                   <h3 className="text-xl font-bold text-white">PKR 0</h3>
@@ -757,7 +762,7 @@ export default function LandingPage() {
       {/* Mobile Sticky CTA Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 flex items-center justify-between gap-3 shadow-2xl">
         <div>
-          <p className="text-[11px] font-bold text-white">34-Day Free Trial</p>
+          <p className="text-[11px] font-bold text-white">34-Days Free Trial</p>
           <p className="text-[10px] text-slate-400">No credit card required</p>
         </div>
         <Link 
