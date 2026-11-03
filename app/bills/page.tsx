@@ -40,13 +40,15 @@ export default function BillsPage() {
   const [isRecurring, setIsRecurring] = useState(false);
   const [notes, setNotes] = useState('');
 
-  // Payment Modal State
+  // Payment Modal State (Enhanced for Variable Amounts)
   const [payingBill, setPayingBill] = useState<Bill | null>(null);
+  const [actualPaidAmount, setActualPaidAmount] = useState<string>('');
   const [payingTotalAmount, setPayingTotalAmount] = useState<number>(0);
   const [selectedAccount, setSelectedAccount] = useState('');
 
-  // Transfer Modal State
+  // Transfer Modal State (For Credit Cards)
   const [transferringBill, setTransferringBill] = useState<Bill | null>(null);
+  const [actualTransferAmount, setActualTransferAmount] = useState<string>('');
   const [transferTotalAmount, setTransferTotalAmount] = useState<number>(0);
   const [sourceAccount, setSourceAccount] = useState('');
   const [targetAccount, setTargetAccount] = useState('');
@@ -66,7 +68,6 @@ export default function BillsPage() {
       return;
     }
 
-    // Fetch User Profile Currency preference
     const { data: profile } = await supabase
       .from('profiles')
       .select('preferred_currency')
@@ -144,23 +145,36 @@ export default function BillsPage() {
   };
 
   const handleOpenMarkPaidModal = (bill: Bill) => {
+    setPayingBill(bill);
+    setActualPaidAmount(bill.amount.toString());
     const isOverdue = bill.status === 'Pending' && todayStr && bill.due_date < todayStr;
-    const totalToPay = isOverdue
+    const initialTotal = isOverdue
       ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
       : Number(bill.amount || 0);
-
-    setPayingBill(bill);
-    setPayingTotalAmount(totalToPay);
+    setPayingTotalAmount(initialTotal);
   };
 
   const handleOpenTransferModal = (bill: Bill) => {
+    setTransferringBill(bill);
+    setActualTransferAmount(bill.amount.toString());
     const isOverdue = bill.status === 'Pending' && todayStr && bill.due_date < todayStr;
-    const totalToPay = isOverdue
+    const initialTotal = isOverdue
       ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
       : Number(bill.amount || 0);
+    setTransferTotalAmount(initialTotal);
+  };
 
-    setTransferringBill(bill);
-    setTransferTotalAmount(totalToPay);
+  const handleActualAmountChange = (val: string, type: 'markPaid' | 'transfer') => {
+    const numericVal = parseFloat(val) || 0;
+    if (type === 'markPaid') {
+      setActualPaidAmount(val);
+      const lateFee = payingBill && payingBill.status === 'Pending' && todayStr && payingBill.due_date < todayStr ? Number(payingBill.late_charges || 0) : 0;
+      setPayingTotalAmount(numericVal + lateFee);
+    } else {
+      setActualTransferAmount(val);
+      const lateFee = transferringBill && transferringBill.status === 'Pending' && todayStr && transferringBill.due_date < todayStr ? Number(transferringBill.late_charges || 0) : 0;
+      setTransferTotalAmount(numericVal + lateFee);
+    }
   };
 
   const handleConfirmMarkPaid = async () => {
@@ -168,6 +182,8 @@ export default function BillsPage() {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    const finalPaidAmount = parseFloat(actualPaidAmount) || payingBill.amount;
 
     const { error: txErr } = await supabase.from('transactions').insert([
       {
@@ -177,8 +193,8 @@ export default function BillsPage() {
         category: payingBill.category || 'Utilities & Bills',
         amount: payingTotalAmount,
         party_name: payingBill.title,
-        description: `Paid bill: ${payingBill.title} ${
-          payingTotalAmount > Number(payingBill.amount) ? '(Includes Late Fee)' : ''
+        description: `Paid variable bill: ${payingBill.title} ${
+          payingTotalAmount > finalPaidAmount ? '(Includes Late Fee)' : ''
         }`,
         entered_by: 'Husband',
         user_id: user.id,
@@ -211,7 +227,7 @@ export default function BillsPage() {
       .from('bills')
       .update({
         status: 'Paid',
-        amount: payingTotalAmount,
+        amount: finalPaidAmount,
       })
       .eq('id', payingBill.id)
       .eq('user_id', user.id);
@@ -221,6 +237,7 @@ export default function BillsPage() {
       return;
     }
 
+    // If recurring, generate next month bill using this updated actual amount as the new rolling baseline
     if (payingBill.is_recurring) {
       const nextDate = new Date(payingBill.due_date);
       nextDate.setMonth(nextDate.getMonth() + 1);
@@ -230,19 +247,19 @@ export default function BillsPage() {
         {
           title: payingBill.title,
           category: payingBill.category,
-          amount: payingBill.amount,
+          amount: finalPaidAmount, // Variable baseline carried forward
           late_charges: payingBill.late_charges || 0,
           due_date: nextDueDateStr,
           status: 'Pending',
           is_recurring: true,
-          notes: 'Auto-generated recurring monthly bill',
+          notes: 'Auto-generated recurring variable bill',
           user_id: user.id,
         },
       ]);
     }
 
     setPayingBill(null);
-    alert('Bill marked as paid successfully!');
+    alert('Variable bill marked as paid successfully!');
     fetchBillsAndAccounts();
   };
 
@@ -312,6 +329,8 @@ export default function BillsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const finalTransferAmt = parseFloat(actualTransferAmount) || transferringBill.amount;
+
     const { error: txErr } = await supabase.from('transactions').insert([
       {
         date: todayStr,
@@ -372,7 +391,7 @@ export default function BillsPage() {
       .from('bills')
       .update({
         status: 'Paid',
-        amount: transferTotalAmount,
+        amount: finalTransferAmt,
       })
       .eq('id', transferringBill.id)
       .eq('user_id', user.id);
@@ -386,19 +405,19 @@ export default function BillsPage() {
         {
           title: transferringBill.title,
           category: transferringBill.category,
-          amount: transferringBill.amount,
+          amount: finalTransferAmt,
           late_charges: transferringBill.late_charges || 0,
           due_date: nextDueDateStr,
           status: 'Pending',
           is_recurring: true,
-          notes: 'Auto-generated recurring monthly bill',
+          notes: 'Auto-generated recurring variable bill',
           user_id: user.id,
         },
       ]);
     }
 
     setTransferringBill(null);
-    alert('Bill paid successfully via transfer & synced!');
+    alert('Credit card variable bill paid successfully via transfer & synced!');
     fetchBillsAndAccounts();
   };
 
@@ -428,7 +447,7 @@ export default function BillsPage() {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Bills & Payables</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track upcoming bills, recurring payments, and overdue alerts</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track variable utility bills, recurring statements, and credit card dues</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -462,7 +481,7 @@ export default function BillsPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. HBL Credit Card / KE Electric"
+                placeholder="e.g. HBL Credit Card / KE Electric / Sui Gas"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -471,7 +490,7 @@ export default function BillsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Estimated Amount ({currency})</label>
                 <input
                   type="number"
                   required
@@ -514,7 +533,7 @@ export default function BillsPage() {
                 className="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-slate-700 focus:ring-indigo-500"
               />
               <label htmlFor="recurring" className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1 cursor-pointer">
-                <Repeat className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Repeat Monthly (Recurring)
+                <Repeat className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Repeat Monthly (Variable Baseline)
               </label>
             </div>
 
@@ -522,7 +541,7 @@ export default function BillsPage() {
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
               <input
                 type="text"
-                placeholder="e.g. Monthly statement"
+                placeholder="e.g. Variable utility bill tracker"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
@@ -612,7 +631,7 @@ export default function BillsPage() {
                           <span className="font-bold text-slate-800 dark:text-white text-sm">{b.title}</span>
                           {b.is_recurring && (
                             <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
-                              <Repeat className="w-3 h-3" /> Recurring
+                              <Repeat className="w-3 h-3" /> Variable Recurring
                             </span>
                           )}
                           <span
@@ -685,15 +704,37 @@ export default function BillsPage() {
         </div>
       </div>
 
+      {/* Mark Paid Modal (With Actual Amount Prompt for Variable Bills) */}
       {payingBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Bill Payment</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Marking <strong>{payingBill.title}</strong> as paid.</p>
-              <div className="mt-2 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center">
-                <span className="text-slate-600 dark:text-slate-300">Total Settlement:</span>
-                <span className="font-bold text-indigo-900 dark:text-indigo-300 text-sm">{formatCurrency(payingTotalAmount, currency)}</span>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Variable Bill Payment</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Enter actual received bill amount for <strong>{payingBill.title}</strong>.</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Actual Bill Amount ({currency})</label>
+                <input
+                  type="number"
+                  required
+                  value={actualPaidAmount}
+                  onChange={(e) => handleActualAmountChange(e.target.value, 'markPaid')}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {payingBill.status === 'Pending' && todayStr && payingBill.due_date < todayStr && Number(payingBill.late_charges || 0) > 0 && (
+                <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/50 text-xs text-rose-800 dark:text-rose-300 flex justify-between">
+                  <span>Includes Overdue Late Fee:</span>
+                  <span className="font-bold">{formatCurrency(Number(payingBill.late_charges || 0), currency)}</span>
+                </div>
+              )}
+
+              <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50 text-xs flex justify-between items-center">
+                <span className="text-indigo-800 dark:text-indigo-300 font-semibold">Total Deduction:</span>
+                <span className="font-bold text-indigo-950 dark:text-indigo-200 text-sm">{formatCurrency(payingTotalAmount, currency)}</span>
               </div>
             </div>
 
@@ -718,14 +759,29 @@ export default function BillsPage() {
         </div>
       )}
 
+      {/* Transfer Modal (With Actual Amount Prompt for Credit Cards) */}
       {transferringBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pay Bill via Transfer</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Paying <strong>{transferringBill.title}</strong></p>
-              <div className="mt-2 p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50 text-xs flex justify-between items-center">
-                <span className="text-indigo-800 dark:text-indigo-300">Transfer Amount:</span>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pay Statement via Transfer</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Enter statement amount for <strong>{transferringBill.title}</strong>.</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Actual Statement Amount ({currency})</label>
+                <input
+                  type="number"
+                  required
+                  value={actualTransferAmount}
+                  onChange={(e) => handleActualAmountChange(e.target.value, 'transfer')}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50 text-xs flex justify-between items-center">
+                <span className="text-indigo-800 dark:text-indigo-300 font-semibold">Total Transfer:</span>
                 <span className="font-bold text-indigo-950 dark:text-indigo-200 text-sm">{formatCurrency(transferTotalAmount, currency)}</span>
               </div>
             </div>
