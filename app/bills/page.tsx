@@ -20,6 +20,16 @@ export interface Bill {
   user_id?: string;
 }
 
+// Helper function to format date from YYYY-MM-DD to DD-MM-YYYY for display
+const formatDateDisplay = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+};
+
 export default function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [accounts, setAccounts] = useState<string[]>([]);
@@ -40,13 +50,13 @@ export default function BillsPage() {
   const [isRecurring, setIsRecurring] = useState(false);
   const [notes, setNotes] = useState('');
 
-  // Payment Modal State (Enhanced for Variable Amounts)
+  // Payment Modal State
   const [payingBill, setPayingBill] = useState<Bill | null>(null);
   const [actualPaidAmount, setActualPaidAmount] = useState<string>('');
   const [payingTotalAmount, setPayingTotalAmount] = useState<number>(0);
   const [selectedAccount, setSelectedAccount] = useState('');
 
-  // Transfer Modal State (For Credit Cards)
+  // Transfer Modal State
   const [transferringBill, setTransferringBill] = useState<Bill | null>(null);
   const [actualTransferAmount, setActualTransferAmount] = useState<string>('');
   const [transferTotalAmount, setTransferTotalAmount] = useState<number>(0);
@@ -237,7 +247,6 @@ export default function BillsPage() {
       return;
     }
 
-    // If recurring, generate next month bill using this updated actual amount as the new rolling baseline
     if (payingBill.is_recurring) {
       const nextDate = new Date(payingBill.due_date);
       nextDate.setMonth(nextDate.getMonth() + 1);
@@ -247,7 +256,7 @@ export default function BillsPage() {
         {
           title: payingBill.title,
           category: payingBill.category,
-          amount: finalPaidAmount, // Variable baseline carried forward
+          amount: finalPaidAmount,
           late_charges: payingBill.late_charges || 0,
           due_date: nextDueDateStr,
           status: 'Pending',
@@ -488,16 +497,17 @@ export default function BillsPage() {
               />
             </div>
 
+            {/* Fixed Alignment Grid for Amount and Due Date */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Estimated Amount ({currency})</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
                 <input
                   type="number"
                   required
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                 />
               </div>
 
@@ -508,7 +518,7 @@ export default function BillsPage() {
                   required
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
                 />
               </div>
             </div>
@@ -648,8 +658,9 @@ export default function BillsPage() {
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                          {/* Date Format updated to DD-MM-YYYY */}
                           <span className="flex items-center gap-1 font-mono">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {b.due_date}
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {formatDateDisplay(b.due_date)}
                           </span>
                           {lateFee > 0 && b.status === 'Pending' && (
                             <span className="text-rose-600 dark:text-rose-400 font-medium">Late Fee: {formatCurrency(lateFee, currency)}</span>
@@ -704,7 +715,7 @@ export default function BillsPage() {
         </div>
       </div>
 
-      {/* Mark Paid Modal (With Actual Amount Prompt for Variable Bills) */}
+      {/* Mark Paid Modal */}
       {payingBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
@@ -759,7 +770,7 @@ export default function BillsPage() {
         </div>
       )}
 
-      {/* Transfer Modal (With Actual Amount Prompt for Credit Cards) */}
+      {/* Transfer Modal */}
       {transferringBill && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-5">
