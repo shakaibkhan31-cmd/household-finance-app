@@ -8,6 +8,7 @@ import { Sparkles, ArrowRight } from 'lucide-react';
 export default function TrialBanner() {
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [isPro, setIsPro] = useState(false);
+  const [isFamilyMember, setIsFamilyMember] = useState(false);
 
   useEffect(() => {
     fetchTrialStatus();
@@ -16,6 +17,21 @@ export default function TrialBanner() {
   const fetchTrialStatus = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Check karein ke kahin yeh user kisi family member ka toh nahi hai
+    if (user.email) {
+      const cleanEmail = user.email.trim().toLowerCase();
+      const { data: memberRecord } = await supabase
+        .from('family_members')
+        .select('id')
+        .ilike('member_email', cleanEmail)
+        .maybeSingle();
+
+      if (memberRecord) {
+        setIsFamilyMember(true);
+        return; // Agar family member hai toh trial banner render nahi hoga
+      }
+    }
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -42,8 +58,8 @@ export default function TrialBanner() {
     }
   };
 
-  // User Pro member hai toh banner nahi dikhana
-  if (isPro || daysRemaining === null) return null;
+  // Agar user Pro hai, family member hai, ya days calculate nahi hue toh banner hide rahega
+  if (isPro || isFamilyMember || daysRemaining === null) return null;
 
   return (
     <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between text-xs text-amber-700 dark:text-amber-400 font-medium">
