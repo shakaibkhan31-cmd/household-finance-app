@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
-import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar, Download, CheckSquare, Square, ChevronLeft, ChevronRight, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Edit3, X, ArrowRightLeft, Calendar, Download, CheckSquare, Square, ChevronLeft, ChevronRight, User, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 export interface Transaction {
   id: string;
@@ -69,6 +69,7 @@ export default function TransactionsPage() {
   const [activeDebts, setActiveDebts] = useState<Debt[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [currentMonthPrefix, setCurrentMonthPrefix] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
   const [memberName, setMemberName] = useState('Member');
@@ -179,7 +180,6 @@ export default function TransactionsPage() {
       setTransferTo('');
     }
 
-    // Fetch strictly only user's created budget categories
     const { data: bData } = await supabase
       .from('budgets')
       .select('category')
@@ -223,7 +223,6 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
-  // Dynamically compute relevant categories based on selected Transaction Type
   const getCategoriesForType = (currentType: string) => {
     switch (currentType) {
       case 'Income Receipt':
@@ -264,6 +263,8 @@ export default function TransactionsPage() {
 
   const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Guard against multi-click
+
     if (!amount || !accountName) {
       alert('Please select an account and enter an amount.');
       return;
@@ -312,170 +313,180 @@ export default function TransactionsPage() {
       finalPartyName = partyName || `Balance Adjustment (${adjustmentDirection === 'add' ? 'Increase' : 'Decrease'})`;
     }
 
-    if (editingId) {
-      const { error } = await supabase
-        .from('transactions')
-        .update({
-          date,
-          type,
-          account_name: accountName,
-          transfer_to: isTransfer ? transferTo : null,
-          category: isTransfer ? 'Internal Transfer' : finalCategory,
-          amount: parsedAmount,
-          party_name: isTransfer ? 'Self Transfer' : finalPartyName,
-          description,
-        })
-        .eq('id', editingId)
-        .eq('user_id', user.id);
+    setIsSubmitting(true);
 
-      if (error) {
-        alert('Error updating transaction: ' + error.message);
-        return;
-      }
-      setEditingId(null);
-    } else {
-      const { error } = await supabase.from('transactions').insert([
-        {
-          date,
-          type,
-          account_name: accountName,
-          transfer_to: isTransfer ? transferTo : null,
-          category: isTransfer ? 'Internal Transfer' : finalCategory,
-          amount: parsedAmount,
-          party_name: isTransfer ? 'Self Transfer' : finalPartyName,
-          description,
-          entered_by: memberName,
-          user_id: user.id,
-        },
-      ]);
+    try {
+      if (editingId) {
+        const { error } = await supabase
+          .from('transactions')
+          .update({
+            date,
+            type,
+            account_name: accountName,
+            transfer_to: isTransfer ? transferTo : null,
+            category: isTransfer ? 'Internal Transfer' : finalCategory,
+            amount: parsedAmount,
+            party_name: isTransfer ? 'Self Transfer' : finalPartyName,
+            description,
+          })
+          .eq('id', editingId)
+          .eq('user_id', user.id);
 
-      if (error) {
-        alert('Error recording transaction: ' + error.message);
-        return;
-      }
-
-      if (isTransfer) {
-        const { data: srcAcc } = await supabase
-          .from('accounts')
-          .select('*')
-          .eq('name', accountName)
-          .eq('user_id', user.id)
-          .limit(1);
-
-        if (srcAcc && srcAcc.length > 0) {
-          const accObj = srcAcc[0];
-          let currentBal = Number(accObj.current_balance || 0);
-          currentBal -= parsedAmount; 
-          await supabase
-            .from('accounts')
-            .update({ current_balance: currentBal })
-            .eq('id', accObj.id)
-            .eq('user_id', user.id);
+        if (error) {
+          alert('Error updating transaction: ' + error.message);
+          setIsSubmitting(false);
+          return;
         }
-
-        const { data: destAcc } = await supabase
-          .from('accounts')
-          .select('*')
-          .eq('name', transferTo)
-          .eq('user_id', user.id)
-          .limit(1);
-
-        if (destAcc && destAcc.length > 0) {
-          const accObj = destAcc[0];
-          let currentBal = Number(accObj.current_balance || 0);
-          currentBal += parsedAmount;
-          await supabase
-            .from('accounts')
-            .update({ current_balance: currentBal })
-            .eq('id', accObj.id)
-            .eq('user_id', user.id);
-        }
+        setEditingId(null);
       } else {
-        const { data: accList } = await supabase
-          .from('accounts')
-          .select('*')
-          .eq('name', accountName)
-          .eq('user_id', user.id)
-          .limit(1);
+        const { error } = await supabase.from('transactions').insert([
+          {
+            date,
+            type,
+            account_name: accountName,
+            transfer_to: isTransfer ? transferTo : null,
+            category: isTransfer ? 'Internal Transfer' : finalCategory,
+            amount: parsedAmount,
+            party_name: isTransfer ? 'Self Transfer' : finalPartyName,
+            description,
+            entered_by: memberName,
+            user_id: user.id,
+          },
+        ]);
 
-        if (accList && accList.length > 0) {
-          const acc = accList[0];
-          const isCardType = (acc.type || '').trim().toLowerCase().includes('credit');
-          let currentBal = Number(acc.current_balance || 0);
-          
-          const isCreditInflow = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
-          let effectiveIsCredit = isCreditInflow;
+        if (error) {
+          alert('Error recording transaction: ' + error.message);
+          setIsSubmitting(false);
+          return;
+        }
 
-          if (isAdjustment) {
-            effectiveIsCredit = adjustmentDirection === 'add';
-          }
-
-          if (isCardType) {
-            if (effectiveIsCredit) {
-              currentBal -= parsedAmount; 
-            } else {
-              currentBal += parsedAmount; 
-            }
-          } else {
-            if (effectiveIsCredit) {
-              currentBal += parsedAmount;
-            } else {
-              currentBal -= parsedAmount;
-            }
-          }
-
-          await supabase
+        if (isTransfer) {
+          const { data: srcAcc } = await supabase
             .from('accounts')
-            .update({ current_balance: currentBal })
-            .eq('id', acc.id)
-            .eq('user_id', user.id);
+            .select('*')
+            .eq('name', accountName)
+            .eq('user_id', user.id)
+            .limit(1);
+
+          if (srcAcc && srcAcc.length > 0) {
+            const accObj = srcAcc[0];
+            let currentBal = Number(accObj.current_balance || 0);
+            currentBal -= parsedAmount; 
+            await supabase
+              .from('accounts')
+              .update({ current_balance: currentBal })
+              .eq('id', accObj.id)
+              .eq('user_id', user.id);
+          }
+
+          const { data: destAcc } = await supabase
+            .from('accounts')
+            .select('*')
+            .eq('name', transferTo)
+            .eq('user_id', user.id)
+            .limit(1);
+
+          if (destAcc && destAcc.length > 0) {
+            const accObj = destAcc[0];
+            let currentBal = Number(accObj.current_balance || 0);
+            currentBal += parsedAmount;
+            await supabase
+              .from('accounts')
+              .update({ current_balance: currentBal })
+              .eq('id', accObj.id)
+              .eq('user_id', user.id);
+          }
+        } else {
+          const { data: accList } = await supabase
+            .from('accounts')
+            .select('*')
+            .eq('name', accountName)
+            .eq('user_id', user.id)
+            .limit(1);
+
+          if (accList && accList.length > 0) {
+            const acc = accList[0];
+            const isCardType = (acc.type || '').trim().toLowerCase().includes('credit');
+            let currentBal = Number(acc.current_balance || 0);
+            
+            const isCreditInflow = ['Income Receipt', 'Loan Received', 'Refund'].includes(type);
+            let effectiveIsCredit = isCreditInflow;
+
+            if (isAdjustment) {
+              effectiveIsCredit = adjustmentDirection === 'add';
+            }
+
+            if (isCardType) {
+              if (effectiveIsCredit) {
+                currentBal -= parsedAmount; 
+              } else {
+                currentBal += parsedAmount; 
+              }
+            } else {
+              if (effectiveIsCredit) {
+                currentBal += parsedAmount;
+              } else {
+                currentBal -= parsedAmount;
+              }
+            }
+
+            await supabase
+              .from('accounts')
+              .update({ current_balance: currentBal })
+              .eq('id', acc.id)
+              .eq('user_id', user.id);
+          }
+        }
+
+        if (type === 'Loan Given') {
+          await supabase.from('debts').insert([
+            {
+              person_name: partyName || 'Unknown Party',
+              type: 'Personal Loan',
+              direction: 'Given (Receivable)',
+              amount: parsedAmount,
+              due_date: dueDate || date,
+              status: 'Active',
+              notes: description || `Loan Given via ${accountName}`,
+              user_id: user.id,
+            },
+          ]);
+        } else if (type === 'Loan Received') {
+          await supabase.from('debts').insert([
+            {
+              person_name: partyName || 'Unknown Party',
+              type: 'Personal Loan',
+              direction: 'Taken (Payable)',
+              amount: parsedAmount,
+              due_date: dueDate || date,
+              status: 'Active',
+              notes: description || `Loan Received in ${accountName}`,
+              user_id: user.id,
+            },
+          ]);
+        } else if (type === 'Loan Repayment' && selectedDebtId) {
+          const targetDebt = activeDebts.find(d => d.id === selectedDebtId);
+          if (targetDebt) {
+            const updatedAmount = Math.max(0, Number(targetDebt.amount) - parsedAmount);
+            await supabase
+              .from('debts')
+              .update({ 
+                amount: updatedAmount,
+                status: updatedAmount === 0 ? 'Settled' : 'Active'
+              })
+              .eq('id', targetDebt.id)
+              .eq('user_id', user.id);
+          }
         }
       }
 
-      if (type === 'Loan Given') {
-        await supabase.from('debts').insert([
-          {
-            person_name: partyName || 'Unknown Party',
-            type: 'Personal Loan',
-            direction: 'Given (Receivable)',
-            amount: parsedAmount,
-            due_date: dueDate || date,
-            status: 'Active',
-            notes: description || `Loan Given via ${accountName}`,
-            user_id: user.id,
-          },
-        ]);
-      } else if (type === 'Loan Received') {
-        await supabase.from('debts').insert([
-          {
-            person_name: partyName || 'Unknown Party',
-            type: 'Personal Loan',
-            direction: 'Taken (Payable)',
-            amount: parsedAmount,
-            due_date: dueDate || date,
-            status: 'Active',
-            notes: description || `Loan Received in ${accountName}`,
-            user_id: user.id,
-          },
-        ]);
-      } else if (type === 'Loan Repayment' && selectedDebtId) {
-        const targetDebt = activeDebts.find(d => d.id === selectedDebtId);
-        if (targetDebt) {
-          const updatedAmount = Math.max(0, Number(targetDebt.amount) - parsedAmount);
-          await supabase
-            .from('debts')
-            .update({ 
-              amount: updatedAmount,
-              status: updatedAmount === 0 ? 'Settled' : 'Active'
-            })
-            .eq('id', targetDebt.id)
-            .eq('user_id', user.id);
-        }
-      }
+      resetForm();
+      await fetchDataAndSync();
+    } catch (err: any) {
+      alert('Transaction error: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    resetForm();
-    fetchDataAndSync();
   };
 
   const handleEditClick = (t: Transaction) => {
@@ -1049,9 +1060,17 @@ export default function TransactionsPage() {
 
               <button
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2 cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium py-2.5 rounded-xl text-xs transition shadow-sm mt-2 cursor-pointer flex items-center justify-center gap-2"
               >
-                {editingId ? 'Update Transaction' : 'Record Transaction'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  editingId ? 'Update Transaction' : 'Record Transaction'
+                )}
               </button>
             </form>
           )}
