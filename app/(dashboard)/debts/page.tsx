@@ -152,7 +152,7 @@ export default function DebtsPage() {
   const handleAddDebt = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!personName || !amount || !dueDate) {
-      alert('Please fill required fields.');
+      alert('Please fill in all required fields.');
       return;
     }
 
@@ -186,7 +186,7 @@ export default function DebtsPage() {
   };
 
   const handleDeleteDebt = async (id: string, name: string) => {
-    if (!confirm(`Kya aap waqai "${name}" ka debt record delete karna chahte hain?`)) return;
+    if (!confirm(`Are you sure you want to delete the debt record for "${name}"?`)) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -207,7 +207,7 @@ export default function DebtsPage() {
   const handleAddKameti = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!committeeName || !totalPoolAmount || !monthlyInstallment) {
-      alert('Please fill required Kameti fields.');
+      alert('Please fill in all required Kameti fields.');
       return;
     }
 
@@ -248,7 +248,7 @@ export default function DebtsPage() {
 
   const handleConfirmKametiAction = async () => {
     if (!kametiActionModal || !kametiAccount || !kametiActionAmount) {
-      alert('Please select an account and enter amount.');
+      alert('Please select an account and enter the amount.');
       return;
     }
 
@@ -326,7 +326,7 @@ export default function DebtsPage() {
 
   const handleConfirmSettlement = async () => {
     if (!settlingDebt || !selectedAccount || !settlementAmount) {
-      alert('Please select an account and enter settlement amount.');
+      alert('Please select an account and enter the settlement amount.');
       return;
     }
 
@@ -480,7 +480,7 @@ export default function DebtsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-5 rounded-2xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Total Receivable (Logay)</p>
+                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Total Receivables</p>
                 <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-200 mt-1">{formatCurrency(totalReceivable, currency)}</p>
               </div>
               <ArrowDownLeft className="w-8 h-8 text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 p-1.5 rounded-xl shrink-0" />
@@ -488,7 +488,7 @@ export default function DebtsPage() {
 
             <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-5 rounded-2xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Total Payable (Denay)</p>
+                <p className="text-xs font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider">Total Payables</p>
                 <p className="text-2xl font-bold text-rose-900 dark:text-rose-200 mt-1">{formatCurrency(totalPayable, currency)}</p>
               </div>
               <ArrowUpRight className="w-8 h-8 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 p-1.5 rounded-xl shrink-0" />
@@ -537,8 +537,8 @@ export default function DebtsPage() {
                       disabled={debtType === 'Credit Card'}
                       className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 dark:text-indigo-300 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-slate-800 cursor-pointer"
                     >
-                      <option value="Given (Receivable)">Given (Logay)</option>
-                      <option value="Taken (Payable)">Taken (Denay)</option>
+                      <option value="Given (Receivable)">Given (Receivable)</option>
+                      <option value="Taken (Payable)">Taken (Payable)</option>
                     </select>
                   </div>
                 </div>
