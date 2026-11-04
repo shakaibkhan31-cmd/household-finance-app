@@ -46,7 +46,8 @@ export default function Header() {
     if (error) {
       console.error('Logout error:', error.message);
     } else {
-      router.push('/login');
+      // Hard redirect to clear session history cache and prevent back-button access
+      window.location.href = '/login';
     }
   };
 
@@ -91,8 +92,6 @@ export default function Header() {
             <p className="text-[11px] text-slate-400 font-medium truncate max-w-[200px] sm:max-w-none">Household Financial Control Centre</p>
           </div>
         </div>
-
-        {/* Mobile Quick Action / Logout right-aligned block inside top row for extra compact layout if needed */}
       </div>
 
       {/* Right: Quick Action, Theme Toggle, Calculator & Logout */}

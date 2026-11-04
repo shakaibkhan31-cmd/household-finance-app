@@ -151,7 +151,8 @@ export default function Sidebar() {
     if (error) {
       console.error('Logout error:', error.message);
     } else {
-      router.push('/login');
+      // Hard redirect to clear browser session cache and prevent back-button access
+      window.location.href = '/login';
     }
   };
 
@@ -207,12 +208,10 @@ export default function Sidebar() {
           {/* Grouped Navigation Sections */}
           <div className="space-y-6">
             {navSections.map((section, idx) => {
-              // Settings & Access section ko family member ke liye poora hide kar dein
               if (isFamilyMember && section.title === 'Settings & Access') {
                 return null;
               }
 
-              // Filter items based on permissions if user is a family member
               const filteredItems = section.items.filter(item => {
                 if (!isFamilyMember) return true;
                 if (!item.permKey) return true;
@@ -250,7 +249,6 @@ export default function Sidebar() {
                           {(!isCollapsed || isMobileOpen) && <span className="truncate">{item.name}</span>}
                         </div>
 
-                        {/* Notification Badges */}
                         {badgeCount > 0 && (!isCollapsed || isMobileOpen) && (
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             isActive ? 'bg-indigo-800 text-white' : 'bg-slate-800 text-indigo-400 border border-slate-700'

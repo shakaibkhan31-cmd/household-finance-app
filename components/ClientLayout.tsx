@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import TrialBanner from '@/components/TrialBanner';
@@ -14,6 +15,32 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     pathname === '/signup' || 
     pathname === '/upgrade' || 
     pathname === '/reset-password';
+
+  useEffect(() => {
+    // Skip session check on public / auth pages
+    if (isAuthOrLandingPage) return;
+
+    // Check active session on mount and back-button navigation
+    const checkSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = '/login';
+      }
+    };
+
+    checkSession();
+
+    // Listen to real-time auth changes (handles logout events instantly)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        window.location.href = '/login';
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [pathname, isAuthOrLandingPage]);
 
   if (isAuthOrLandingPage) {
     return <main className="min-h-screen w-full">{children}</main>;
