@@ -6,19 +6,19 @@ import { ArrowLeft, FileText } from 'lucide-react';
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-12">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-12 antialiased selection:bg-indigo-500 selection:text-white">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center justify-between border-b border-slate-800 pb-6">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
               <FileText className="w-4 h-4" /> TERMS & CONDITIONS
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Terms & Conditions</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">Terms & Conditions</h1>
             <p className="text-xs text-slate-400">Last updated: November 2026</p>
           </div>
           <Link
             href="/"
-            className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl transition flex items-center gap-2"
+            className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl transition flex items-center gap-2 shadow-sm"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Home
           </Link>
