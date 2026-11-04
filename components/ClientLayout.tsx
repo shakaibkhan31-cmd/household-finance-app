@@ -17,27 +17,34 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     pathname === '/reset-password';
 
   useEffect(() => {
-    // Skip session check on public / auth pages
     if (isAuthOrLandingPage) return;
 
-    // Check active session on mount and back-button navigation
     const checkSession = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        window.location.href = '/login';
+        window.location.replace('/login');
       }
     };
 
     checkSession();
 
-    // Listen to real-time auth changes (handles logout events instantly)
+    // Browser back-button cache (bfcache) ko handle karne ke liye
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        checkSession();
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        window.location.href = '/login';
+        window.location.replace('/login');
       }
     });
 
     return () => {
+      window.removeEventListener('pageshow', handlePageShow);
       subscription.unsubscribe();
     };
   }, [pathname, isAuthOrLandingPage]);
