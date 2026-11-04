@@ -132,11 +132,11 @@ function DashboardContent() {
 
   // Date Filter States
   const [filterMode, setFilterMode] = useState<'month' | 'year' | 'custom'>('month');
-  const [selectedMonth, setSelectedMonth] = useState('2026-10');
+  const [selectedMonth, setSelectedMonth] = useState('2026-11');
   const [selectedYear, setSelectedYear] = useState('2026');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [todayStr, setTodayStr] = useState('2026-10-27');
+  const [todayStr, setTodayStr] = useState('2026-11-04');
 
   // Quick Add Form States
   const [amount, setAmount] = useState('');
@@ -174,7 +174,6 @@ function DashboardContent() {
       }
 
       setUserId(activeUser.id);
-      console.log("Logged-in User Email:", activeUser.email, "ID:", activeUser.id);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -186,20 +185,17 @@ function DashboardContent() {
         setCurrency(profile.preferred_currency);
       }
 
-      // Robust Target User ID mapping for family members
       let targetUserId = activeUser.id;
       
       if (activeUser.email) {
         const cleanEmail = activeUser.email.trim().toLowerCase();
         
-        // 1. Primary lookup by email (case-insensitive)
         let { data: memberRecord } = await supabase
           .from('family_members')
           .select('*')
           .ilike('member_email', cleanEmail)
           .maybeSingle();
 
-        // 2. Fallback lookup incase email column casing differs
         if (!memberRecord) {
           const { data: allMembers } = await supabase
             .from('family_members')
@@ -215,10 +211,8 @@ function DashboardContent() {
 
         if (memberRecord && memberRecord.owner_id) {
           targetUserId = memberRecord.owner_id;
-          setShowTutorial(false); // Force bypass tutorial for family members
-          console.log("SUCCESS: Family member mapped to Owner ID:", targetUserId);
+          setShowTutorial(false);
         } else {
-          console.log("No family member record found for:", cleanEmail);
           if (profile && profile.has_seen_tutorial === false) {
             setShowTutorial(true);
           }
@@ -236,8 +230,6 @@ function DashboardContent() {
         if (!selectedAccount) setSelectedAccount(firstAccName);
         if (!paymentAccountId) setPaymentAccountId(firstAccName);
         if (!quickAccount) setQuickAccount(firstAccName);
-      } else {
-        console.warn("Accounts fetch error or empty:", accErr);
       }
 
       const { data: txData, error: txErr } = await supabase
@@ -451,7 +443,23 @@ function DashboardContent() {
     return true;
   });
 
-  const totalAvailableCash = accounts.reduce((acc, a) => {
+  // CRITICAL FIX: Separate Liquid Asset Accounts from Credit Card Liabilities
+  const liquidAccounts = accounts.filter(a => {
+    const accType = (a?.type || a?.account_type || '').toLowerCase();
+    return !accType.includes('credit');
+  });
+
+  const creditCardAccounts = accounts.filter(a => {
+    const accType = (a?.type || a?.account_type || '').toLowerCase();
+    return accType.includes('credit');
+  });
+
+  const totalAvailableCash = liquidAccounts.reduce((acc, a) => {
+    const bal = a?.current_balance ?? a?.opening_balance ?? 0;
+    return acc + Number(bal || 0);
+  }, 0);
+
+  const totalCreditLiability = creditCardAccounts.reduce((acc, a) => {
     const bal = a?.current_balance ?? a?.opening_balance ?? 0;
     return acc + Number(bal || 0);
   }, 0);
@@ -499,7 +507,7 @@ function DashboardContent() {
       spent,
       pct: Math.min(pct, 100)
     };
-  }).sort((itemA, itemB) => itemB.spent - itemB.spent);
+  }).sort((itemA, itemB) => itemB.spent - itemA.spent);
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100 transition-colors relative pb-28 md:pb-8">
@@ -622,7 +630,7 @@ function DashboardContent() {
               {formatCurrency(Number(totalAvailableCash || 0), currency)}
             </h3>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-2 flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" /> Across {accounts.length} Accounts & Wallets
+              <TrendingUp className="w-3.5 h-3.5" /> Across {liquidAccounts.length} Liquid Accounts & Wallets
             </p>
           </div>
 
@@ -736,6 +744,7 @@ function DashboardContent() {
                 {accounts.map((acc) => {
                   const accName = acc?.name || acc?.account_name || 'Account';
                   const accType = acc?.type || acc?.account_type || 'Bank';
+                  const isCreditCard = accType.toLowerCase().includes('credit');
                   const accBal = Number(acc?.current_balance ?? acc?.opening_balance ?? 0);
                   return (
                     <div key={acc.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
@@ -743,9 +752,14 @@ function DashboardContent() {
                         <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{accName}</p>
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{accType}</p>
                       </div>
-                      <p className="text-base font-bold text-slate-900 dark:text-white">
-                        {formatCurrency(accBal, currency)}
-                      </p>
+                      <div className="text-right">
+                        <p className={`text-base font-bold ${isCreditCard ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                          {formatCurrency(accBal, currency)}
+                        </p>
+                        {isCreditCard && (
+                          <span className="text-[9px] text-rose-500 font-bold uppercase tracking-wider block">Outstanding</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -963,7 +977,6 @@ function DashboardContent() {
 
             <form onSubmit={handleMobileQuickSubmit} className="space-y-4">
               
-              {/* Priority 1: Amount */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Amount ({currency}) *
@@ -979,7 +992,6 @@ function DashboardContent() {
                 />
               </div>
 
-              {/* Priority 2: Dynamic Category based on Expense or Income */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Category *
@@ -1014,7 +1026,6 @@ function DashboardContent() {
                 </select>
               </div>
 
-              {/* Priority 3: Account */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Account / Wallet *
@@ -1035,7 +1046,6 @@ function DashboardContent() {
                 </select>
               </div>
 
-              {/* Automatic Current Date Info Note */}
               <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span>Transaction Date:</span>
                 <span className="font-mono font-semibold text-indigo-400">{todayStr} (Today)</span>
