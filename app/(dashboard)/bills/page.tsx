@@ -164,6 +164,7 @@ export default function BillsPage() {
       alert('Error adding bill: ' + error.message);
     } else {
       setTitle('');
+      setCategory('Utilities & Bills');
       setAmount('');
       setLateCharges('');
       setNotes('');
@@ -364,7 +365,7 @@ export default function BillsPage() {
         type: 'Transfer',
         account_name: sourceAccount,
         transfer_to: targetAccount,
-        category: 'Internal Transfer',
+        category: transferringBill.category || 'Internal Transfer',
         amount: transferTotalAmount,
         party_name: 'Credit Card Bill Payment',
         description: `Bill Payment for ${transferringBill.title || 'Bill'}`,
@@ -508,11 +509,28 @@ export default function BillsPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. HBL Credit Card / KE Electric / Sui Gas"
+                placeholder="e.g. HBL Credit Card / KE Electric / School Fee"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
+              >
+                <option value="Utilities & Bills">Utilities & Bills</option>
+                <option value="Education">Education</option>
+                <option value="School Transport">School Transport</option>
+                <option value="Groceries & Food">Groceries & Food</option>
+                <option value="Vehicle Maintenance">Vehicle Maintenance</option>
+                <option value="Medical & Health">Medical & Health</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -568,7 +586,7 @@ export default function BillsPage() {
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
               <input
                 type="text"
-                placeholder="e.g. Variable utility bill tracker"
+                placeholder="e.g. Variable bill tracker"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
@@ -656,6 +674,9 @@ export default function BillsPage() {
                       <div className="space-y-1 w-full sm:w-auto pr-0 sm:pr-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-slate-800 dark:text-white text-sm">{b.title}</span>
+                          <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md font-medium">
+                            {b.category || 'Utilities & Bills'}
+                          </span>
                           {b.is_recurring && (
                             <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
                               <Repeat className="w-3 h-3" /> Variable Recurring
