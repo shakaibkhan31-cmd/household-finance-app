@@ -263,7 +263,7 @@ export default function TransactionsPage() {
 
   const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return; // Guard against multi-click
+    if (isSubmitting) return;
 
     if (!amount || !accountName) {
       alert('Please select an account and enter an amount.');
@@ -361,6 +361,7 @@ export default function TransactionsPage() {
         }
 
         if (isTransfer) {
+          // Source Account deduction
           const { data: srcAcc } = await supabase
             .from('accounts')
             .select('*')
@@ -370,8 +371,15 @@ export default function TransactionsPage() {
 
           if (srcAcc && srcAcc.length > 0) {
             const accObj = srcAcc[0];
+            const isSrcCard = (accObj.type || '').trim().toLowerCase().includes('credit');
             let currentBal = Number(accObj.current_balance || 0);
-            currentBal -= parsedAmount; 
+            
+            if (isSrcCard) {
+              currentBal += parsedAmount; 
+            } else {
+              currentBal -= parsedAmount; 
+            }
+
             await supabase
               .from('accounts')
               .update({ current_balance: currentBal })
@@ -379,6 +387,7 @@ export default function TransactionsPage() {
               .eq('user_id', user.id);
           }
 
+          // Destination Account addition/credit card payment reduction
           const { data: destAcc } = await supabase
             .from('accounts')
             .select('*')
@@ -388,8 +397,15 @@ export default function TransactionsPage() {
 
           if (destAcc && destAcc.length > 0) {
             const accObj = destAcc[0];
+            const isDestCard = (accObj.type || '').trim().toLowerCase().includes('credit');
             let currentBal = Number(accObj.current_balance || 0);
-            currentBal += parsedAmount;
+
+            if (isDestCard) {
+              currentBal -= parsedAmount; // Payment to credit card reduces outstanding
+            } else {
+              currentBal += parsedAmount;
+            }
+
             await supabase
               .from('accounts')
               .update({ current_balance: currentBal })
@@ -528,7 +544,11 @@ export default function TransactionsPage() {
         .limit(1);
 
       if (srcAcc && srcAcc.length > 0) {
-        let bal = Number(srcAcc[0].current_balance || 0) + txAmount;
+        const isSrcCard = (srcAcc[0].type || '').trim().toLowerCase().includes('credit');
+        let bal = Number(srcAcc[0].current_balance || 0);
+        if (isSrcCard) bal -= txAmount;
+        else bal += txAmount;
+
         await supabase
           .from('accounts')
           .update({ current_balance: bal })
@@ -543,7 +563,11 @@ export default function TransactionsPage() {
         .limit(1);
 
       if (destAcc && destAcc.length > 0) {
-        let bal = Number(destAcc[0].current_balance || 0) - txAmount;
+        const isDestCard = (destAcc[0].type || '').trim().toLowerCase().includes('credit');
+        let bal = Number(destAcc[0].current_balance || 0);
+        if (isDestCard) bal += txAmount;
+        else bal -= txAmount;
+
         await supabase
           .from('accounts')
           .update({ current_balance: bal })
@@ -615,7 +639,11 @@ export default function TransactionsPage() {
             .limit(1);
 
           if (srcAcc && srcAcc.length > 0) {
-            let bal = Number(srcAcc[0].current_balance || 0) + txAmount;
+            const isSrcCard = (srcAcc[0].type || '').trim().toLowerCase().includes('credit');
+            let bal = Number(srcAcc[0].current_balance || 0);
+            if (isSrcCard) bal -= txAmount;
+            else bal += txAmount;
+
             await supabase
               .from('accounts')
               .update({ current_balance: bal })
@@ -630,7 +658,11 @@ export default function TransactionsPage() {
             .limit(1);
 
           if (destAcc && destAcc.length > 0) {
-            let bal = Number(destAcc[0].current_balance || 0) - txAmount;
+            const isDestCard = (destAcc[0].type || '').trim().toLowerCase().includes('credit');
+            let bal = Number(destAcc[0].current_balance || 0);
+            if (isDestCard) bal += txAmount;
+            else bal -= txAmount;
+
             await supabase
               .from('accounts')
               .update({ current_balance: bal })
