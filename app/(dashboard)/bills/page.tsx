@@ -36,6 +36,7 @@ export default function BillsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [todayStr, setTodayStr] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
+  const [memberName, setMemberName] = useState<string>('Member');
 
   // Filter & Search State
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
@@ -78,15 +79,32 @@ export default function BillsPage() {
       return;
     }
 
+    // Fetch user profile name or fallback family member name
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency')
+      .select('preferred_currency, full_name')
       .eq('id', user.id)
       .maybeSingle();
 
     if (profile && profile.preferred_currency) {
       setCurrency(profile.preferred_currency);
     }
+
+    let computedName = user.email ? user.email.split('@')[0] : 'Member';
+    if (profile && profile.full_name) {
+      computedName = profile.full_name;
+    } else {
+      const { data: familyMemberMatch } = await supabase
+        .from('family_members')
+        .select('member_name')
+        .eq('member_email', user.email?.toLowerCase() || '')
+        .maybeSingle();
+
+      if (familyMemberMatch && familyMemberMatch.member_name) {
+        computedName = familyMemberMatch.member_name;
+      }
+    }
+    setMemberName(computedName);
 
     const { data: accData } = await supabase
       .from('accounts')
@@ -206,7 +224,7 @@ export default function BillsPage() {
         description: `Paid variable bill: ${payingBill.title} ${
           payingTotalAmount > finalPaidAmount ? '(Includes Late Fee)' : ''
         }`,
-        entered_by: 'Husband',
+        entered_by: memberName,
         user_id: user.id,
       },
     ]);
@@ -350,7 +368,7 @@ export default function BillsPage() {
         amount: transferTotalAmount,
         party_name: 'Credit Card Bill Payment',
         description: `Bill Payment for ${transferringBill.title || 'Bill'}`,
-        entered_by: 'Husband',
+        entered_by: memberName,
         user_id: user.id,
       },
     ]);
@@ -497,7 +515,6 @@ export default function BillsPage() {
               />
             </div>
 
-            {/* Fixed Alignment Grid for Amount and Due Date */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
@@ -658,7 +675,6 @@ export default function BillsPage() {
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-                          {/* Date Format updated to DD-MM-YYYY */}
                           <span className="flex items-center gap-1 font-mono">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" /> Due: {formatDateDisplay(b.due_date)}
                           </span>
