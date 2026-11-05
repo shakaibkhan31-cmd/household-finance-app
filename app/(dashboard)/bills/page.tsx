@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
 import { syncCreditCardDebt } from '@/lib/financeSync';
-import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2, AlertTriangle, Search, Filter, Repeat } from 'lucide-react';
+import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2, Edit2, AlertTriangle, Search, Filter, Repeat } from 'lucide-react';
 
 export interface Bill {
   id: string;
@@ -63,6 +63,16 @@ export default function BillsPage() {
   const [transferTotalAmount, setTransferTotalAmount] = useState<number>(0);
   const [sourceAccount, setSourceAccount] = useState('');
   const [targetAccount, setTargetAccount] = useState('');
+
+  // Edit Bill Modal State
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState('Utilities & Bills');
+  const [editAmount, setEditAmount] = useState('');
+  const [editLateCharges, setEditLateCharges] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editIsRecurring, setEditIsRecurring] = useState(false);
+  const [editNotes, setEditNotes] = useState('');
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -169,6 +179,47 @@ export default function BillsPage() {
       setLateCharges('');
       setNotes('');
       setIsRecurring(false);
+      fetchBillsAndAccounts();
+    }
+  };
+
+  const handleOpenEditModal = (bill: Bill) => {
+    setEditingBill(bill);
+    setEditTitle(bill.title);
+    setEditCategory(bill.category || 'Utilities & Bills');
+    setEditAmount(bill.amount.toString());
+    setEditLateCharges(bill.late_charges ? bill.late_charges.toString() : '');
+    setEditDueDate(bill.due_date);
+    setEditIsRecurring(!!bill.is_recurring);
+    setEditNotes(bill.notes || '');
+  };
+
+  const handleUpdateBill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBill) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('bills')
+      .update({
+        title: editTitle,
+        category: editCategory,
+        amount: parseFloat(editAmount) || 0,
+        late_charges: editLateCharges ? parseFloat(editLateCharges) : 0,
+        due_date: editDueDate,
+        is_recurring: editIsRecurring,
+        notes: editNotes,
+      })
+      .eq('id', editingBill.id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      alert('Error updating bill: ' + error.message);
+    } else {
+      setEditingBill(null);
+      alert('Bill updated successfully!');
       fetchBillsAndAccounts();
     }
   };
@@ -524,8 +575,11 @@ export default function BillsPage() {
                 className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
               >
                 <option value="Utilities & Bills">Utilities & Bills</option>
+                <option value="Housing & Shelter">Housing & Shelter</option>
                 <option value="Education">Education</option>
                 <option value="School Transport">School Transport</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Memberships & Subscriptions">Memberships & Subscriptions</option>
                 <option value="Groceries & Food">Groceries & Food</option>
                 <option value="Vehicle Maintenance">Vehicle Maintenance</option>
                 <option value="Medical & Health">Medical & Health</option>
@@ -735,6 +789,13 @@ export default function BillsPage() {
                             </>
                           )}
                           <button
+                            onClick={() => handleOpenEditModal(b)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition cursor-pointer"
+                            title="Edit Bill"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleDeleteBill(b)}
                             className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
                             title="Delete Bill"
@@ -751,6 +812,113 @@ export default function BillsPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Bill Modal */}
+      {editingBill && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full p-6 space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Bill Entry</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Modify bill details below.</p>
+            </div>
+
+            <form onSubmit={handleUpdateBill} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Bill Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium cursor-pointer"
+                >
+                  <option value="Utilities & Bills">Utilities & Bills</option>
+                  <option value="Housing & Shelter">Housing & Shelter</option>
+                  <option value="Education">Education</option>
+                  <option value="School Transport">School Transport</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Memberships & Subscriptions">Memberships & Subscriptions</option>
+                  <option value="Groceries & Food">Groceries & Food</option>
+                  <option value="Vehicle Maintenance">Vehicle Maintenance</option>
+                  <option value="Medical & Health">Medical & Health</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Amount ({currency})</label>
+                  <input
+                    type="number"
+                    required
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 font-bold outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Late Charges ({currency})</label>
+                <input
+                  type="number"
+                  value={editLateCharges}
+                  onChange={(e) => setEditLateCharges(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none font-semibold text-rose-700 dark:text-rose-400"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editRecurring"
+                  checked={editIsRecurring}
+                  onChange={(e) => setEditIsRecurring(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-slate-700 focus:ring-indigo-500"
+                />
+                <label htmlFor="editRecurring" className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1 cursor-pointer">
+                  <Repeat className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Repeat Monthly (Variable Baseline)
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditingBill(null)} className="flex-1 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl cursor-pointer">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Mark Paid Modal */}
       {payingBill && (
