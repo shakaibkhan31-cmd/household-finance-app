@@ -131,7 +131,7 @@ export default function FinanceDashboard() {
 
 function DashboardContent() {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [bills, setBills] = useState<Bill[]>([]);
+  const [allBills, setAllBills] = useState<Bill[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
@@ -269,11 +269,7 @@ function DashboardContent() {
         .eq('user_id', targetUserId);
 
       if (!billErr && billData) {
-        const pendingBills = billData.filter(b => {
-          const stat = (b?.status || b?.payment_status || '').toUpperCase();
-          return stat === 'PENDING' || stat === 'UNPAID';
-        });
-        setBills(pendingBills);
+        setAllBills(billData);
       }
 
       const { data: budgetData, error: budgetErr } = await supabase
@@ -457,6 +453,27 @@ function DashboardContent() {
     const txDate = (tx.date || tx.transaction_date || '').trim();
     if (!txDate) return false;
     const datePrefix = txDate.slice(0, 10);
+
+    if (filterMode === 'month') {
+      return selectedMonth ? datePrefix.startsWith(selectedMonth) : true;
+    } else if (filterMode === 'year') {
+      return selectedYear ? datePrefix.startsWith(selectedYear) : true;
+    } else if (filterMode === 'custom') {
+      if (!customStart || !customEnd) return true;
+      return datePrefix >= customStart && datePrefix <= customEnd;
+    }
+    return true;
+  });
+
+  // Filter bills according to selected date range and pending status
+  const bills = allBills.filter((b) => {
+    const stat = (b?.status || b?.payment_status || '').toUpperCase();
+    const isPending = stat === 'PENDING' || stat === 'UNPAID';
+    if (!isPending) return false;
+
+    const dueDate = (b?.due_date || '').trim();
+    if (!dueDate) return true;
+    const datePrefix = dueDate.slice(0, 10);
 
     if (filterMode === 'month') {
       return selectedMonth ? datePrefix.startsWith(selectedMonth) : true;
