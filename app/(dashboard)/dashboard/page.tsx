@@ -90,6 +90,9 @@ interface Bill {
   bill_amount?: number;
   status?: string;
   payment_status?: string;
+  notes?: string;
+  description?: string;
+  remarks?: string;
   user_id?: string;
 }
 
@@ -103,6 +106,7 @@ interface Transaction {
   description: string;
   account_name?: string;
   entered_by?: string;
+  party_name?: string;
   user_id?: string;
 }
 
@@ -416,7 +420,13 @@ function DashboardContent() {
 
       const currentDate = new Date().toISOString().split('T')[0];
       const billAmt = Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0);
-      const billProvider = selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Bill Payment';
+      
+      // Bill Title / Provider for Party Name
+      const billTitle = selectedBillToPay.title || selectedBillToPay.provider || selectedBillToPay.bill_name || selectedBillToPay.name || 'Utility Bill';
+      
+      // Bill Notes for Description / Remarks
+      const billNotes = selectedBillToPay.notes || selectedBillToPay.description || selectedBillToPay.remarks || `Bill Payment: ${billTitle}`;
+      
       const billCategory = selectedBillToPay.category || 'Utilities & Bills';
 
       await supabase
@@ -430,7 +440,8 @@ function DashboardContent() {
           type: 'Expense',
           amount: billAmt,
           category: billCategory,
-          description: `Bill Payment: ${billProvider}`,
+          description: billNotes,
+          party_name: billTitle,
           entered_by: memberName,
           account_name: paymentAccountId,
           date: currentDate,
