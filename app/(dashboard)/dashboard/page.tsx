@@ -463,6 +463,10 @@ function DashboardContent() {
       return datePrefix >= customStart && datePrefix <= customEnd;
     }
     return true;
+  }).sort((a, b) => {
+    const dateA = (a.date || a.transaction_date || '');
+    const dateB = (b.date || b.transaction_date || '');
+    return dateB.localeCompare(dateA); // Latest date first
   });
 
   // Filter bills according to selected date range and pending status
@@ -945,11 +949,11 @@ function DashboardContent() {
                 </Link>
               </div>
 
-              {transactions.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-6">No recent transactions recorded.</p>
+              {filteredTransactions.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6">No recent transactions recorded for this period.</p>
               ) : (
                 <div className="space-y-3">
-                  {transactions.slice(0, 4).map((tx) => {
+                  {filteredTransactions.slice(0, 4).map((tx) => {
                     const isIncome = (tx?.type || '').toLowerCase().includes('income') || (tx?.type || '').toLowerCase().includes('inflow');
                     return (
                       <div key={tx.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
