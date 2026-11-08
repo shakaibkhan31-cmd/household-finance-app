@@ -187,7 +187,7 @@ export default function ReportsPage() {
           <div 
             ref={reportRef} 
             className="w-[210mm] min-h-[297mm] bg-white text-slate-900 p-10 mx-auto shadow-2xl rounded-sm space-y-8 font-sans"
-            style={{ colorScheme: 'light' }}
+            style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
           >
             {/* 1. Header Banner */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
