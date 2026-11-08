@@ -20,7 +20,8 @@ import {
   UserCheck,
   LogOut,
   Users,
-  Settings
+  Settings,
+  FileText
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
@@ -44,6 +45,7 @@ const navSections: NavSection[] = [
       { name: 'Dashboard', href: '/', icon: LayoutDashboard, permKey: 'dashboard' },
       { name: 'Transactions', href: '/transactions', icon: ArrowLeftRight, permKey: 'transactions' },
       { name: 'Accounts', href: '/accounts', icon: Wallet, permKey: 'accounts' },
+      { name: 'Reports & Statements', href: '/reports', icon: FileText, permKey: 'reports' },
     ]
   },
   {
@@ -86,6 +88,7 @@ export default function Sidebar() {
     dashboard: true,
     transactions: true,
     accounts: true,
+    reports: true,
     income: true,
     budgets: true,
     goals: true,
@@ -151,7 +154,6 @@ export default function Sidebar() {
     if (error) {
       console.error('Logout error:', error.message);
     } else {
-      // Hard redirect to clear browser session cache and prevent back-button access
       window.location.href = '/login';
     }
   };
