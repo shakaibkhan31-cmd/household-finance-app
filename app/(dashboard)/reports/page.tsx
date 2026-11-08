@@ -128,10 +128,37 @@ export default function ReportsPage() {
 
   return (
     <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100">
+      
+      {/* Print Styles to Isolate Statement and Hide Sidebar/UI */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-statement, #printable-statement * {
+            visibility: visible !important;
+          }
+          #printable-statement {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 10mm !important;
+            box-shadow: none !important;
+            background: white !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+        }
+      `}</style>
+
       <div className="max-w-5xl mx-auto space-y-6">
         
         {/* Top Filter & Action Bar (Hidden during print) */}
-        <div className="print:hidden bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               <FileText className="w-6 h-6 text-indigo-600" /> Financial Statements & Reports
@@ -159,15 +186,16 @@ export default function ReportsPage() {
         {/* -------------------- EXECUTIVE PRINTABLE CANVAS -------------------- */}
         <div className="overflow-x-auto flex justify-center">
           <div 
+            id="printable-statement"
             ref={reportRef} 
-            className="w-[210mm] min-h-[297mm] bg-white text-slate-900 p-10 shadow-2xl rounded-sm space-y-8 font-sans print:shadow-none print:p-0 print:w-full"
+            className="w-[210mm] min-h-[297mm] bg-white text-slate-900 p-10 shadow-2xl rounded-sm space-y-6 font-sans"
             style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
           >
             {/* 1. Header Banner */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
               <div>
                 <div className="flex items-center gap-2 text-indigo-900">
-                  <Building2 className="w-8 h-8 text-indigo-600" />
+                  <Building2 className="w-7 h-7 text-indigo-600" />
                   <span className="text-2xl font-black tracking-wider uppercase">FINANCE OS</span>
                 </div>
                 <p className="text-xs text-slate-500 font-medium mt-1">Executive Monthly Performance & Cashflow Statement</p>
@@ -182,7 +210,7 @@ export default function ReportsPage() {
             </div>
 
             {/* 2. Client & Summary Metadata */}
-            <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+            <div className="grid grid-cols-2 gap-6 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
               <div>
                 <p className="text-slate-400 font-semibold uppercase text-[10px]">Prepared For</p>
                 <p className="font-bold text-slate-800 text-sm">{userName}</p>
@@ -196,51 +224,51 @@ export default function ReportsPage() {
             </div>
 
             {/* 3. Executive KPI Cards */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Inflow</span>
-                <p className="text-base font-extrabold text-blue-600 mt-1">{formatCurrency(totalIncome, currency)}</p>
+                <p className="text-sm font-extrabold text-blue-600 mt-1">{formatCurrency(totalIncome, currency)}</p>
               </div>
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Outflow</span>
-                <p className="text-base font-extrabold text-rose-600 mt-1">{formatCurrency(totalExpense, currency)}</p>
+                <p className="text-sm font-extrabold text-rose-600 mt-1">{formatCurrency(totalExpense, currency)}</p>
               </div>
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Net Surplus</span>
-                <p className={`text-base font-extrabold mt-1 ${netSavings >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <p className={`text-sm font-extrabold mt-1 ${netSavings >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {formatCurrency(netSavings, currency)}
                 </p>
               </div>
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Savings Retention</span>
-                <p className="text-base font-extrabold text-indigo-600 mt-1">{savingsRate}%</p>
+                <p className="text-sm font-extrabold text-indigo-600 mt-1">{savingsRate}%</p>
               </div>
             </div>
 
             {/* 4. Category Expense Breakdown Table */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-200 pb-1">
                 Category Expense Distribution
               </h3>
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-100 text-slate-600 uppercase text-[10px]">
-                    <th className="p-2.5 font-bold">Category</th>
-                    <th className="p-2.5 font-bold text-right">Amount</th>
-                    <th className="p-2.5 font-bold text-right">Share (%)</th>
+                    <th className="p-2 font-bold">Category</th>
+                    <th className="p-2 font-bold text-right">Amount</th>
+                    <th className="p-2 font-bold text-right">Share (%)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {categoryBreakdown.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="p-4 text-center text-slate-400">No expenses recorded for this month.</td>
+                      <td colSpan={3} className="p-3 text-center text-slate-400">No expenses recorded for this month.</td>
                     </tr>
                   ) : (
                     categoryBreakdown.map((cat, idx) => (
                       <tr key={idx} className="hover:bg-slate-50">
-                        <td className="p-2.5 font-medium text-slate-700">{cat.category}</td>
-                        <td className="p-2.5 text-right font-bold text-slate-900">{formatCurrency(cat.amount, currency)}</td>
-                        <td className="p-2.5 text-right font-semibold text-slate-500">{cat.percentage}%</td>
+                        <td className="p-2 font-medium text-slate-700">{cat.category}</td>
+                        <td className="p-2 text-right font-bold text-slate-900">{formatCurrency(cat.amount, currency)}</td>
+                        <td className="p-2 text-right font-semibold text-slate-500">{cat.percentage}%</td>
                       </tr>
                     ))
                   )}
@@ -249,36 +277,36 @@ export default function ReportsPage() {
             </div>
 
             {/* 5. Detailed Transaction Ledger (Top Items) */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-200 pb-1">
                 Activity Audit Ledger
               </h3>
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-100 text-slate-600 uppercase text-[10px]">
-                    <th className="p-2.5 font-bold">Date</th>
-                    <th className="p-2.5 font-bold">Description / Party</th>
-                    <th className="p-2.5 font-bold">Account</th>
-                    <th className="p-2.5 font-bold text-right">Amount</th>
+                    <th className="p-2 font-bold">Date</th>
+                    <th className="p-2 font-bold">Description / Party</th>
+                    <th className="p-2 font-bold">Account</th>
+                    <th className="p-2 font-bold text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {monthlyTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="p-4 text-center text-slate-400">No activity logged.</td>
+                      <td colSpan={4} className="p-3 text-center text-slate-400">No activity logged.</td>
                     </tr>
                   ) : (
-                    monthlyTransactions.slice(0, 10).map((tx) => {
+                    monthlyTransactions.slice(0, 8).map((tx) => {
                       const isInc = (tx.type || '').toLowerCase().includes('income');
                       return (
                         <tr key={tx.id}>
-                          <td className="p-2.5 font-mono text-slate-500">{formatDateDisplay(tx.date || tx.transaction_date || '')}</td>
-                          <td className="p-2.5 font-semibold text-slate-800">
+                          <td className="p-2 font-mono text-slate-500">{formatDateDisplay(tx.date || tx.transaction_date || '')}</td>
+                          <td className="p-2 font-semibold text-slate-800">
                             {tx.description}
                             {tx.party_name && <span className="text-[10px] text-slate-400 block font-normal">Party: {tx.party_name}</span>}
                           </td>
-                          <td className="p-2.5 text-slate-600">{tx.account_name || 'Cash'}</td>
-                          <td className={`p-2.5 text-right font-bold ${isInc ? 'text-emerald-600' : 'text-slate-900'}`}>
+                          <td className="p-2 text-slate-600">{tx.account_name || 'Cash'}</td>
+                          <td className={`p-2 text-right font-bold ${isInc ? 'text-emerald-600' : 'text-slate-900'}`}>
                             {isInc ? '+' : '-'} {formatCurrency(Number(tx.amount), currency)}
                           </td>
                         </tr>
@@ -290,7 +318,7 @@ export default function ReportsPage() {
             </div>
 
             {/* 6. Executive Footer & Digital Verification */}
-            <div className="pt-8 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400">
+            <div className="pt-6 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400">
               <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" /> System Reconciled & Digitally Verified
               </div>
