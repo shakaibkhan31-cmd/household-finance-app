@@ -5,13 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
 import { 
   Download, 
-  Calendar, 
-  TrendingUp, 
-  TrendingDown, 
-  Wallet, 
-  PieChart, 
   FileText,
-  Printer,
   ShieldCheck,
   Building2
 } from 'lucide-react';
@@ -38,6 +32,15 @@ interface Budget {
   amount?: number;
 }
 
+const formatDateDisplay = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+};
+
 export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState('2026-11');
   const [currency, setCurrency] = useState('PKR');
@@ -56,7 +59,6 @@ export default function ReportsPage() {
       const userId = session?.user?.id;
       if (!userId) return;
 
-      // Profile details
       const { data: profile } = await supabase
         .from('profiles')
         .select('preferred_currency, full_name')
@@ -66,7 +68,6 @@ export default function ReportsPage() {
       if (profile?.preferred_currency) setCurrency(profile.preferred_currency);
       if (profile?.full_name) setUserName(profile.full_name);
 
-      // Transactions
       const { data: txData } = await supabase
         .from('transactions')
         .select('*')
@@ -74,7 +75,6 @@ export default function ReportsPage() {
 
       if (txData) setTransactions(txData);
 
-      // Budgets
       const { data: bgData } = await supabase
         .from('budgets')
         .select('*')
@@ -93,7 +93,6 @@ export default function ReportsPage() {
     fetchReportData();
   }, [selectedMonth]);
 
-  // Filter Transactions by Selected Month
   const monthlyTransactions = transactions.filter(t => {
     const d = t.date || t.transaction_date || '';
     return d.startsWith(selectedMonth);
@@ -110,7 +109,6 @@ export default function ReportsPage() {
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
 
-  // Group Expenses by Category
   const categoryMap: { [key: string]: number } = {};
   monthlyTransactions
     .filter(t => (t.type || '').toLowerCase().includes('expense'))
@@ -125,14 +123,13 @@ export default function ReportsPage() {
     percentage: totalExpense > 0 ? Math.round((amt / totalExpense) * 100) : 0
   })).sort((a, b) => b.amount - a.amount);
 
-  // PDF Generation Function
   const handleDownloadPDF = async () => {
     if (!reportRef.current) return;
     try {
       setDownloading(true);
       const element = reportRef.current;
       const canvas = await html2canvas(element, {
-        scale: 2, // High DPI resolution for crisp text
+        scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
