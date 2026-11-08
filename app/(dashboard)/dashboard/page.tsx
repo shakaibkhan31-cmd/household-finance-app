@@ -24,6 +24,16 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+// Helper function to format date from YYYY-MM-DD to DD-MM-YYYY for display
+const formatDateDisplay = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+};
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -74,6 +84,7 @@ interface Bill {
   title?: string;
   bill_name?: string;
   name?: string;
+  category?: string;
   due_date?: string;
   amount?: number;
   bill_amount?: number;
@@ -91,6 +102,7 @@ interface Transaction {
   amount: number;
   description: string;
   account_name?: string;
+  entered_by?: string;
   user_id?: string;
 }
 
@@ -125,6 +137,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [currency, setCurrency] = useState('PKR');
+  const [memberName, setMemberName] = useState<string>('Member');
 
   // Tutorial State
   const [showTutorial, setShowTutorial] = useState(false);
@@ -142,7 +155,7 @@ function DashboardContent() {
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('Expense');
   const [description, setDescription] = useState('');
-  const [enteredBy, setEnteredBy] = useState('Husband');
+  const [enteredBy, setEnteredBy] = useState('Member');
   const [selectedAccount, setSelectedAccount] = useState('');
 
   // Mobile Quick Action Modal States
@@ -177,12 +190,17 @@ function DashboardContent() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('preferred_currency, has_seen_tutorial')
+        .select('preferred_currency, has_seen_tutorial, full_name')
         .eq('id', activeUser.id)
         .maybeSingle();
 
       if (profile && profile.preferred_currency) {
         setCurrency(profile.preferred_currency);
+      }
+
+      let computedName = activeUser.email ? activeUser.email.split('@')[0] : 'Member';
+      if (profile && profile.full_name) {
+        computedName = profile.full_name;
       }
 
       let targetUserId = activeUser.id;
@@ -209,15 +227,21 @@ function DashboardContent() {
           }
         }
 
-        if (memberRecord && memberRecord.owner_id) {
-          targetUserId = memberRecord.owner_id;
-          setShowTutorial(false);
+        if (memberRecord) {
+          if (memberRecord.member_name) {
+            computedName = memberRecord.member_name;
+          }
+          if (memberRecord.owner_id) {
+            targetUserId = memberRecord.owner_id;
+            setShowTutorial(false);
+          }
         } else {
           if (profile && profile.has_seen_tutorial === false) {
             setShowTutorial(true);
           }
         }
       }
+      setMemberName(computedName);
 
       const { data: accData, error: accErr } = await supabase
         .from('accounts')
@@ -310,7 +334,7 @@ function DashboardContent() {
           type,
           amount: parseFloat(amount),
           description,
-          entered_by: enteredBy,
+          entered_by: memberName,
           account_name: selectedAccount,
           date: currentDate,
           transaction_date: currentDate,
@@ -358,7 +382,7 @@ function DashboardContent() {
           amount: parseFloat(quickAmount),
           description: `${modalType} - ${finalCategory}`,
           category: finalCategory,
-          entered_by: 'User',
+          entered_by: memberName,
           account_name: quickAccount || selectedAccount,
           date: currentDate,
           transaction_date: currentDate,
@@ -397,6 +421,7 @@ function DashboardContent() {
       const currentDate = new Date().toISOString().split('T')[0];
       const billAmt = Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0);
       const billProvider = selectedBillToPay.provider || selectedBillToPay.title || selectedBillToPay.bill_name || selectedBillToPay.name || 'Bill Payment';
+      const billCategory = selectedBillToPay.category || 'Utilities & Bills';
 
       await supabase
         .from('bills')
@@ -408,8 +433,9 @@ function DashboardContent() {
         {
           type: 'Expense',
           amount: billAmt,
+          category: billCategory,
           description: `Bill Payment: ${billProvider}`,
-          entered_by: 'System',
+          entered_by: memberName,
           account_name: paymentAccountId,
           date: currentDate,
           transaction_date: currentDate,
@@ -443,7 +469,6 @@ function DashboardContent() {
     return true;
   });
 
-  // CRITICAL FIX: Separate Liquid Asset Accounts from Credit Card Liabilities
   const liquidAccounts = accounts.filter(a => {
     const accType = (a?.type || a?.account_type || '').toLowerCase();
     return !accType.includes('credit');
@@ -865,7 +890,7 @@ function DashboardContent() {
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-bold text-slate-800 dark:text-white text-xs">{providerName}</h4>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due Date: {bill?.due_date}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">Due Date: {formatDateDisplay(bill?.due_date || '')}</p>
                           </div>
                           <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
                             Due
@@ -913,7 +938,7 @@ function DashboardContent() {
                       <div key={tx.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
                         <div className="overflow-hidden pr-2">
                           <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{tx?.description}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">{tx?.date || tx?.transaction_date}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">{formatDateDisplay(tx?.date || tx?.transaction_date || '')}</p>
                         </div>
                         <span className={`text-xs font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
                           {isIncome ? '+' : '-'} {formatCurrency(Number(tx?.amount || 0), currency)}
@@ -1048,7 +1073,7 @@ function DashboardContent() {
 
               <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span>Transaction Date:</span>
-                <span className="font-mono font-semibold text-indigo-400">{todayStr} (Today)</span>
+                <span className="font-mono font-semibold text-indigo-400">{formatDateDisplay(todayStr)} (Today)</span>
               </div>
 
               <div className="pt-2 flex gap-3">
