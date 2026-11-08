@@ -49,6 +49,7 @@ export default function ReportsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [userName, setUserName] = useState('Valued Client / User');
+  const [currentDateStr, setCurrentDateStr] = useState('');
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +91,7 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
+    setCurrentDateStr(new Date().toLocaleDateString());
     fetchReportData();
   }, [selectedMonth]);
 
@@ -201,7 +203,7 @@ export default function ReportsPage() {
                   OFFICIAL STATEMENT
                 </span>
                 <p className="text-xs font-bold text-slate-800 mt-2">Period: {selectedMonth}</p>
-                <p className="text-[10px] text-slate-400">Generated on: {new Date().toLocaleDateString()}</p>
+                <p className="text-[10px] text-slate-400">Generated on: {currentDateStr}</p>
               </div>
             </div>
 
