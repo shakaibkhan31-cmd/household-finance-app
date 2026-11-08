@@ -4,13 +4,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
 import { 
-  Download, 
+  Printer, 
   FileText,
   ShieldCheck,
   Building2
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface Transaction {
   id: string;
@@ -45,7 +43,6 @@ export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState('2026-11');
   const [currency, setCurrency] = useState('PKR');
   const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [userName, setUserName] = useState('Valued Client / User');
@@ -125,38 +122,16 @@ export default function ReportsPage() {
     percentage: totalExpense > 0 ? Math.round((amt / totalExpense) * 100) : 0
   })).sort((a, b) => b.amount - a.amount);
 
-  const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
-    try {
-      setDownloading(true);
-      const element = reportRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Executive_Financial_Report_${selectedMonth}.pdf`);
-    } catch (err) {
-      alert('PDF generation error: ' + err);
-    } finally {
-      setDownloading(false);
-    }
+  const handlePrintPDF = () => {
+    window.print();
   };
 
   return (
     <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100">
       <div className="max-w-5xl mx-auto space-y-6">
         
-        {/* Top Filter & Action Bar */}
-        <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        {/* Top Filter & Action Bar (Hidden during print) */}
+        <div className="print:hidden bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               <FileText className="w-6 h-6 text-indigo-600" /> Financial Statements & Reports
@@ -172,21 +147,20 @@ export default function ReportsPage() {
               className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-semibold cursor-pointer"
             />
             <button
-              onClick={handleDownloadPDF}
-              disabled={downloading}
-              className="flex items-center gap-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl transition shadow-md cursor-pointer disabled:opacity-50"
+              onClick={handlePrintPDF}
+              className="flex items-center gap-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl transition shadow-md cursor-pointer"
             >
-              <Download className="w-4 h-4" />
-              {downloading ? 'Generating PDF...' : 'Download PDF Statement'}
+              <Printer className="w-4 h-4" />
+              Print / Save as PDF
             </button>
           </div>
         </div>
 
         {/* -------------------- EXECUTIVE PRINTABLE CANVAS -------------------- */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto flex justify-center">
           <div 
             ref={reportRef} 
-            className="w-[210mm] min-h-[297mm] bg-white text-slate-900 p-10 mx-auto shadow-2xl rounded-sm space-y-8 font-sans"
+            className="w-[210mm] min-h-[297mm] bg-white text-slate-900 p-10 shadow-2xl rounded-sm space-y-8 font-sans print:shadow-none print:p-0 print:w-full"
             style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
           >
             {/* 1. Header Banner */}
