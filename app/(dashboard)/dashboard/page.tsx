@@ -429,12 +429,14 @@ function DashboardContent() {
       
       const billCategory = selectedBillToPay.category || 'Utilities & Bills';
 
+      // 1. Mark current bill as Paid
       await supabase
         .from('bills')
         .update({ status: 'Paid', payment_status: 'PAID' })
         .eq('id', selectedBillToPay.id)
         .eq('user_id', currentUserId);
 
+      // 2. Insert transaction record with party_name and description
       await supabase.from('transactions').insert([
         {
           type: 'Expense',
@@ -449,6 +451,38 @@ function DashboardContent() {
           user_id: currentUserId,
         },
       ]);
+
+      // 3. If recurring / variable recurring, generate next month's bill automatically
+      const isRecurring = (selectedBillToPay as any).is_recurring || (selectedBillToPay as any).recurring || (selectedBillToPay as any).frequency;
+      if (isRecurring) {
+        let nextDueDate = currentDate;
+        try {
+          const currentDue = selectedBillToPay.due_date ? new Date(selectedBillToPay.due_date) : new Date();
+          currentDue.setMonth(currentDue.getMonth() + 1);
+          nextDueDate = currentDue.toISOString().split('T')[0];
+        } catch (e) {
+          const d = new Date();
+          d.setDate(d.getDate() + 30);
+          nextDueDate = d.toISOString().split('T')[0];
+        }
+
+        await supabase.from('bills').insert([
+          {
+            user_id: currentUserId,
+            title: selectedBillToPay.title || billTitle,
+            provider: selectedBillToPay.provider || billTitle,
+            category: billCategory,
+            amount: billAmt,
+            bill_amount: billAmt,
+            due_date: nextDueDate,
+            status: 'Pending',
+            payment_status: 'PENDING',
+            notes: selectedBillToPay.notes || '',
+            description: selectedBillToPay.description || '',
+            is_recurring: true,
+          }
+        ]);
+      }
 
       setSelectedBillToPay(null);
       fetchData();
