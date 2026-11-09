@@ -7,7 +7,8 @@ import {
   Printer, 
   FileText,
   ShieldCheck,
-  Building2
+  Building2,
+  PieChart as PieIcon
 } from 'lucide-react';
 
 interface Transaction {
@@ -40,6 +41,9 @@ const formatDateDisplay = (dateStr: string) => {
   }
   return dateStr;
 };
+
+// Colors for visual distribution representation
+const CHART_COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6'];
 
 export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState('2026-11');
@@ -117,10 +121,8 @@ export default function ReportsPage() {
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
 
-  // Exact Dashboard-Synced Category Breakdown Logic
   const categoryMap: { [key: string]: number } = {};
 
-  // First, initialize categories from Budgets table so names match dashboard perfectly
   budgets.forEach(b => {
     const bName = b?.category || b?.name || b?.title;
     if (bName) {
@@ -128,7 +130,6 @@ export default function ReportsPage() {
     }
   });
 
-  // Then aggregate expenses matching dashboard logic
   monthlyTransactions
     .filter(t => {
       const tType = (t?.type || '').toLowerCase();
@@ -140,7 +141,6 @@ export default function ReportsPage() {
       const tParty = (t.party_name || '').toLowerCase();
       const tAmt = Number(t?.amount || 0);
 
-      // Find matching budget category name if possible
       let matchedKey = Object.keys(categoryMap).find(key => 
         key.toLowerCase() === tCat.toLowerCase() || 
         tDesc.includes(key.toLowerCase()) || 
@@ -174,7 +174,6 @@ export default function ReportsPage() {
   return (
     <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 md:p-8 text-slate-800 dark:text-slate-100">
       
-      {/* Print Styles to Isolate Single-Page Executive Statement */}
       <style jsx global>{`
         @media print {
           body * {
@@ -203,7 +202,7 @@ export default function ReportsPage() {
 
       <div className="max-w-5xl mx-auto space-y-6">
         
-        {/* Top Filter & Action Bar (Hidden during print) */}
+        {/* Top Filter & Action Bar */}
         <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -229,7 +228,7 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* -------------------- EXECUTIVE PRINTABLE CANVAS (SINGLE PAGE OPTIMIZED) -------------------- */}
+        {/* -------------------- EXECUTIVE PRINTABLE CANVAS -------------------- */}
         <div className="overflow-x-auto flex justify-center">
           <div 
             id="printable-statement"
@@ -291,12 +290,31 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* 4. Category Expense Breakdown Table */}
-            <div className="space-y-1.5">
-              <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider border-b border-slate-200 pb-1">
-                Category Expense Distribution
-              </h3>
-              <table className="w-full text-xs text-left border-collapse">
+            {/* 4. Category Expense Distribution with Visual Bar Representation */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1">
+                <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <PieIcon className="w-3.5 h-3.5 text-indigo-600" /> Category Expense Distribution & Share
+                </h3>
+                <span className="text-[9px] text-slate-400 font-semibold uppercase">Multi-Tier Analysis</span>
+              </div>
+
+              {/* Visual Multi-Color Proportion Bar */}
+              <div className="w-full h-3 rounded-full overflow-hidden flex bg-slate-100 border border-slate-200">
+                {categoryBreakdown.map((cat, idx) => (
+                  <div
+                    key={idx}
+                    title={`${cat.category}: ${cat.percentage}%`}
+                    style={{
+                      width: `${cat.percentage}%`,
+                      backgroundColor: CHART_COLORS[idx % CHART_COLORS.length]
+                    }}
+                    className="h-full transition-all"
+                  />
+                ))}
+              </div>
+
+              <table className="w-full text-xs text-left border-collapse mt-2">
                 <thead>
                   <tr className="bg-slate-100 text-slate-600 uppercase text-[9px]">
                     <th className="p-1.5 font-bold">Category</th>
@@ -312,7 +330,13 @@ export default function ReportsPage() {
                   ) : (
                     categoryBreakdown.slice(0, 5).map((cat, idx) => (
                       <tr key={idx} className="hover:bg-slate-50">
-                        <td className="p-1.5 font-medium text-slate-700">{cat.category}</td>
+                        <td className="p-1.5 font-medium text-slate-700 flex items-center gap-2">
+                          <span 
+                            className="w-2.5 h-2.5 rounded-full shrink-0" 
+                            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                          ></span>
+                          {cat.category}
+                        </td>
                         <td className="p-1.5 text-right font-bold text-slate-900">{formatCurrency(cat.amount, currency)}</td>
                         <td className="p-1.5 text-right font-semibold text-slate-500">{cat.percentage}%</td>
                       </tr>
