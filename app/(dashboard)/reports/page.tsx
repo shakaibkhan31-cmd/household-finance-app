@@ -42,7 +42,6 @@ const formatDateDisplay = (dateStr: string) => {
   return dateStr;
 };
 
-// Colors for visual distribution representation
 const CHART_COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6'];
 
 export default function ReportsPage() {
@@ -167,6 +166,15 @@ export default function ReportsPage() {
     }))
     .sort((a, b) => b.amount - a.amount);
 
+  // Sort monthly transactions by highest amount first for the Audit Ledger
+  const highestTransactions = [...monthlyTransactions]
+    .filter(t => {
+      const tType = (t?.type || '').toLowerCase();
+      return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
+    })
+    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
+    .slice(0, 6);
+
   const handlePrintPDF = () => {
     window.print();
   };
@@ -290,7 +298,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* 4. Category Expense Distribution with Visual Bar Representation */}
+            {/* 4. Category Expense Distribution */}
             <div className="space-y-2">
               <div className="flex items-center justify-between border-b border-slate-200 pb-1">
                 <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -299,7 +307,6 @@ export default function ReportsPage() {
                 <span className="text-[9px] text-slate-400 font-semibold uppercase">Multi-Tier Analysis</span>
               </div>
 
-              {/* Visual Multi-Color Proportion Bar */}
               <div className="w-full h-3 rounded-full overflow-hidden flex bg-slate-100 border border-slate-200">
                 {categoryBreakdown.map((cat, idx) => (
                   <div
@@ -346,10 +353,10 @@ export default function ReportsPage() {
               </table>
             </div>
 
-            {/* 5. Detailed Transaction Ledger (Top Items) */}
+            {/* 5. Highest Amount Transactions Audit Ledger */}
             <div className="space-y-1.5">
               <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider border-b border-slate-200 pb-1">
-                Activity Audit Ledger (Recent Top Items)
+                Activity Audit Ledger (Highest Value Transactions)
               </h3>
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
@@ -361,12 +368,12 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {monthlyTransactions.length === 0 ? (
+                  {highestTransactions.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="p-2 text-center text-slate-400">No activity logged.</td>
                     </tr>
                   ) : (
-                    monthlyTransactions.slice(0, 6).map((tx) => {
+                    highestTransactions.map((tx) => {
                       const isInc = (tx.type || '').toLowerCase().includes('income');
                       return (
                         <tr key={tx.id}>
