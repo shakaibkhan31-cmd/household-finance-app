@@ -108,11 +108,34 @@ export default function ReportsPage() {
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
 
+  // Robust Category Aggregation mapping standard budget/expense categories
   const categoryMap: { [key: string]: number } = {};
+  
   monthlyTransactions
     .filter(t => (t.type || '').toLowerCase().includes('expense'))
     .forEach(t => {
-      const cat = t.category || 'General';
+      let cat = (t.category || '').trim();
+      const desc = (t.description || '').toLowerCase();
+      const party = (t.party_name || '').toLowerCase();
+
+      // Fallback normalization if category is empty or generic
+      if (!cat || cat.toLowerCase() === 'general' || cat.toLowerCase() === 'expense') {
+        if (desc.includes('school') || desc.includes('fee') || desc.includes('tuition') || desc.includes('education') || party.includes('school')) {
+          cat = 'Education';
+        } else if (desc.includes('grocery') || desc.includes('supermarket') || desc.includes('store') || desc.includes('food')) {
+          cat = 'Groceries & Food';
+        } else if (desc.includes('fuel') || desc.includes('petrol') || desc.includes('car') || desc.includes('transport')) {
+          cat = 'Fuel & Transport';
+        } else if (desc.includes('bill') || desc.includes('utility') || desc.includes('electricity') || desc.includes('water')) {
+          cat = 'Utilities & Bills';
+        } else {
+          cat = cat || 'General Expenses';
+        }
+      }
+
+      // Capitalize properly
+      cat = cat.charAt(0).toUpperCase() + cat.slice(1);
+
       categoryMap[cat] = (categoryMap[cat] || 0) + Number(t.amount || 0);
     });
 
