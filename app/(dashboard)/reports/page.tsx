@@ -8,7 +8,12 @@ import {
   FileText,
   ShieldCheck,
   Building2,
-  PieChart as PieIcon
+  PieChart as PieIcon,
+  TrendingUp,
+  TrendingDown,
+  Award,
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 
 interface Transaction {
@@ -97,9 +102,27 @@ export default function ReportsPage() {
     fetchReportData();
   }, [selectedMonth]);
 
+  // Current Month Transactions
   const monthlyTransactions = transactions.filter(t => {
     const d = t.date || t.transaction_date || '';
     return d.startsWith(selectedMonth);
+  });
+
+  // Calculate Previous Month string for MoM comparison
+  const getPreviousMonthStr = (monthStr: string) => {
+    try {
+      const [year, month] = monthStr.split('-').map(Number);
+      const d = new Date(year, month - 2, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const prevMonthStr = getPreviousMonthStr(selectedMonth);
+  const prevMonthTransactions = transactions.filter(t => {
+    const d = t.date || t.transaction_date || '';
+    return d.startsWith(prevMonthStr);
   });
 
   const totalIncome = monthlyTransactions
@@ -117,8 +140,31 @@ export default function ReportsPage() {
     })
     .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
+  const prevMonthExpense = prevMonthTransactions
+    .filter(t => {
+      const tType = (t?.type || '').toLowerCase();
+      return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
+    })
+    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
+
+  // Expense Growth MoM calculation
+  const expenseGrowth = prevMonthExpense > 0 
+    ? Math.round(((totalExpense - prevMonthExpense) / prevMonthExpense) * 100) 
+    : 0;
+
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
+
+  // Financial Health Grading Logic
+  let healthGrade = 'A+ (Optimal)';
+  let healthColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+  if (totalExpense > totalIncome && totalIncome > 0) {
+    healthGrade = 'B (Deficit / Active Drawdown)';
+    healthColor = 'text-amber-700 bg-amber-50 border-amber-200';
+  } else if (totalIncome === 0 && totalExpense > 0) {
+    healthGrade = 'B- (Outflow Only Mode)';
+    healthColor = 'text-rose-700 bg-rose-50 border-rose-200';
+  }
 
   const categoryMap: { [key: string]: number } = {};
 
@@ -166,14 +212,15 @@ export default function ReportsPage() {
     }))
     .sort((a, b) => b.amount - a.amount);
 
-  // Sort monthly transactions by highest amount first for the Audit Ledger
   const highestTransactions = [...monthlyTransactions]
     .filter(t => {
       const tType = (t?.type || '').toLowerCase();
       return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
     })
     .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
-    .slice(0, 6);
+    .slice(0, 5);
+
+  const topCategory = categoryBreakdown.length > 0 ? categoryBreakdown[0] : { category: 'N/A', amount: 0, percentage: 0 };
 
   const handlePrintPDF = () => {
     window.print();
@@ -241,17 +288,17 @@ export default function ReportsPage() {
           <div 
             id="printable-statement"
             ref={reportRef} 
-            className="w-[210mm] bg-white text-slate-900 p-8 shadow-2xl rounded-sm space-y-4 font-sans"
+            className="w-[210mm] bg-white text-slate-900 p-8 shadow-2xl rounded-sm space-y-3.5 font-sans"
             style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
           >
             {/* 1. Header Banner */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3">
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-2.5">
               <div>
                 <div className="flex items-center gap-2 text-indigo-900">
                   <Building2 className="w-6 h-6 text-indigo-600" />
                   <span className="text-xl font-black tracking-wider uppercase">FINANCE OS</span>
                 </div>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">Executive Monthly Performance & Cashflow Statement</p>
+                <p className="text-[10px] text-slate-500 font-medium mt-0.5">Executive Monthly Performance & Cashflow Statement</p>
               </div>
               <div className="text-right">
                 <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-indigo-800 text-[9px] font-bold tracking-widest uppercase rounded">
@@ -262,29 +309,41 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* 2. Client & Summary Metadata */}
-            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+            {/* 2. Client & Summary Metadata with Health Score Badge */}
+            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs items-center">
               <div>
-                <p className="text-slate-400 font-semibold uppercase text-[10px]">Prepared For</p>
+                <p className="text-slate-400 font-semibold uppercase text-[9px]">Prepared For</p>
                 <p className="font-bold text-slate-800 text-sm">{userName}</p>
-                <p className="text-slate-500">Karachi, Pakistan</p>
+                <p className="text-[10px] text-slate-500">Karachi, Pakistan</p>
+              </div>
+              <div>
+                <p className="text-slate-400 font-semibold uppercase text-[9px]">Financial Health Grade</p>
+                <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border mt-0.5 ${healthColor}`}>
+                  <Award className="w-3 h-3" /> {healthGrade}
+                </div>
               </div>
               <div className="text-right">
-                <p className="text-slate-400 font-semibold uppercase text-[10px]">Currency Basis</p>
-                <p className="font-bold text-slate-800 text-sm">{currency} Standard</p>
-                <p className="text-emerald-600 font-bold">Status: Reconciled</p>
+                <p className="text-slate-400 font-semibold uppercase text-[9px]">Currency Basis / Status</p>
+                <p className="font-bold text-slate-800 text-xs">{currency} Standard</p>
+                <p className="text-emerald-600 text-[10px] font-bold">Status: Reconciled</p>
               </div>
             </div>
 
-            {/* 3. Executive KPI Cards */}
-            <div className="grid grid-cols-4 gap-3">
+            {/* 3. Executive KPI Cards with MoM Indicator */}
+            <div className="grid grid-cols-4 gap-2.5">
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Inflow</span>
                 <p className="text-xs font-extrabold text-blue-600 mt-0.5">{formatCurrency(totalIncome, currency)}</p>
               </div>
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Outflow</span>
-                <p className="text-xs font-extrabold text-rose-600 mt-0.5">{formatCurrency(totalExpense, currency)}</p>
+                <div className="flex items-baseline justify-between mt-0.5">
+                  <p className="text-xs font-extrabold text-rose-600">{formatCurrency(totalExpense, currency)}</p>
+                  <span className={`text-[9px] font-bold flex items-center ${expenseGrowth <= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {expenseGrowth <= 0 ? <TrendingDown className="w-2.5 h-2.5 mr-0.5" /> : <TrendingUp className="w-2.5 h-2.5 mr-0.5" />}
+                    {expenseGrowth}% MoM
+                  </span>
+                </div>
               </div>
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Net Surplus</span>
@@ -298,8 +357,17 @@ export default function ReportsPage() {
               </div>
             </div>
 
+            {/* 3.5 Automated Key Management Insights Box */}
+            <div className="bg-indigo-50/60 border border-indigo-100 p-2.5 rounded-xl flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+              <div className="text-[10px] text-slate-700 leading-tight">
+                <strong className="text-indigo-900 font-bold">Key Management Insight: </strong> 
+                Outflow for this period is predominantly driven by <strong>{topCategory.category}</strong> ({topCategory.percentage}% of total expenses). Regular monthly reconciliation indicates structured liquidity allocation.
+              </div>
+            </div>
+
             {/* 4. Category Expense Distribution */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between border-b border-slate-200 pb-1">
                 <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                   <PieIcon className="w-3.5 h-3.5 text-indigo-600" /> Category Expense Distribution & Share
@@ -307,7 +375,7 @@ export default function ReportsPage() {
                 <span className="text-[9px] text-slate-400 font-semibold uppercase">Multi-Tier Analysis</span>
               </div>
 
-              <div className="w-full h-3 rounded-full overflow-hidden flex bg-slate-100 border border-slate-200">
+              <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-slate-100 border border-slate-200">
                 {categoryBreakdown.map((cat, idx) => (
                   <div
                     key={idx}
@@ -321,12 +389,12 @@ export default function ReportsPage() {
                 ))}
               </div>
 
-              <table className="w-full text-xs text-left border-collapse mt-2">
+              <table className="w-full text-xs text-left border-collapse mt-1">
                 <thead>
                   <tr className="bg-slate-100 text-slate-600 uppercase text-[9px]">
-                    <th className="p-1.5 font-bold">Category</th>
-                    <th className="p-1.5 font-bold text-right">Amount</th>
-                    <th className="p-1.5 font-bold text-right">Share (%)</th>
+                    <th className="p-1 font-bold">Category</th>
+                    <th className="p-1 font-bold text-right">Amount</th>
+                    <th className="p-1 font-bold text-right">Share (%)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -335,17 +403,17 @@ export default function ReportsPage() {
                       <td colSpan={3} className="p-2 text-center text-slate-400">No expenses recorded for this month.</td>
                     </tr>
                   ) : (
-                    categoryBreakdown.slice(0, 5).map((cat, idx) => (
+                    categoryBreakdown.slice(0, 4).map((cat, idx) => (
                       <tr key={idx} className="hover:bg-slate-50">
-                        <td className="p-1.5 font-medium text-slate-700 flex items-center gap-2">
+                        <td className="p-1 font-medium text-slate-700 flex items-center gap-1.5">
                           <span 
-                            className="w-2.5 h-2.5 rounded-full shrink-0" 
+                            className="w-2 h-2 rounded-full shrink-0" 
                             style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                           ></span>
                           {cat.category}
                         </td>
-                        <td className="p-1.5 text-right font-bold text-slate-900">{formatCurrency(cat.amount, currency)}</td>
-                        <td className="p-1.5 text-right font-semibold text-slate-500">{cat.percentage}%</td>
+                        <td className="p-1 text-right font-bold text-slate-900">{formatCurrency(cat.amount, currency)}</td>
+                        <td className="p-1 text-right font-semibold text-slate-500">{cat.percentage}%</td>
                       </tr>
                     ))
                   )}
@@ -353,7 +421,7 @@ export default function ReportsPage() {
               </table>
             </div>
 
-            {/* 5. Highest Amount Transactions Audit Ledger */}
+            {/* 5. Highest Value Transactions Audit Ledger */}
             <div className="space-y-1.5">
               <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider border-b border-slate-200 pb-1">
                 Activity Audit Ledger (Highest Value Transactions)
@@ -361,10 +429,10 @@ export default function ReportsPage() {
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-100 text-slate-600 uppercase text-[9px]">
-                    <th className="p-1.5 font-bold">Date</th>
-                    <th className="p-1.5 font-bold">Description / Party</th>
-                    <th className="p-1.5 font-bold">Account</th>
-                    <th className="p-1.5 font-bold text-right">Amount</th>
+                    <th className="p-1 font-bold">Date</th>
+                    <th className="p-1 font-bold">Description / Party</th>
+                    <th className="p-1 font-bold">Account</th>
+                    <th className="p-1 font-bold text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -377,13 +445,13 @@ export default function ReportsPage() {
                       const isInc = (tx.type || '').toLowerCase().includes('income');
                       return (
                         <tr key={tx.id}>
-                          <td className="p-1.5 font-mono text-slate-500">{formatDateDisplay(tx.date || tx.transaction_date || '')}</td>
-                          <td className="p-1.5 font-semibold text-slate-800">
+                          <td className="p-1 font-mono text-slate-500">{formatDateDisplay(tx.date || tx.transaction_date || '')}</td>
+                          <td className="p-1 font-semibold text-slate-800">
                             {tx.description}
                             {tx.party_name && <span className="text-[9px] text-slate-400 block font-normal">Party: {tx.party_name}</span>}
                           </td>
-                          <td className="p-1.5 text-slate-600">{tx.account_name || 'Cash'}</td>
-                          <td className={`p-1.5 text-right font-bold ${isInc ? 'text-emerald-600' : 'text-slate-900'}`}>
+                          <td className="p-1 text-slate-600">{tx.account_name || 'Cash'}</td>
+                          <td className={`p-1 text-right font-bold ${isInc ? 'text-emerald-600' : 'text-slate-900'}`}>
                             {isInc ? '+' : '-'} {formatCurrency(Number(tx.amount), currency)}
                           </td>
                         </tr>
@@ -394,12 +462,18 @@ export default function ReportsPage() {
               </table>
             </div>
 
-            {/* 6. Executive Footer & Digital Verification */}
-            <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400">
-              <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" /> System Reconciled & Digitally Verified
+            {/* 6. Executive Footer & Digital Signature Block */}
+            <div className="pt-3 border-t border-slate-200 flex justify-between items-end text-[10px] text-slate-400">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> System Reconciled & Digitally Verified
+                </div>
+                <p>Confidential & Privacy Protected — Finance OS Statement</p>
               </div>
-              <p>Confidential & Privacy Protected — Finance OS Statement</p>
+              <div className="text-right space-y-3">
+                <div className="w-36 border-b border-slate-400 pb-0.5"></div>
+                <p className="font-bold text-slate-700">Authorized Financial Controller</p>
+              </div>
             </div>
 
           </div>
