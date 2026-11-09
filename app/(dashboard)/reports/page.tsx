@@ -26,8 +26,10 @@ interface Budget {
   id: string;
   category?: string;
   name?: string;
+  title?: string;
   allocated_amount?: number;
   amount?: number;
+  spent_amount?: number;
 }
 
 const formatDateDisplay = (dateStr: string) => {
@@ -98,52 +100,72 @@ export default function ReportsPage() {
   });
 
   const totalIncome = monthlyTransactions
-    .filter(t => (t.type || '').toLowerCase().includes('income'))
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    .filter(t => {
+      const tType = (t?.type || '').toLowerCase();
+      const tCat = (t?.category || '').toLowerCase();
+      return tType.includes('income') || tType.includes('deposit') || tType.includes('inflow') || tCat.includes('income');
+    })
+    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
   const totalExpense = monthlyTransactions
-    .filter(t => (t.type || '').toLowerCase().includes('expense'))
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    .filter(t => {
+      const tType = (t?.type || '').toLowerCase();
+      return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
+    })
+    .reduce((sum, t) => sum + Number(t?.amount || 0), 0);
 
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
 
-  // Robust Category Aggregation mapping standard budget/expense categories
+  // Exact Dashboard-Synced Category Breakdown Logic
   const categoryMap: { [key: string]: number } = {};
-  
-  monthlyTransactions
-    .filter(t => (t.type || '').toLowerCase().includes('expense'))
-    .forEach(t => {
-      let cat = (t.category || '').trim();
-      const desc = (t.description || '').toLowerCase();
-      const party = (t.party_name || '').toLowerCase();
 
-      // Fallback normalization if category is empty or generic
-      if (!cat || cat.toLowerCase() === 'general' || cat.toLowerCase() === 'expense') {
-        if (desc.includes('school') || desc.includes('fee') || desc.includes('tuition') || desc.includes('education') || party.includes('school')) {
-          cat = 'Education';
-        } else if (desc.includes('grocery') || desc.includes('supermarket') || desc.includes('store') || desc.includes('food')) {
-          cat = 'Groceries & Food';
-        } else if (desc.includes('fuel') || desc.includes('petrol') || desc.includes('car') || desc.includes('transport')) {
-          cat = 'Fuel & Transport';
-        } else if (desc.includes('bill') || desc.includes('utility') || desc.includes('electricity') || desc.includes('water')) {
-          cat = 'Utilities & Bills';
+  // First, initialize categories from Budgets table so names match dashboard perfectly
+  budgets.forEach(b => {
+    const bName = b?.category || b?.name || b?.title;
+    if (bName) {
+      categoryMap[bName] = 0;
+    }
+  });
+
+  // Then aggregate expenses matching dashboard logic
+  monthlyTransactions
+    .filter(t => {
+      const tType = (t?.type || '').toLowerCase();
+      return tType.includes('expense') || tType.includes('outflow') || tType.includes('bill');
+    })
+    .forEach(t => {
+      const tCat = (t?.category || '').trim();
+      const tDesc = (t?.description || '').toLowerCase();
+      const tParty = (t.party_name || '').toLowerCase();
+      const tAmt = Number(t?.amount || 0);
+
+      // Find matching budget category name if possible
+      let matchedKey = Object.keys(categoryMap).find(key => 
+        key.toLowerCase() === tCat.toLowerCase() || 
+        tDesc.includes(key.toLowerCase()) || 
+        tParty.includes(key.toLowerCase())
+      );
+
+      if (!matchedKey) {
+        if (tCat) {
+          matchedKey = tCat.charAt(0).toUpperCase() + tCat.slice(1);
         } else {
-          cat = cat || 'General Expenses';
+          matchedKey = 'General';
         }
       }
 
-      // Capitalize properly
-      cat = cat.charAt(0).toUpperCase() + cat.slice(1);
-
-      categoryMap[cat] = (categoryMap[cat] || 0) + Number(t.amount || 0);
+      categoryMap[matchedKey] = (categoryMap[matchedKey] || 0) + tAmt;
     });
 
-  const categoryBreakdown = Object.entries(categoryMap).map(([cat, amt]) => ({
-    category: cat,
-    amount: amt,
-    percentage: totalExpense > 0 ? Math.round((amt / totalExpense) * 100) : 0
-  })).sort((a, b) => b.amount - a.amount);
+  const categoryBreakdown = Object.entries(categoryMap)
+    .filter(([_, amt]) => amt > 0)
+    .map(([cat, amt]) => ({
+      category: cat,
+      amount: amt,
+      percentage: totalExpense > 0 ? Math.round((amt / totalExpense) * 100) : 0
+    }))
+    .sort((a, b) => b.amount - a.amount);
 
   const handlePrintPDF = () => {
     window.print();
