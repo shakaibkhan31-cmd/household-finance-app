@@ -3,7 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, CheckCircle2, Clock, User, ArrowLeft, Users, Calendar, Crown } from 'lucide-react';
+import { 
+  ShieldCheck, 
+  CheckCircle2, 
+  Clock, 
+  User, 
+  ArrowLeft, 
+  Users, 
+  Crown, 
+  Search, 
+  DollarSign, 
+  Activity,
+  SlidersHorizontal,
+  RefreshCw
+} from 'lucide-react';
 
 interface PaymentRequest {
   id: string;
@@ -13,7 +26,6 @@ interface PaymentRequest {
   amount: number;
   status: string;
   created_at: string;
-  user_email?: string;
   profiles?: {
     email?: string;
     full_name?: string;
@@ -25,6 +37,7 @@ interface UserProfile {
   email?: string;
   full_name?: string;
   subscription_status?: string;
+  subscription_expires_at?: string;
   created_at?: string;
 }
 
@@ -36,6 +49,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [message, setMessage] = useState('');
+  
+  // Search & Filter States
+  const [userSearch, setUserSearch] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+
   const router = useRouter();
 
   useEffect(() => {
@@ -147,6 +165,56 @@ export default function AdminDashboard() {
     }
   };
 
+  // Manual Status Toggle (Pro <-> Free)
+  const handleToggleSubscription = async (userId: string, currentStatus?: string) => {
+    const newStatus = currentStatus === 'pro' ? 'free' : 'pro';
+    const expiryDate = newStatus === 'pro' ? new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString() : null;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          subscription_status: newStatus,
+          subscription_expires_at: expiryDate
+        });
+
+      if (error) {
+        alert('Failed to update status: ' + error.message);
+      } else {
+        setMessage(`User subscription successfully changed to ${newStatus.toUpperCase()}`);
+        fetchAllUsers();
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  // Calculated KPI Stats
+  const totalUsersCount = userProfiles.length;
+  const proUsersCount = userProfiles.filter(p => p.subscription_status === 'pro').length;
+  const pendingRequestsCount = requests.filter(r => r.status !== 'Approved').length;
+  const totalRevenue = requests
+    .filter(r => r.status === 'Approved')
+    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+  // Filtered Users List
+  const filteredUsers = userProfiles.filter(p => {
+    const searchLower = userSearch.toLowerCase();
+    const emailMatch = (p.email || '').toLowerCase().includes(searchLower);
+    const nameMatch = (p.full_name || '').toLowerCase().includes(searchLower);
+    return emailMatch || nameMatch;
+  });
+
+  // Filtered Payment Requests
+  const filteredRequests = requests.filter(r => {
+    if (paymentStatusFilter === 'all') return true;
+    if (paymentStatusFilter === 'pending') return r.status !== 'Approved';
+    if (paymentStatusFilter === 'approved') return r.status === 'Approved';
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-xs text-slate-500">
@@ -165,13 +233,13 @@ export default function AdminDashboard() {
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-semibold">
-              <ShieldCheck className="w-4 h-4" /> SECURE ADMIN PANEL
+              <ShieldCheck className="w-4 h-4" /> SECURE ADMIN CONTROL CENTRE
             </div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Admin & User Directory
+              Platform Analytics & User Management
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Manage registered users, review payment submissions, and activate Pro memberships.
+              Comprehensive overview of platform users, revenue metrics, and payment verifications.
             </p>
           </div>
           <button
@@ -189,35 +257,77 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* SECTION 1: Registered Users List */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-              <Users className="w-4 h-4 text-indigo-600" /> Registered App Users ({userProfiles.length})
-            </h3>
-            <button
-              onClick={fetchAllUsers}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
-            >
-              Refresh Users
-            </button>
+        {/* FEATURE 2: Quick KPI Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-indigo-600" /> Total Users
+            </span>
+            <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{totalUsersCount}</p>
+            <p className="text-[10px] text-emerald-600 font-medium">Registered in Finance OS</p>
           </div>
 
-          {userProfiles.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-500">No user profiles found.</div>
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Crown className="w-3.5 h-3.5 text-amber-500" /> Pro Subscribers
+            </span>
+            <p className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{proUsersCount}</p>
+            <p className="text-[10px] text-slate-500 font-medium">Active premium members</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-600" /> Pending Requests
+            </span>
+            <p className="text-2xl font-extrabold text-amber-600">{pendingRequestsCount}</p>
+            <p className="text-[10px] text-amber-600 font-medium">Awaiting manual verification</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Verified Revenue
+            </span>
+            <p className="text-2xl font-extrabold text-emerald-600">PKR {totalRevenue.toLocaleString()}</p>
+            <p className="text-[10px] text-emerald-600 font-medium">Total approved subscriptions</p>
+          </div>
+        </div>
+
+        {/* FEATURE 1 & 3: Registered Users Directory with Search & Manual Override */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+              <Users className="w-4 h-4 text-indigo-600" /> Registered App Users ({filteredUsers.length})
+            </h3>
+            
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-medium text-slate-800 dark:text-slate-200"
+              />
+            </div>
+          </div>
+
+          {filteredUsers.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500">No users match your search criteria.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 uppercase font-semibold text-[10px]">
                   <tr>
-                    <th className="p-4">Full Name / Email</th>
+                    <th className="p-4">User Details</th>
                     <th className="p-4">User ID</th>
                     <th className="p-4">Subscription Plan</th>
                     <th className="p-4">Joined Date</th>
+                    <th className="p-4 text-right">Quick Override</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {userProfiles.map((profile) => (
+                  {filteredUsers.map((profile) => (
                     <tr key={profile.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
                       <td className="p-4 font-medium text-slate-900 dark:text-white flex items-center gap-2">
                         <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
@@ -226,7 +336,7 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-slate-400">{profile.email || 'shakaibkhan93@gmail.com'}</p>
                         </div>
                       </td>
-                      <td className="p-4 font-mono text-[10px] text-slate-400">{profile.id.slice(0, 18)}...</td>
+                      <td className="p-4 font-mono text-[10px] text-slate-400">{profile.id.slice(0, 16)}...</td>
                       <td className="p-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           profile.subscription_status === 'pro'
@@ -240,6 +350,14 @@ export default function AdminDashboard() {
                       <td className="p-4 text-slate-500 dark:text-slate-400">
                         {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
                       </td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => handleToggleSubscription(profile.id, profile.subscription_status)}
+                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 font-semibold rounded-lg transition text-[11px] cursor-pointer border border-slate-200 dark:border-slate-700"
+                        >
+                          Toggle Pro / Free
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -248,24 +366,38 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* SECTION 2: Payment Requests Table */}
+        {/* FEATURE 1 & 4: Payment Requests Table with Status Filters & Activity Feed */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Submitted Payment Requests ({requests.length})
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-600" /> Submitted Payment Requests ({filteredRequests.length})
             </h3>
-            <button
-              onClick={fetchPaymentRequests}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
-            >
-              Refresh List
-            </button>
+            
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                className="px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-semibold cursor-pointer text-slate-700 dark:text-slate-300"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending Only</option>
+                <option value="approved">Approved Only</option>
+              </select>
+              <button
+                onClick={() => { fetchPaymentRequests(); fetchAllUsers(); }}
+                className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                title="Refresh Data"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          {requests.length === 0 ? (
+          {filteredRequests.length === 0 ? (
             <div className="p-12 text-center space-y-2">
               <Clock className="w-8 h-8 text-slate-400 mx-auto" />
-              <p className="text-xs text-slate-500">Koi pending payment request mojood nahi hai.</p>
+              <p className="text-xs text-slate-500">No payment requests match the selected filter.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -282,7 +414,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {requests.map((req) => {
+                  {filteredRequests.map((req) => {
                     const displayEmail = req.profiles?.email || req.user_email || 'shakaibkhan93@gmail.com';
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
