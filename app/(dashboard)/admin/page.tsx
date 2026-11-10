@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, CheckCircle2, Clock, User, ArrowLeft, Lock } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Clock, User, ArrowLeft } from 'lucide-react';
 
 interface PaymentRequest {
   id: string;
@@ -13,12 +13,13 @@ interface PaymentRequest {
   amount: number;
   status: string;
   created_at: string;
+  user_email?: string;
   profiles?: {
     email?: string;
+    full_name?: string;
   } | null;
 }
 
-// Apna admin email yahan define karein
 const ADMIN_EMAIL = 'shakaibkhan93@gmail.com';
 
 export default function AdminDashboard() {
@@ -38,14 +39,12 @@ export default function AdminDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session || !session.user) {
-        // Agar logged in nahi hai toh dashboard/login par bhej dein
         router.push('/');
         return;
       }
 
       const userEmail = session.user.email;
 
-      // Security Check: Agar user admin nahi hai toh access block karke redirect kar dein
       if (userEmail !== ADMIN_EMAIL) {
         alert('Access Denied: You are not authorized to view the admin panel.');
         router.push('/');
@@ -64,18 +63,27 @@ export default function AdminDashboard() {
 
   const fetchPaymentRequests = async () => {
     try {
+      // Fetch payment requests along with profile data
       const { data, error } = await supabase
         .from('payment_requests')
         .select(`
           *,
-          profiles (
-            email
+          profiles:user_id (
+            email,
+            full_name
           )
         `)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching requests:', error.message);
+        // Fallback fetch without join if relation fails
+        const { data: fallbackData } = await supabase
+          .from('payment_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        setRequests(fallbackData || []);
       } else {
         setRequests(data || []);
       }
@@ -195,43 +203,46 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {requests.map((req) => (
-                    <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                      <td className="p-4 font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                        <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                        <span className="truncate max-w-[220px]">
-                          {req.profiles?.email || 'Unknown User'}
-                        </span>
-                      </td>
-                      <td className="p-4 font-bold text-slate-700 dark:text-slate-300 uppercase">
-                        {req.method}
-                      </td>
-                      <td className="p-4 font-mono text-indigo-600 dark:text-indigo-300 font-semibold">{req.trx_id}</td>
-                      <td className="p-4 font-semibold text-emerald-600 dark:text-emerald-400">PKR {req.amount}</td>
-                      <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          req.status === 'Approved' 
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                        }`}>
-                          {req.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-slate-500 dark:text-slate-400">{new Date(req.created_at).toLocaleString()}</td>
-                      <td className="p-4 text-right">
-                        {req.status !== 'Approved' ? (
-                          <button
-                            onClick={() => handleApprove(req.id, req.user_id)}
-                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition shadow-md shadow-emerald-600/20 cursor-pointer text-[11px]"
-                          >
-                            Approve & Upgrade
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 font-semibold">Approved</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {requests.map((req) => {
+                    const displayEmail = req.profiles?.email || req.user_email || 'shakaibkhan93@gmail.com';
+                    return (
+                      <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                        <td className="p-4 font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                          <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                          <span className="truncate max-w-[220px]">
+                            {displayEmail}
+                          </span>
+                        </td>
+                        <td className="p-4 font-bold text-slate-700 dark:text-slate-300 uppercase">
+                          {req.method}
+                        </td>
+                        <td className="p-4 font-mono text-indigo-600 dark:text-indigo-300 font-semibold">{req.trx_id}</td>
+                        <td className="p-4 font-semibold text-emerald-600 dark:text-emerald-400">PKR {req.amount}</td>
+                        <td className="p-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            req.status === 'Approved' 
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-slate-500 dark:text-slate-400">{new Date(req.created_at).toLocaleString()}</td>
+                        <td className="p-4 text-right">
+                          {req.status !== 'Approved' ? (
+                            <button
+                              onClick={() => handleApprove(req.id, req.user_id)}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition shadow-md shadow-emerald-600/20 cursor-pointer text-[11px]"
+                            >
+                              Approve & Upgrade
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 font-semibold">Approved</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
