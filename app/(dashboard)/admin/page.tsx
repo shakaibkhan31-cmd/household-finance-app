@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, CheckCircle2, Clock, User, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Clock, User, ArrowLeft, Users, Calendar, Crown } from 'lucide-react';
 
 interface PaymentRequest {
   id: string;
@@ -20,10 +20,19 @@ interface PaymentRequest {
   } | null;
 }
 
+interface UserProfile {
+  id: string;
+  email?: string;
+  full_name?: string;
+  subscription_status?: string;
+  created_at?: string;
+}
+
 const ADMIN_EMAIL = 'shakaibkhan93@gmail.com';
 
 export default function AdminDashboard() {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
+  const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [message, setMessage] = useState('');
@@ -43,16 +52,14 @@ export default function AdminDashboard() {
         return;
       }
 
-      const userEmail = session.user.email;
-
-      if (userEmail !== ADMIN_EMAIL) {
+      if (session.user.email !== ADMIN_EMAIL) {
         alert('Access Denied: You are not authorized to view the admin panel.');
         router.push('/');
         return;
       }
 
       setAuthorized(true);
-      await fetchPaymentRequests();
+      await Promise.all([fetchPaymentRequests(), fetchAllUsers()]);
     } catch (err) {
       console.error(err);
       router.push('/');
@@ -61,9 +68,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setUserProfiles(data);
+      }
+    } catch (err) {
+      console.error('Error fetching profiles:', err);
+    }
+  };
+
   const fetchPaymentRequests = async () => {
     try {
-      // Fetch payment requests along with profile data
       const { data, error } = await supabase
         .from('payment_requests')
         .select(`
@@ -76,8 +97,6 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching requests:', error.message);
-        // Fallback fetch without join if relation fails
         const { data: fallbackData } = await supabase
           .from('payment_requests')
           .select('*')
@@ -120,6 +139,7 @@ export default function AdminDashboard() {
       } else {
         setMessage('Payment successfully approved & user upgraded to Pro!');
         fetchPaymentRequests();
+        fetchAllUsers();
         setTimeout(() => setMessage(''), 4000);
       }
     } catch (err: any) {
@@ -148,10 +168,10 @@ export default function AdminDashboard() {
               <ShieldCheck className="w-4 h-4" /> SECURE ADMIN PANEL
             </div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Subscription & Payment Verification
+              Admin & User Directory
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Review local payment submissions along with user emails and activate Pro memberships.
+              Manage registered users, review payment submissions, and activate Pro memberships.
             </p>
           </div>
           <button
@@ -169,7 +189,66 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Requests Table Container */}
+        {/* SECTION 1: Registered Users List */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+              <Users className="w-4 h-4 text-indigo-600" /> Registered App Users ({userProfiles.length})
+            </h3>
+            <button
+              onClick={fetchAllUsers}
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
+            >
+              Refresh Users
+            </button>
+          </div>
+
+          {userProfiles.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500">No user profiles found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 uppercase font-semibold text-[10px]">
+                  <tr>
+                    <th className="p-4">Full Name / Email</th>
+                    <th className="p-4">User ID</th>
+                    <th className="p-4">Subscription Plan</th>
+                    <th className="p-4">Joined Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {userProfiles.map((profile) => (
+                    <tr key={profile.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                      <td className="p-4 font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                        <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <div>
+                          <p className="font-semibold">{profile.full_name || 'Valued User'}</p>
+                          <p className="text-[10px] text-slate-400">{profile.email || 'shakaibkhan93@gmail.com'}</p>
+                        </div>
+                      </td>
+                      <td className="p-4 font-mono text-[10px] text-slate-400">{profile.id.slice(0, 18)}...</td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          profile.subscription_status === 'pro'
+                            ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {profile.subscription_status === 'pro' && <Crown className="w-3 h-3 text-amber-500" />}
+                          {(profile.subscription_status || 'free').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-500 dark:text-slate-400">
+                        {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* SECTION 2: Payment Requests Table */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
