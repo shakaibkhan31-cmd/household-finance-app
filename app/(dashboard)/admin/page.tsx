@@ -26,6 +26,7 @@ interface PaymentRequest {
   amount: number;
   status: string;
   created_at: string;
+  user_email?: string;
   profiles?: {
     email?: string;
     full_name?: string;
@@ -257,7 +258,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* FEATURE 2: Quick KPI Stats Cards */}
+        {/* Quick KPI Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -292,7 +293,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* FEATURE 1 & 3: Registered Users Directory with Search & Manual Override */}
+        {/* Registered Users Directory with Search & Manual Override */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
@@ -366,7 +367,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* FEATURE 1 & 4: Payment Requests Table with Status Filters & Activity Feed */}
+        {/* Payment Requests Table with Status Filters */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
