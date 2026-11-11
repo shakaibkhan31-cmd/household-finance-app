@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
 import { syncCreditCardDebt } from '@/lib/financeSync';
-import { Plus, CheckCircle, Clock, Calendar, CreditCard, DollarSign, Trash2, Edit2, AlertTriangle, Search, Filter, Repeat } from 'lucide-react';
+import { Plus, Clock, Calendar, CreditCard, Trash2, Edit2, AlertTriangle, Search, Repeat } from 'lucide-react';
 
 export interface Bill {
   id: string;
@@ -18,9 +18,9 @@ export interface Bill {
   is_recurring?: boolean;
   created_at?: string;
   user_id?: string;
+  household_id?: string;
 }
 
-// Helper function to format date from YYYY-MM-DD to DD-MM-YYYY for display
 const formatDateDisplay = (dateStr: string) => {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
@@ -37,6 +37,7 @@ export default function BillsPage() {
   const [todayStr, setTodayStr] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
   const [memberName, setMemberName] = useState<string>('Member');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   // Filter & Search State
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
@@ -89,56 +90,53 @@ export default function BillsPage() {
       return;
     }
 
-    // Fetch user profile name or fallback family member name
+    // 1. Fetch User Profile for Currency, Household ID, and Full Name
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency, full_name')
+      .select('preferred_currency, full_name, household_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile && profile.preferred_currency) {
-      setCurrency(profile.preferred_currency);
-    }
-
-    let computedName = user.email ? user.email.split('@')[0] : 'Member';
-    if (profile && profile.full_name) {
-      computedName = profile.full_name;
-    } else {
-      const { data: familyMemberMatch } = await supabase
-        .from('family_members')
-        .select('member_name')
-        .eq('member_email', user.email?.toLowerCase() || '')
-        .maybeSingle();
-
-      if (familyMemberMatch && familyMemberMatch.member_name) {
-        computedName = familyMemberMatch.member_name;
+    if (profile) {
+      if (profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
       }
-    }
-    setMemberName(computedName);
+      if (profile.full_name) {
+        setMemberName(profile.full_name);
+      } else {
+        setMemberName(user.email ? user.email.split('@')[0] : 'Member');
+      }
 
-    const { data: accData } = await supabase
-      .from('accounts')
-      .select('name')
-      .eq('user_id', user.id);
+      if (profile.household_id) {
+        setHouseholdId(profile.household_id);
 
-    if (accData && accData.length > 0) {
-      const names = accData.map((a: { name: string }) => a.name);
-      setAccounts(names);
-      setSelectedAccount(names[0]);
-      setSourceAccount(names[0]);
-      if (names.length > 1) setTargetAccount(names[1]);
-    }
+        // 2. Fetch Household Accounts
+        const { data: accData } = await supabase
+          .from('accounts')
+          .select('name')
+          .eq('household_id', profile.household_id);
 
-    const { data, error } = await supabase
-      .from('bills')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('due_date', { ascending: true });
+        if (accData && accData.length > 0) {
+          const names = accData.map((a: { name: string }) => a.name);
+          setAccounts(names);
+          setSelectedAccount(names[0]);
+          setSourceAccount(names[0]);
+          if (names.length > 1) setTargetAccount(names[1]);
+        }
 
-    if (error) {
-      console.error('Error fetching bills:', error.message);
-    } else {
-      setBills(data || []);
+        // 3. Fetch Household Bills
+        const { data, error } = await supabase
+          .from('bills')
+          .select('*')
+          .eq('household_id', profile.household_id)
+          .order('due_date', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching bills:', error.message);
+        } else {
+          setBills(data || []);
+        }
+      }
     }
     setLoading(false);
   };
@@ -156,6 +154,11 @@ export default function BillsPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found!');
+      return;
+    }
+
     const { error } = await supabase.from('bills').insert([
       {
         title,
@@ -167,6 +170,7 @@ export default function BillsPage() {
         is_recurring: isRecurring,
         notes,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -198,9 +202,6 @@ export default function BillsPage() {
     e.preventDefault();
     if (!editingBill) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('bills')
       .update({
@@ -212,8 +213,7 @@ export default function BillsPage() {
         is_recurring: editIsRecurring,
         notes: editNotes,
       })
-      .eq('id', editingBill.id)
-      .eq('user_id', user.id);
+      .eq('id', editingBill.id);
 
     if (error) {
       alert('Error updating bill: ' + error.message);
@@ -258,7 +258,7 @@ export default function BillsPage() {
   };
 
   const handleConfirmMarkPaid = async () => {
-    if (!payingBill || !selectedAccount) return;
+    if (!payingBill || !selectedAccount || !householdId) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -278,6 +278,7 @@ export default function BillsPage() {
         }`,
         entered_by: memberName,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -290,7 +291,7 @@ export default function BillsPage() {
       .from('accounts')
       .select('*')
       .eq('name', selectedAccount)
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .limit(1);
 
     if (accList && accList.length > 0) {
@@ -299,8 +300,7 @@ export default function BillsPage() {
       await supabase
         .from('accounts')
         .update({ current_balance: newBal })
-        .eq('id', acc.id)
-        .eq('user_id', user.id);
+        .eq('id', acc.id);
     }
 
     const { error: billErr } = await supabase
@@ -309,8 +309,7 @@ export default function BillsPage() {
         status: 'Paid',
         amount: finalPaidAmount,
       })
-      .eq('id', payingBill.id)
-      .eq('user_id', user.id);
+      .eq('id', payingBill.id);
 
     if (billErr) {
       alert('Error updating bill status: ' + billErr.message);
@@ -333,6 +332,7 @@ export default function BillsPage() {
           is_recurring: true,
           notes: 'Auto-generated recurring variable bill',
           user_id: user.id,
+          household_id: householdId,
         },
       ]);
     }
@@ -345,14 +345,13 @@ export default function BillsPage() {
   const handleDeleteBill = async (bill: Bill) => {
     if (!confirm(`Kya aap waqai is bill entry ko delete karna chahte hain?`)) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!householdId) return;
 
     if (bill.status === 'Paid') {
       const { data: txData } = await supabase
         .from('transactions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('household_id', householdId)
         .ilike('party_name', `%${bill.title}%`)
         .order('date', { ascending: false })
         .limit(1);
@@ -366,7 +365,7 @@ export default function BillsPage() {
           .from('accounts')
           .select('*')
           .eq('name', accName)
-          .eq('user_id', user.id)
+          .eq('household_id', householdId)
           .limit(1);
 
         if (accList && accList.length > 0) {
@@ -375,30 +374,27 @@ export default function BillsPage() {
           await supabase
             .from('accounts')
             .update({ current_balance: restoredBal })
-            .eq('id', acc.id)
-            .eq('user_id', user.id);
+            .eq('id', acc.id);
         }
 
         await supabase
           .from('transactions')
           .delete()
-          .eq('id', tx.id)
-          .eq('user_id', user.id);
+          .eq('id', tx.id);
       }
     }
 
     const { error } = await supabase
       .from('bills')
       .delete()
-      .eq('id', bill.id)
-      .eq('user_id', user.id);
+      .eq('id', bill.id);
 
     if (error) alert('Error deleting bill: ' + error.message);
     else fetchBillsAndAccounts();
   };
 
   const handlePayNowAndTransfer = async () => {
-    if (!transferringBill || !sourceAccount || !targetAccount) return;
+    if (!transferringBill || !sourceAccount || !targetAccount || !householdId) return;
 
     if (sourceAccount === targetAccount) {
       alert('Source and Destination accounts cannot be the same.');
@@ -422,6 +418,7 @@ export default function BillsPage() {
         description: `Bill Payment for ${transferringBill.title || 'Bill'}`,
         entered_by: memberName,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -434,7 +431,7 @@ export default function BillsPage() {
       .from('accounts')
       .select('*')
       .eq('name', sourceAccount)
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .limit(1);
 
     if (srcAcc && srcAcc.length > 0) {
@@ -442,15 +439,14 @@ export default function BillsPage() {
       await supabase
         .from('accounts')
         .update({ current_balance: newBal })
-        .eq('id', srcAcc[0].id)
-        .eq('user_id', user.id);
+        .eq('id', srcAcc[0].id);
     }
 
     const { data: destAcc } = await supabase
       .from('accounts')
       .select('*')
       .eq('name', targetAccount)
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .limit(1);
 
     if (destAcc && destAcc.length > 0) {
@@ -458,8 +454,7 @@ export default function BillsPage() {
       await supabase
         .from('accounts')
         .update({ current_balance: newBal })
-        .eq('id', destAcc[0].id)
-        .eq('user_id', user.id);
+        .eq('id', destAcc[0].id);
     }
 
     if (targetAccount.toLowerCase().includes('credit card') || targetAccount.toLowerCase().includes('card')) {
@@ -472,8 +467,7 @@ export default function BillsPage() {
         status: 'Paid',
         amount: finalTransferAmt,
       })
-      .eq('id', transferringBill.id)
-      .eq('user_id', user.id);
+      .eq('id', transferringBill.id);
 
     if (transferringBill.is_recurring) {
       const nextDate = new Date(transferringBill.due_date);
@@ -491,6 +485,7 @@ export default function BillsPage() {
           is_recurring: true,
           notes: 'Auto-generated recurring variable bill',
           user_id: user.id,
+          household_id: householdId,
         },
       ]);
     }
