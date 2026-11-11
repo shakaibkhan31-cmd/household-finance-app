@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
-import { ratelimit } from '@/lib/ratelimit'; // Upstash rate limiter import kiya
+import { ratelimit } from '@/lib/ratelimit';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -11,7 +11,7 @@ export async function updateSession(request: NextRequest) {
 
   // 1. Rate Limiting Check for Signup Route
   if (pathname.startsWith('/signup')) {
-    const ip = request.ip ?? request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);
 
     if (!success) {
@@ -50,10 +50,8 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // IMPORTANT: Use getUser() instead of getSession() for secure middleware auth checks
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Agar user logged in nahi hai aur protected route par ja raha hai toh login par redirect karein[cite: 12]
   if (!user && (
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/accounts') ||
@@ -74,7 +72,6 @@ export async function updateSession(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Browser back-button caching roknay ke liye headers lagana[cite: 12]
   supabaseResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   supabaseResponse.headers.set('Pragma', 'no-cache');
   supabaseResponse.headers.set('Expires', '0');
