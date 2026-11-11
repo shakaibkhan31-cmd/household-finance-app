@@ -17,8 +17,19 @@ export interface Account {
   household_id?: string;
 }
 
+export interface Transaction {
+  id: string;
+  date: string;
+  type: string;
+  account_name: string;
+  transfer_to?: string;
+  amount: number;
+  household_id?: string;
+}
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filterType, setFilterType] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -39,7 +50,7 @@ export default function AccountsPage() {
   const [editCreditLimit, setEditCreditLimit] = useState('');
   const [editAccountNumber, setEditAccountNumber] = useState('');
 
-  const fetchAccounts = async () => {
+  const fetchAccountsAndTransactions = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -62,16 +73,28 @@ export default function AccountsPage() {
         setHouseholdId(profile.household_id);
 
         // 2. Fetch Accounts filtered by household_id
-        const { data, error } = await supabase
+        const { data: accData, error: accError } = await supabase
           .from('accounts')
           .select('*')
           .eq('household_id', profile.household_id)
           .order('name', { ascending: true });
 
-        if (error) {
-          console.error('Error fetching accounts:', error.message);
+        // 3. Fetch Transactions for dynamic balance calculation
+        const { data: txData, error: txError } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('household_id', profile.household_id);
+
+        if (accError) {
+          console.error('Error fetching accounts:', accError.message);
         } else {
-          setAccounts(data || []);
+          setAccounts(accData || []);
+        }
+
+        if (txError) {
+          console.error('Error fetching transactions:', txError.message);
+        } else {
+          setTransactions(txData || []);
         }
       }
     }
@@ -79,7 +102,7 @@ export default function AccountsPage() {
   };
 
   useEffect(() => {
-    fetchAccounts();
+    fetchAccountsAndTransactions();
   }, []);
 
   const handleAddAccount = async (e: React.FormEvent) => {
@@ -120,14 +143,14 @@ export default function AccountsPage() {
       setAccountNumber('');
       setBalance('');
       setCreditLimit('');
-      fetchAccounts();
+      fetchAccountsAndTransactions();
     }
   };
 
   const handleOpenEdit = (acc: Account) => {
     setEditingAccount(acc);
     setEditName(acc.name);
-    setEditBalance(acc.current_balance.toString());
+    setEditBalance(getCalculatedBalance(acc).toString());
     setEditCreditLimit(acc.credit_limit ? acc.credit_limit.toString() : '');
     setEditAccountNumber(acc.account_number || '');
   };
@@ -135,9 +158,6 @@ export default function AccountsPage() {
   const handleUpdateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAccount) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
     const updatePayload: any = {
       name: editName,
@@ -159,7 +179,7 @@ export default function AccountsPage() {
       alert('Error updating account: ' + error.message);
     } else {
       setEditingAccount(null);
-      fetchAccounts();
+      fetchAccountsAndTransactions();
     }
   };
 
@@ -174,12 +194,47 @@ export default function AccountsPage() {
     if (error) {
       alert('Error deleting account: ' + error.message);
     } else {
-      fetchAccounts();
+      fetchAccountsAndTransactions();
     }
   };
 
+  // Dynamic Balance Calculator based on Transactions Ledger
+  const getCalculatedBalance = (acc: Account) => {
+    let balance = Number(acc.current_balance || 0);
+    const accName = acc.name;
+    const isCard = (acc.type || '').trim().toLowerCase().includes('credit');
+
+    transactions.forEach(t => {
+      const amt = Number(t.amount || 0);
+      const isCreditInflow = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
+      const isTransfer = t.type === 'Transfer';
+
+      if (isTransfer) {
+        if (t.account_name === accName) {
+          // Source of transfer
+          if (isCard) balance += amt;
+          else balance -= amt;
+        } else if (t.transfer_to === accName) {
+          // Destination of transfer
+          if (isCard) balance -= amt;
+          else balance += amt;
+        }
+      } else if (t.account_name === accName) {
+        if (isCard) {
+          if (isCreditInflow) balance -= amt;
+          else balance += amt;
+        } else {
+          if (isCreditInflow) balance += amt;
+          else balance -= amt;
+        }
+      }
+    });
+
+    return balance;
+  };
+
   const totalNetLiquidWorth = accounts.reduce((sum, acc) => {
-    const bal = Number(acc.current_balance || 0);
+    const bal = getCalculatedBalance(acc);
     const accType = (acc.type || '').trim().toLowerCase();
     
     if (accType === 'credit card' || accType.includes('credit')) {
@@ -353,6 +408,8 @@ export default function AccountsPage() {
             ) : (
               filteredAccounts.map((acc) => {
                 const isCard = (acc.type || '').trim().toLowerCase().includes('credit');
+                const calculatedBal = getCalculatedBalance(acc);
+
                 return (
                   <div key={acc.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 relative group">
                     <div className="flex items-center justify-between">
@@ -404,7 +461,7 @@ export default function AccountsPage() {
                         <div>
                           <p className="text-[11px] text-slate-400">Outstanding</p>
                           <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 whitespace-nowrap">
-                            {formatCurrency(Number(acc.current_balance), currency)}
+                            {formatCurrency(calculatedBal, currency)}
                           </p>
                         </div>
                       </div>
@@ -412,7 +469,7 @@ export default function AccountsPage() {
                       <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
                         <p className="text-[11px] text-slate-400">Available Balance</p>
                         <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 whitespace-nowrap">
-                          {formatCurrency(Number(acc.current_balance), currency)}
+                          {formatCurrency(calculatedBal, currency)}
                         </p>
                       </div>
                     )}
@@ -473,7 +530,7 @@ export default function AccountsPage() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {(editingAccount.type || '').trim().toLowerCase().includes('credit') ? `Outstanding Liability (${currency})` : `Current Balance (${currency})`}
+                  {(editingAccount.type || '').trim().toLowerCase().includes('credit') ? `Initial Outstanding Liability Baseline (${currency})` : `Initial Balance Baseline (${currency})`}
                 </label>
                 <input
                   type="number"
