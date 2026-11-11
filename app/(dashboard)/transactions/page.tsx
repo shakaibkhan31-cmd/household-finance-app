@@ -18,6 +18,7 @@ export interface Transaction {
   entered_by?: string;
   created_at?: string;
   user_id?: string;
+  household_id?: string;
 }
 
 export interface Debt {
@@ -27,6 +28,7 @@ export interface Debt {
   amount: number;
   type: string;
   user_id?: string;
+  household_id?: string;
 }
 
 const TRANSACTION_TYPES = [
@@ -73,6 +75,7 @@ export default function TransactionsPage() {
   const [currentMonthPrefix, setCurrentMonthPrefix] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
   const [memberName, setMemberName] = useState('Member');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   // Custom Category State for Expense
   const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -129,97 +132,107 @@ export default function TransactionsPage() {
       return;
     }
     
+    // 1. Fetch User Profile for Currency, Household ID, and Full Name
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency, full_name')
+      .select('preferred_currency, full_name, household_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile && profile.preferred_currency) {
-      setCurrency(profile.preferred_currency);
-    }
+    if (profile) {
+      if (profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
+      }
+      if (profile.full_name) {
+        setMemberName(profile.full_name);
+      } else {
+        const { data: familyMemberMatch } = await supabase
+          .from('family_members')
+          .select('member_name')
+          .eq('member_email', user.email?.toLowerCase() || '')
+          .maybeSingle();
 
-    let computedName = user.email ? user.email.split('@')[0] : 'Member';
-    
-    if (profile && profile.full_name) {
-      computedName = profile.full_name;
-    } else {
-      const { data: familyMemberMatch } = await supabase
-        .from('family_members')
-        .select('member_name')
-        .eq('member_email', user.email?.toLowerCase() || '')
-        .maybeSingle();
+        if (familyMemberMatch && familyMemberMatch.member_name) {
+          setMemberName(familyMemberMatch.member_name);
+        } else {
+          setMemberName(user.email ? user.email.split('@')[0] : 'Member');
+        }
+      }
 
-      if (familyMemberMatch && familyMemberMatch.member_name) {
-        computedName = familyMemberMatch.member_name;
+      if (profile.household_id) {
+        setHouseholdId(profile.household_id);
+
+        // 2. Fetch Household Accounts
+        const { data: accData, error: accError } = await supabase
+          .from('accounts')
+          .select('name')
+          .eq('household_id', profile.household_id);
+
+        if (accError) {
+          console.error('Error fetching accounts:', accError.message);
+        } else if (accData && accData.length > 0) {
+          const fetchedAccountNames = accData.map((a: { name: string }) => a.name);
+          setAvailableAccounts(fetchedAccountNames);
+          
+          const firstAcc = fetchedAccountNames[0];
+          if (!accountName) setAccountName(firstAcc);
+          
+          if (!transferTo) {
+            const differentAcc = fetchedAccountNames.find(acc => acc !== (accountName || firstAcc));
+            setTransferTo(differentAcc || firstAcc);
+          }
+        } else {
+          setAvailableAccounts([]);
+          setAccountName('');
+          setTransferTo('');
+        }
+
+        // 3. Fetch Household Budgets
+        const { data: bData } = await supabase
+          .from('budgets')
+          .select('category')
+          .eq('household_id', profile.household_id);
+
+        let fetchedBudgetCats: string[] = [];
+        if (bData && bData.length > 0) {
+          fetchedBudgetCats = bData.map((b: { category: string }) => b.category).filter(Boolean);
+        }
+        setBudgetCategories(fetchedBudgetCats);
+        
+        if (!category && type === 'Expense' && fetchedBudgetCats.length > 0) {
+          setCategory(fetchedBudgetCats[0]);
+        }
+
+        // 4. Fetch Household Debts
+        const { data: debtsData } = await supabase
+          .from('debts')
+          .select('id, person_name, direction, amount, type')
+          .eq('household_id', profile.household_id)
+          .eq('status', 'Active');
+
+        if (debtsData && debtsData.length > 0) {
+          setActiveDebts(debtsData);
+          if (!selectedDebtId) setSelectedDebtId(debtsData[0].id);
+        } else {
+          setActiveDebts([]);
+          setSelectedDebtId('');
+        }
+
+        // 5. Fetch Household Transactions
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('household_id', profile.household_id)
+          .order('date', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching transactions:', error.message);
+        } else {
+          setTransactions(data || []);
+        }
       }
     }
-    setMemberName(computedName);
 
-    const { data: accData, error: accError } = await supabase
-      .from('accounts')
-      .select('name')
-      .eq('user_id', user.id);
-
-    if (accError) {
-      console.error('Error fetching accounts:', accError.message);
-    } else if (accData && accData.length > 0) {
-      const fetchedAccountNames = accData.map((a: { name: string }) => a.name);
-      setAvailableAccounts(fetchedAccountNames);
-      
-      const firstAcc = fetchedAccountNames[0];
-      if (!accountName) setAccountName(firstAcc);
-      
-      if (!transferTo) {
-        const differentAcc = fetchedAccountNames.find(acc => acc !== (accountName || firstAcc));
-        setTransferTo(differentAcc || firstAcc);
-      }
-    } else {
-      setAvailableAccounts([]);
-      setAccountName('');
-      setTransferTo('');
-    }
-
-    const { data: bData } = await supabase
-      .from('budgets')
-      .select('category')
-      .eq('user_id', user.id);
-
-    let fetchedBudgetCats: string[] = [];
-    if (bData && bData.length > 0) {
-      fetchedBudgetCats = bData.map((b: { category: string }) => b.category).filter(Boolean);
-    }
-    setBudgetCategories(fetchedBudgetCats);
-    
-    if (!category && type === 'Expense' && fetchedBudgetCats.length > 0) {
-      setCategory(fetchedBudgetCats[0]);
-    }
-
-    const { data: debtsData } = await supabase
-      .from('debts')
-      .select('id, person_name, direction, amount, type')
-      .eq('user_id', user.id)
-      .eq('status', 'Active');
-
-    if (debtsData && debtsData.length > 0) {
-      setActiveDebts(debtsData);
-      if (!selectedDebtId) setSelectedDebtId(debtsData[0].id);
-    } else {
-      setActiveDebts([]);
-      setSelectedDebtId('');
-    }
-
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching transactions:', error.message);
-    } else {
-      setTransactions(data || []);
-    }
     setLoading(false);
   };
 
@@ -282,6 +295,11 @@ export default function TransactionsPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found!');
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
     const isTransfer = type === 'Transfer';
     const isRepayment = type === 'Loan Repayment';
@@ -329,8 +347,7 @@ export default function TransactionsPage() {
             party_name: isTransfer ? 'Self Transfer' : finalPartyName,
             description,
           })
-          .eq('id', editingId)
-          .eq('user_id', user.id);
+          .eq('id', editingId);
 
         if (error) {
           alert('Error updating transaction: ' + error.message);
@@ -351,6 +368,7 @@ export default function TransactionsPage() {
             description,
             entered_by: memberName,
             user_id: user.id,
+            household_id: householdId,
           },
         ]);
 
@@ -366,7 +384,7 @@ export default function TransactionsPage() {
             .from('accounts')
             .select('*')
             .eq('name', accountName)
-            .eq('user_id', user.id)
+            .eq('household_id', householdId)
             .limit(1);
 
           if (srcAcc && srcAcc.length > 0) {
@@ -383,8 +401,7 @@ export default function TransactionsPage() {
             await supabase
               .from('accounts')
               .update({ current_balance: currentBal })
-              .eq('id', accObj.id)
-              .eq('user_id', user.id);
+              .eq('id', accObj.id);
           }
 
           // Destination Account addition/credit card payment reduction
@@ -392,7 +409,7 @@ export default function TransactionsPage() {
             .from('accounts')
             .select('*')
             .eq('name', transferTo)
-            .eq('user_id', user.id)
+            .eq('household_id', householdId)
             .limit(1);
 
           if (destAcc && destAcc.length > 0) {
@@ -409,15 +426,14 @@ export default function TransactionsPage() {
             await supabase
               .from('accounts')
               .update({ current_balance: currentBal })
-              .eq('id', accObj.id)
-              .eq('user_id', user.id);
+              .eq('id', accObj.id);
           }
         } else {
           const { data: accList } = await supabase
             .from('accounts')
             .select('*')
             .eq('name', accountName)
-            .eq('user_id', user.id)
+            .eq('household_id', householdId)
             .limit(1);
 
           if (accList && accList.length > 0) {
@@ -449,8 +465,7 @@ export default function TransactionsPage() {
             await supabase
               .from('accounts')
               .update({ current_balance: currentBal })
-              .eq('id', acc.id)
-              .eq('user_id', user.id);
+              .eq('id', acc.id);
           }
         }
 
@@ -465,6 +480,7 @@ export default function TransactionsPage() {
               status: 'Active',
               notes: description || `Loan Given via ${accountName}`,
               user_id: user.id,
+              household_id: householdId,
             },
           ]);
         } else if (type === 'Loan Received') {
@@ -478,6 +494,7 @@ export default function TransactionsPage() {
               status: 'Active',
               notes: description || `Loan Received in ${accountName}`,
               user_id: user.id,
+              household_id: householdId,
             },
           ]);
         } else if (type === 'Loan Repayment' && selectedDebtId) {
@@ -490,8 +507,7 @@ export default function TransactionsPage() {
                 amount: updatedAmount,
                 status: updatedAmount === 0 ? 'Settled' : 'Active'
               })
-              .eq('id', targetDebt.id)
-              .eq('user_id', user.id);
+              .eq('id', targetDebt.id);
           }
         }
       }
@@ -528,8 +544,7 @@ export default function TransactionsPage() {
   const handleDeleteTransaction = async (t: Transaction) => {
     if (!confirm('Kya aap waqai is transaction ko delete karna chahte hain? Account balance wapas adjust ho jayega.')) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!householdId) return;
 
     const txAmount = Number(t.amount);
     const isCredit = ['Income Receipt', 'Loan Received', 'Refund'].includes(t.type);
@@ -540,7 +555,7 @@ export default function TransactionsPage() {
         .from('accounts')
         .select('*')
         .eq('name', t.account_name)
-        .eq('user_id', user.id)
+        .eq('household_id', householdId)
         .limit(1);
 
       if (srcAcc && srcAcc.length > 0) {
@@ -552,14 +567,13 @@ export default function TransactionsPage() {
         await supabase
           .from('accounts')
           .update({ current_balance: bal })
-          .eq('id', srcAcc[0].id)
-          .eq('user_id', user.id);
+          .eq('id', srcAcc[0].id);
       }
       const { data: destAcc } = await supabase
         .from('accounts')
         .select('*')
         .eq('name', t.transfer_to)
-        .eq('user_id', user.id)
+        .eq('household_id', householdId)
         .limit(1);
 
       if (destAcc && destAcc.length > 0) {
@@ -571,15 +585,14 @@ export default function TransactionsPage() {
         await supabase
           .from('accounts')
           .update({ current_balance: bal })
-          .eq('id', destAcc[0].id)
-          .eq('user_id', user.id);
+          .eq('id', destAcc[0].id);
       }
     } else {
       const { data: accList } = await supabase
         .from('accounts')
         .select('*')
         .eq('name', t.account_name)
-        .eq('user_id', user.id)
+        .eq('household_id', householdId)
         .limit(1);
 
       if (accList && accList.length > 0) {
@@ -598,16 +611,14 @@ export default function TransactionsPage() {
         await supabase
           .from('accounts')
           .update({ current_balance: currentBal })
-          .eq('id', acc.id)
-          .eq('user_id', user.id);
+          .eq('id', acc.id);
       }
     }
 
     const { error } = await supabase
       .from('transactions')
       .delete()
-      .eq('id', t.id)
-      .eq('user_id', user.id);
+      .eq('id', t.id);
 
     if (error) {
       alert('Error deleting transaction: ' + error.message);
@@ -617,11 +628,8 @@ export default function TransactionsPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || !householdId) return;
     if (!confirm(`Kya aap waqai selected ${selectedIds.length} transactions ko delete karna chahte hain?`)) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
     for (const id of selectedIds) {
       const t = transactions.find(item => item.id === id);
@@ -635,7 +643,7 @@ export default function TransactionsPage() {
             .from('accounts')
             .select('*')
             .eq('name', t.account_name)
-            .eq('user_id', user.id)
+            .eq('household_id', householdId)
             .limit(1);
 
           if (srcAcc && srcAcc.length > 0) {
@@ -647,14 +655,13 @@ export default function TransactionsPage() {
             await supabase
               .from('accounts')
               .update({ current_balance: bal })
-              .eq('id', srcAcc[0].id)
-              .eq('user_id', user.id);
+              .eq('id', srcAcc[0].id);
           }
           const { data: destAcc } = await supabase
             .from('accounts')
             .select('*')
             .eq('name', t.transfer_to)
-            .eq('user_id', user.id)
+            .eq('household_id', householdId)
             .limit(1);
 
           if (destAcc && destAcc.length > 0) {
@@ -666,15 +673,14 @@ export default function TransactionsPage() {
             await supabase
               .from('accounts')
               .update({ current_balance: bal })
-              .eq('id', destAcc[0].id)
-              .eq('user_id', user.id);
+              .eq('id', destAcc[0].id);
           }
         } else {
           const { data: accList } = await supabase
             .from('accounts')
             .select('*')
             .eq('name', t.account_name)
-            .eq('user_id', user.id)
+            .eq('household_id', householdId)
             .limit(1);
 
           if (accList && accList.length > 0) {
@@ -693,8 +699,7 @@ export default function TransactionsPage() {
             await supabase
               .from('accounts')
               .update({ current_balance: currentBal })
-              .eq('id', acc.id)
-              .eq('user_id', user.id);
+              .eq('id', acc.id);
           }
         }
       }
@@ -703,8 +708,7 @@ export default function TransactionsPage() {
     const { error } = await supabase
       .from('transactions')
       .delete()
-      .in('id', selectedIds)
-      .eq('user_id', user.id);
+      .in('id', selectedIds);
 
     if (error) {
       alert('Error performing bulk delete: ' + error.message);
