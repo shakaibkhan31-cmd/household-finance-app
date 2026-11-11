@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
-import { Plus, CheckCircle, ArrowDownLeft, ArrowUpRight, DollarSign, Calendar, AlertCircle, Users, Wallet, History, Trash2 } from 'lucide-react';
+import { Plus, ArrowDownLeft, ArrowUpRight, AlertCircle, Users, History, Trash2 } from 'lucide-react';
 
 export interface Debt {
   id: string;
@@ -16,6 +16,7 @@ export interface Debt {
   notes?: string;
   created_at?: string;
   user_id?: string;
+  household_id?: string;
 }
 
 export interface Kameti {
@@ -27,6 +28,7 @@ export interface Kameti {
   status: string;
   notes?: string;
   user_id?: string;
+  household_id?: string;
 }
 
 export interface Transaction {
@@ -38,6 +40,7 @@ export interface Transaction {
   party_name: string;
   description: string;
   user_id?: string;
+  household_id?: string;
 }
 
 export default function DebtsPage() {
@@ -48,6 +51,8 @@ export default function DebtsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [todayStr, setTodayStr] = useState('');
   const [currency, setCurrency] = useState('PKR');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [memberName, setMemberName] = useState<string>('Member');
 
   // Debt Form State
   const [personName, setPersonName] = useState('');
@@ -98,42 +103,56 @@ export default function DebtsPage() {
       return;
     }
 
-    // Fetch User Profile Currency preference
+    // 1. Fetch User Profile for Currency, Household ID, and Full Name
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency')
+      .select('preferred_currency, full_name, household_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile && profile.preferred_currency) {
-      setCurrency(profile.preferred_currency);
+    if (profile) {
+      if (profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
+      }
+      if (profile.full_name) {
+        setMemberName(profile.full_name);
+      } else {
+        setMemberName(user.email ? user.email.split('@')[0] : 'Member');
+      }
+
+      if (profile.household_id) {
+        setHouseholdId(profile.household_id);
+
+        // 2. Fetch Household Accounts
+        const { data: accData } = await supabase
+          .from('accounts')
+          .select('name')
+          .eq('household_id', profile.household_id);
+
+        if (accData && accData.length > 0) {
+          const names = accData.map((a: { name: string }) => a.name);
+          setAccounts(names);
+          setSelectedAccount(names[0]);
+          setKametiAccount(names[0]);
+        }
+
+        // 3. Fetch Household Debts
+        const { data: debtData } = await supabase
+          .from('debts')
+          .select('*')
+          .eq('household_id', profile.household_id)
+          .order('due_date', { ascending: true });
+        setDebts(debtData || []);
+
+        // 4. Fetch Household Kametis
+        const { data: kametiData } = await supabase
+          .from('kametis')
+          .select('*')
+          .eq('household_id', profile.household_id)
+          .order('created_at', { ascending: false });
+        setKametis(kametiData || []);
+      }
     }
-
-    const { data: accData } = await supabase
-      .from('accounts')
-      .select('name')
-      .eq('user_id', user.id);
-
-    if (accData && accData.length > 0) {
-      const names = accData.map((a: { name: string }) => a.name);
-      setAccounts(names);
-      setSelectedAccount(names[0]);
-      setKametiAccount(names[0]);
-    }
-
-    const { data: debtData } = await supabase
-      .from('debts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('due_date', { ascending: true });
-    setDebts(debtData || []);
-
-    const { data: kametiData } = await supabase
-      .from('kametis')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    setKametis(kametiData || []);
 
     setLoading(false);
   };
@@ -162,6 +181,11 @@ export default function DebtsPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found!');
+      return;
+    }
+
     const { error } = await supabase.from('debts').insert([
       {
         person_name: personName,
@@ -172,6 +196,7 @@ export default function DebtsPage() {
         status: 'Active',
         notes,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -188,14 +213,10 @@ export default function DebtsPage() {
   const handleDeleteDebt = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete the debt record for "${name}"?`)) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('debts')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) {
       alert('Error deleting debt record: ' + error.message);
@@ -217,6 +238,11 @@ export default function DebtsPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found!');
+      return;
+    }
+
     const { error } = await supabase.from('kametis').insert([
       {
         committee_name: committeeName,
@@ -226,6 +252,7 @@ export default function DebtsPage() {
         status: 'Active',
         notes: kametiNotes,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -247,7 +274,7 @@ export default function DebtsPage() {
   };
 
   const handleConfirmKametiAction = async () => {
-    if (!kametiActionModal || !kametiAccount || !kametiActionAmount) {
+    if (!kametiActionModal || !kametiAccount || !kametiActionAmount || !householdId) {
       alert('Please select an account and enter the amount.');
       return;
     }
@@ -277,8 +304,9 @@ export default function DebtsPage() {
         amount: amountVal,
         party_name: partyName,
         description: description,
-        entered_by: 'Husband',
+        entered_by: memberName,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -291,7 +319,7 @@ export default function DebtsPage() {
       .from('accounts')
       .select('*')
       .eq('name', kametiAccount)
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .limit(1);
 
     if (accList && accList.length > 0) {
@@ -302,16 +330,14 @@ export default function DebtsPage() {
       await supabase
         .from('accounts')
         .update({ current_balance: currentBal })
-        .eq('id', acc.id)
-        .eq('user_id', user.id);
+        .eq('id', acc.id);
     }
 
     if (!isPay) {
       await supabase
         .from('kametis')
         .update({ status: 'Completed' })
-        .eq('id', kameti.id)
-        .eq('user_id', user.id);
+        .eq('id', kameti.id);
     }
 
     setKametiActionModal(null);
@@ -325,7 +351,7 @@ export default function DebtsPage() {
   };
 
   const handleConfirmSettlement = async () => {
-    if (!settlingDebt || !selectedAccount || !settlementAmount) {
+    if (!settlingDebt || !selectedAccount || !settlementAmount || !householdId) {
       alert('Please select an account and enter the settlement amount.');
       return;
     }
@@ -355,8 +381,9 @@ export default function DebtsPage() {
         amount: payAmount,
         party_name: settlingDebt.person_name,
         description: `Partial/Full settlement for ${settlingDebt.type} (${settlingDebt.direction})`,
-        entered_by: 'Husband',
+        entered_by: memberName,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -369,7 +396,7 @@ export default function DebtsPage() {
       .from('accounts')
       .select('*')
       .eq('name', selectedAccount)
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .limit(1);
 
     if (accList && accList.length > 0) {
@@ -381,8 +408,7 @@ export default function DebtsPage() {
       await supabase
         .from('accounts')
         .update({ current_balance: currentBal })
-        .eq('id', acc.id)
-        .eq('user_id', user.id);
+        .eq('id', acc.id);
     }
 
     const remainingDebt = Math.max(0, settlingDebt.amount - payAmount);
@@ -392,8 +418,7 @@ export default function DebtsPage() {
         amount: remainingDebt,
         status: remainingDebt === 0 ? 'Settled' : 'Active',
       })
-      .eq('id', settlingDebt.id)
-      .eq('user_id', user.id);
+      .eq('id', settlingDebt.id);
 
     setSettlingDebt(null);
     fetchData();
@@ -402,14 +427,13 @@ export default function DebtsPage() {
   const openHistoryModal = async (title: string, type: 'debt' | 'kameti') => {
     setHistoryModalItem({ title, type });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!householdId) return;
 
     const searchKeyword = type === 'debt' ? title : `Kameti: ${title}`;
     const { data } = await supabase
       .from('transactions')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .ilike('party_name', `%${searchKeyword}%`)
       .order('date', { ascending: false });
 
