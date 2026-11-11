@@ -76,6 +76,7 @@ interface Account {
   current_balance?: number;
   opening_balance?: number;
   user_id?: string;
+  household_id?: string;
 }
 
 interface Bill {
@@ -94,6 +95,7 @@ interface Bill {
   description?: string;
   remarks?: string;
   user_id?: string;
+  household_id?: string;
 }
 
 interface Transaction {
@@ -108,6 +110,7 @@ interface Transaction {
   entered_by?: string;
   party_name?: string;
   user_id?: string;
+  household_id?: string;
 }
 
 interface Budget {
@@ -123,6 +126,7 @@ interface Budget {
   budget_limit?: number;
   spent_amount?: number;
   user_id?: string;
+  household_id?: string;
 }
 
 export default function FinanceDashboard() {
@@ -142,6 +146,7 @@ function DashboardContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [currency, setCurrency] = useState('PKR');
   const [memberName, setMemberName] = useState<string>('Member');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   // Tutorial State
   const [showTutorial, setShowTutorial] = useState(false);
@@ -159,7 +164,6 @@ function DashboardContent() {
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('Expense');
   const [description, setDescription] = useState('');
-  const [enteredBy, setEnteredBy] = useState('Member');
   const [selectedAccount, setSelectedAccount] = useState('');
 
   // Mobile Quick Action Modal States
@@ -192,9 +196,10 @@ function DashboardContent() {
 
       setUserId(activeUser.id);
 
+      // 1. Fetch User Profile for Currency, Household ID, and Full Name
       const { data: profile } = await supabase
         .from('profiles')
-        .select('preferred_currency, has_seen_tutorial, full_name')
+        .select('preferred_currency, has_seen_tutorial, full_name, household_id')
         .eq('id', activeUser.id)
         .maybeSingle();
 
@@ -205,87 +210,70 @@ function DashboardContent() {
       let computedName = activeUser.email ? activeUser.email.split('@')[0] : 'Member';
       if (profile && profile.full_name) {
         computedName = profile.full_name;
-      }
-
-      let targetUserId = activeUser.id;
-      
-      if (activeUser.email) {
-        const cleanEmail = activeUser.email.trim().toLowerCase();
-        
-        let { data: memberRecord } = await supabase
+      } else {
+        const { data: familyMemberMatch } = await supabase
           .from('family_members')
-          .select('*')
-          .ilike('member_email', cleanEmail)
+          .select('member_name')
+          .eq('member_email', activeUser.email?.toLowerCase() || '')
           .maybeSingle();
 
-        if (!memberRecord) {
-          const { data: allMembers } = await supabase
-            .from('family_members')
-            .select('*');
-          
-          if (allMembers) {
-            const matched = allMembers.find(m => m.member_email && m.member_email.trim().toLowerCase() === cleanEmail);
-            if (matched) {
-              memberRecord = matched;
-            }
-          }
-        }
-
-        if (memberRecord) {
-          if (memberRecord.member_name) {
-            computedName = memberRecord.member_name;
-          }
-          if (memberRecord.owner_id) {
-            targetUserId = memberRecord.owner_id;
-            setShowTutorial(false);
-          }
-        } else {
-          if (profile && profile.has_seen_tutorial === false) {
-            setShowTutorial(true);
-          }
+        if (familyMemberMatch && familyMemberMatch.member_name) {
+          computedName = familyMemberMatch.member_name;
         }
       }
       setMemberName(computedName);
 
-      const { data: accData, error: accErr } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', targetUserId);
+      if (profile && profile.household_id) {
+        setHouseholdId(profile.household_id);
 
-      if (!accErr && accData && accData.length > 0) {
-        setAccounts(accData);
-        const firstAccName = accData[0]?.name || accData[0]?.account_name || '';
-        if (!selectedAccount) setSelectedAccount(firstAccName);
-        if (!paymentAccountId) setPaymentAccountId(firstAccName);
-        if (!quickAccount) setQuickAccount(firstAccName);
-      }
+        if (profile.has_seen_tutorial === false) {
+          setShowTutorial(true);
+        }
 
-      const { data: txData, error: txErr } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', targetUserId);
+        // 2. Fetch Household Accounts
+        const { data: accData, error: accErr } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('household_id', profile.household_id);
 
-      if (!txErr && txData) setTransactions(txData);
+        if (!accErr && accData && accData.length > 0) {
+          setAccounts(accData);
+          const firstAccName = accData[0]?.name || accData[0]?.account_name || '';
+          if (!selectedAccount) setSelectedAccount(firstAccName);
+          if (!paymentAccountId) setPaymentAccountId(firstAccName);
+          if (!quickAccount) setQuickAccount(firstAccName);
+        }
 
-      const { data: billData, error: billErr } = await supabase
-        .from('bills')
-        .select('*')
-        .eq('user_id', targetUserId);
+        // 3. Fetch Household Transactions
+        const { data: txData, error: txErr } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('household_id', profile.household_id);
 
-      if (!billErr && billData) {
-        setAllBills(billData);
-      }
+        if (!txErr && txData) setTransactions(txData);
 
-      const { data: budgetData, error: budgetErr } = await supabase
-        .from('budgets')
-        .select('*')
-        .eq('user_id', targetUserId);
+        // 4. Fetch Household Bills
+        const { data: billData, error: billErr } = await supabase
+          .from('bills')
+          .select('*')
+          .eq('household_id', profile.household_id);
 
-      if (!budgetErr && budgetData) {
-        setBudgets(budgetData);
-        if (budgetData.length > 0 && !quickCategory) {
-          const firstBudgetName = budgetData[0]?.category || budgetData[0]?.name || budgetData[0]?.title || 'General';
-          setQuickCategory(firstBudgetName);
+        if (!billErr && billData) {
+          setAllBills(billData);
+        }
+
+        // 5. Fetch Household Budgets
+        const { data: budgetData, error: budgetErr } = await supabase
+          .from('budgets')
+          .select('*')
+          .eq('household_id', profile.household_id);
+
+        if (!budgetErr && budgetData) {
+          setBudgets(budgetData);
+          if (budgetData.length > 0 && !quickCategory) {
+            const firstBudgetName = budgetData[0]?.category || budgetData[0]?.name || budgetData[0]?.title || 'General';
+            setQuickCategory(firstBudgetName);
+          }
         }
       }
 
@@ -313,7 +301,7 @@ function DashboardContent() {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !description || !selectedAccount) {
+    if (!amount || !description || !selectedAccount || !householdId) {
       return alert('Amount, Description, and Account are required!');
     }
 
@@ -339,6 +327,7 @@ function DashboardContent() {
           date: currentDate,
           transaction_date: currentDate,
           user_id: currentUserId,
+          household_id: householdId,
         },
       ]);
 
@@ -358,7 +347,7 @@ function DashboardContent() {
 
   const handleMobileQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickAmount || !quickAccount) {
+    if (!quickAmount || !quickAccount || !householdId) {
       return alert('Amount and Account are required!');
     }
 
@@ -387,6 +376,7 @@ function DashboardContent() {
           date: currentDate,
           transaction_date: currentDate,
           user_id: currentUserId,
+          household_id: householdId,
         },
       ]);
 
@@ -405,7 +395,7 @@ function DashboardContent() {
   };
 
   const handleConfirmPayBill = async () => {
-    if (!selectedBillToPay) return;
+    if (!selectedBillToPay || !householdId) return;
     if (!paymentAccountId) return alert('Please select an account to pay from!');
 
     try {
@@ -421,20 +411,15 @@ function DashboardContent() {
       const currentDate = new Date().toISOString().split('T')[0];
       const billAmt = Number(selectedBillToPay.amount ?? selectedBillToPay.bill_amount ?? 0);
       
-      // Bill Title / Provider for Party Name
       const billTitle = selectedBillToPay.title || selectedBillToPay.provider || selectedBillToPay.bill_name || selectedBillToPay.name || 'Utility Bill';
-      
-      // Bill Notes for Description / Remarks
       const billNotes = selectedBillToPay.notes || selectedBillToPay.description || selectedBillToPay.remarks || `Bill Payment: ${billTitle}`;
-      
       const billCategory = selectedBillToPay.category || 'Utilities & Bills';
 
       // 1. Mark current bill as Paid
       await supabase
         .from('bills')
         .update({ status: 'Paid', payment_status: 'PAID' })
-        .eq('id', selectedBillToPay.id)
-        .eq('user_id', currentUserId);
+        .eq('id', selectedBillToPay.id);
 
       // 2. Insert transaction record with party_name and description
       await supabase.from('transactions').insert([
@@ -449,6 +434,7 @@ function DashboardContent() {
           date: currentDate,
           transaction_date: currentDate,
           user_id: currentUserId,
+          household_id: householdId,
         },
       ]);
 
@@ -469,6 +455,7 @@ function DashboardContent() {
         await supabase.from('bills').insert([
           {
             user_id: currentUserId,
+            household_id: householdId,
             title: selectedBillToPay.title || billTitle,
             provider: selectedBillToPay.provider || billTitle,
             category: billCategory,
