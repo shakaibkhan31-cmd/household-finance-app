@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
-import { Plus, PieChart, AlertTriangle, CheckCircle2, DollarSign, Trash2, Edit3, X } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, Trash2, Edit3, X } from 'lucide-react';
 
 export interface Budget {
   id: string;
   category: string;
   monthly_limit: number;
   user_id?: string;
+  household_id?: string;
 }
 
 export interface Transaction {
@@ -19,6 +20,7 @@ export interface Transaction {
   type: string;
   date: string;
   user_id?: string;
+  household_id?: string;
 }
 
 const CATEGORIES = [
@@ -39,6 +41,7 @@ export default function BudgetsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [currentYearMonth, setCurrentYearMonth] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   // Form State
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -64,34 +67,39 @@ export default function BudgetsPage() {
       return;
     }
 
-    // Fetch User Profile Currency preference
+    // 1. Fetch User Profile for Currency and Household ID
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency')
+      .select('preferred_currency, household_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile && profile.preferred_currency) {
-      setCurrency(profile.preferred_currency);
+    if (profile) {
+      if (profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
+      }
+      if (profile.household_id) {
+        setHouseholdId(profile.household_id);
+
+        // 2. Fetch Household Budgets
+        const { data: bData, error: bErr } = await supabase
+          .from('budgets')
+          .select('*')
+          .eq('household_id', profile.household_id);
+
+        if (bErr) console.error('Error fetching budgets:', bErr.message);
+        else setBudgets(bData || []);
+
+        // 3. Fetch Household Transactions
+        const { data: tData, error: tErr } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('household_id', profile.household_id);
+
+        if (tErr) console.error('Error fetching transactions:', tErr.message);
+        else setTransactions(tData || []);
+      }
     }
-
-    // 1. Fetch Budgets
-    const { data: bData, error: bErr } = await supabase
-      .from('budgets')
-      .select('*')
-      .eq('user_id', user.id);
-
-    if (bErr) console.error('Error fetching budgets:', bErr.message);
-    else setBudgets(bData || []);
-
-    // 2. Fetch Transactions
-    const { data: tData, error: tErr } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id);
-
-    if (tErr) console.error('Error fetching transactions:', tErr.message);
-    else setTransactions(tData || []);
 
     setLoading(false);
   };
@@ -112,15 +120,21 @@ export default function BudgetsPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found!');
+      return;
+    }
+
     const { error } = await supabase.from('budgets').upsert(
       [
         {
           category: finalCategory,
           monthly_limit: parseFloat(monthlyLimit),
           user_id: user.id,
+          household_id: householdId,
         },
       ],
-      { onConflict: 'user_id, category' }
+      { onConflict: 'household_id, category' }
     );
 
     if (error) {
@@ -138,14 +152,10 @@ export default function BudgetsPage() {
     e.preventDefault();
     if (!editingBudget || !editLimit) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('budgets')
       .update({ monthly_limit: parseFloat(editLimit) })
-      .eq('id', editingBudget.id)
-      .eq('user_id', user.id);
+      .eq('id', editingBudget.id);
 
     if (error) {
       alert('Error updating budget: ' + error.message);
@@ -159,14 +169,10 @@ export default function BudgetsPage() {
   const handleDeleteBudget = async (id: string) => {
     if (!confirm('Kya aap is category budget ko delete karna chahte hain?')) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('budgets')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) alert('Error deleting budget: ' + error.message);
     else fetchBudgetsAndTransactions();
