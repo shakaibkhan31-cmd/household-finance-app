@@ -210,15 +210,23 @@ function DashboardContent() {
       let computedName = activeUser.email ? activeUser.email.split('@')[0] : 'Member';
       if (profile && profile.full_name) {
         computedName = profile.full_name;
-      } else {
-        const { data: familyMemberMatch } = await supabase
+      }
+
+      let isFamilyMember = false;
+      if (activeUser.email) {
+        const cleanEmail = activeUser.email.trim().toLowerCase();
+        
+        let { data: memberRecord } = await supabase
           .from('family_members')
-          .select('member_name')
-          .eq('member_email', activeUser.email?.toLowerCase() || '')
+          .select('*')
+          .ilike('member_email', cleanEmail)
           .maybeSingle();
 
-        if (familyMemberMatch && familyMemberMatch.member_name) {
-          computedName = familyMemberMatch.member_name;
+        if (memberRecord) {
+          isFamilyMember = true;
+          if (memberRecord.member_name) {
+            computedName = memberRecord.member_name;
+          }
         }
       }
       setMemberName(computedName);
@@ -226,8 +234,11 @@ function DashboardContent() {
       if (profile && profile.household_id) {
         setHouseholdId(profile.household_id);
 
-        if (profile.has_seen_tutorial === false) {
+        // Tutorial sirf main owner ke liye show hoga, Family Members ke liye kabhi nahi
+        if (!isFamilyMember && profile.has_seen_tutorial === false) {
           setShowTutorial(true);
+        } else {
+          setShowTutorial(false);
         }
 
         // 2. Fetch Household Accounts
