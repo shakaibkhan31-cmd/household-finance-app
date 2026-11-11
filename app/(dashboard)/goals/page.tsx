@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
 import { 
   Plus, 
-  Target, 
   CheckCircle2, 
   Trash2, 
   Edit3, 
@@ -14,7 +13,6 @@ import {
   Archive, 
   History, 
   Repeat, 
-  ArrowUpRight,
   RotateCcw
 } from 'lucide-react';
 
@@ -29,6 +27,7 @@ export interface Goal {
   is_archived?: boolean;
   monthly_target?: number;
   user_id?: string;
+  household_id?: string;
 }
 
 export interface Transaction {
@@ -41,6 +40,7 @@ export interface Transaction {
   party_name: string;
   description: string;
   user_id?: string;
+  household_id?: string;
 }
 
 const GOAL_CATEGORIES = [
@@ -59,6 +59,7 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [viewTab, setViewTab] = useState<'active' | 'archived'>('active');
   const [currency, setCurrency] = useState('PKR');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -96,39 +97,44 @@ export default function GoalsPage() {
       return;
     }
 
-    // Fetch User Profile Currency preference
+    // 1. Fetch User Profile for Currency and Household ID
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency')
+      .select('preferred_currency, household_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile && profile.preferred_currency) {
-      setCurrency(profile.preferred_currency);
-    }
+    if (profile) {
+      if (profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
+      }
+      if (profile.household_id) {
+        setHouseholdId(profile.household_id);
 
-    // Fetch Goals
-    const { data: gData, error: gError } = await supabase
-      .from('goals')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+        // 2. Fetch Household Goals
+        const { data: gData, error: gError } = await supabase
+          .from('goals')
+          .select('*')
+          .eq('household_id', profile.household_id)
+          .order('created_at', { ascending: false });
 
-    if (gError) console.error('Error fetching goals:', gError.message);
-    else setGoals(gData || []);
+        if (gError) console.error('Error fetching goals:', gError.message);
+        else setGoals(gData || []);
 
-    // Fetch Accounts
-    const { data: accData, error: accError } = await supabase
-      .from('accounts')
-      .select('name')
-      .eq('user_id', user.id);
+        // 3. Fetch Household Accounts
+        const { data: accData, error: accError } = await supabase
+          .from('accounts')
+          .select('name')
+          .eq('household_id', profile.household_id);
 
-    if (accError) console.error('Error fetching accounts:', accError.message);
-    else if (accData && accData.length > 0) {
-      const accNames = accData.map((a: { name: string }) => a.name);
-      setAvailableAccounts(accNames);
-      setSourceAccount(accNames[0]);
-      setDestinationAccount(accNames[0]);
+        if (accError) console.error('Error fetching accounts:', accError.message);
+        else if (accData && accData.length > 0) {
+          const accNames = accData.map((a: { name: string }) => a.name);
+          setAvailableAccounts(accNames);
+          setSourceAccount(accNames[0]);
+          setDestinationAccount(accNames[0]);
+        }
+      }
     }
 
     setLoading(false);
@@ -147,6 +153,11 @@ export default function GoalsPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found!');
+      return;
+    }
+
     const { error } = await supabase.from('goals').insert([
       {
         title,
@@ -158,6 +169,7 @@ export default function GoalsPage() {
         notes,
         is_archived: false,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -173,9 +185,6 @@ export default function GoalsPage() {
     e.preventDefault();
     if (!editingGoal) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('goals')
       .update({
@@ -186,8 +195,7 @@ export default function GoalsPage() {
         category: editingGoal.category,
         notes: editingGoal.notes,
       })
-      .eq('id', editingGoal.id)
-      .eq('user_id', user.id);
+      .eq('id', editingGoal.id);
 
     if (error) {
       alert('Error updating goal: ' + error.message);
@@ -198,15 +206,11 @@ export default function GoalsPage() {
   };
 
   const handleToggleArchive = async (goal: Goal) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const updatedStatus = !goal.is_archived;
     const { error } = await supabase
       .from('goals')
       .update({ is_archived: updatedStatus })
-      .eq('id', goal.id)
-      .eq('user_id', user.id);
+      .eq('id', goal.id);
 
     if (error) alert('Error updating status: ' + error.message);
     else fetchGoalsAndAccounts();
@@ -214,7 +218,7 @@ export default function GoalsPage() {
 
   const handleAddFunds = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fundGoal || !fundAmountInput || !sourceAccount) {
+    if (!fundGoal || !fundAmountInput || !sourceAccount || !householdId) {
       alert('Please select accounts and enter deposit amount.');
       return;
     }
@@ -230,8 +234,7 @@ export default function GoalsPage() {
     const { error: goalErr } = await supabase
       .from('goals')
       .update({ current_amount: newTotal })
-      .eq('id', fundGoal.id)
-      .eq('user_id', user.id);
+      .eq('id', fundGoal.id);
 
     if (goalErr) {
       alert('Error updating goal: ' + goalErr.message);
@@ -252,6 +255,7 @@ export default function GoalsPage() {
           ? `Internal goal earmark within ${sourceAccount} for: ${fundGoal.title}` 
           : `Savings transfer towards goal: ${fundGoal.title}`,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -265,7 +269,7 @@ export default function GoalsPage() {
         .from('accounts')
         .select('*')
         .eq('name', sourceAccount)
-        .eq('user_id', user.id)
+        .eq('household_id', householdId)
         .limit(1);
 
       if (srcList && srcList.length > 0) {
@@ -274,8 +278,7 @@ export default function GoalsPage() {
         await supabase
           .from('accounts')
           .update({ current_balance: updatedSrcBal })
-          .eq('id', srcAcc.id)
-          .eq('user_id', user.id);
+          .eq('id', srcAcc.id);
       }
 
       if (destinationAccount) {
@@ -283,7 +286,7 @@ export default function GoalsPage() {
           .from('accounts')
           .select('*')
           .eq('name', destinationAccount)
-          .eq('user_id', user.id)
+          .eq('household_id', householdId)
           .limit(1);
 
         if (destList && destList.length > 0) {
@@ -292,8 +295,7 @@ export default function GoalsPage() {
           await supabase
             .from('accounts')
             .update({ current_balance: updatedDestBal })
-            .eq('id', destAcc.id)
-            .eq('user_id', user.id);
+            .eq('id', destAcc.id);
         }
       }
     }
@@ -306,13 +308,12 @@ export default function GoalsPage() {
   const openHistoryModal = async (goal: Goal) => {
     setHistoryGoal(goal);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!householdId) return;
 
     const { data } = await supabase
       .from('transactions')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .ilike('party_name', `%Goal Allocation: ${goal.title}%`)
       .order('date', { ascending: false });
 
@@ -322,14 +323,10 @@ export default function GoalsPage() {
   const handleDeleteGoal = async (id: string) => {
     if (!confirm('Kya aap is financial goal ko delete karna chahte hain?')) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('goals')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) alert('Error deleting goal: ' + error.message);
     else fetchGoalsAndAccounts();
@@ -414,7 +411,7 @@ export default function GoalsPage() {
                   placeholder="e.g. 500000"
                   value={targetAmount}
                   onChange={(e) => setTargetAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                 />
               </div>
 
@@ -425,7 +422,7 @@ export default function GoalsPage() {
                   placeholder="0"
                   value={currentAmount}
                   onChange={(e) => setCurrentAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                 />
               </div>
             </div>
@@ -438,7 +435,7 @@ export default function GoalsPage() {
                   placeholder="e.g. 20000"
                   value={monthlyTarget}
                   onChange={(e) => setMonthlyTarget(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-emerald-800 dark:text-emerald-400"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-emerald-800 dark:text-emerald-400"
                 />
               </div>
 
@@ -448,7 +445,7 @@ export default function GoalsPage() {
                   type="date"
                   value={targetDate}
                   onChange={(e) => setTargetDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 outline-none"
                 />
               </div>
             </div>
