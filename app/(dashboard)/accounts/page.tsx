@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
-import { Wallet, Plus, Building2, CreditCard, DollarSign, Edit3, X, Trash2, Search, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Wallet, Plus, Building2, CreditCard, DollarSign, Edit3, X, Trash2, Search } from 'lucide-react';
 
 export interface Account {
   id: string;
@@ -14,6 +14,7 @@ export interface Account {
   credit_limit?: number;
   created_at?: string;
   user_id?: string;
+  household_id?: string;
 }
 
 export default function AccountsPage() {
@@ -22,6 +23,7 @@ export default function AccountsPage() {
   const [filterType, setFilterType] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   // Form State (Add)
   const [name, setName] = useState('');
@@ -45,27 +47,33 @@ export default function AccountsPage() {
       return;
     }
 
-    // Fetch User Profile Currency preference
+    // 1. Fetch User Profile for Currency and Household ID
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency')
+      .select('preferred_currency, household_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile && profile.preferred_currency) {
-      setCurrency(profile.preferred_currency);
-    }
+    if (profile) {
+      if (profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
+      }
+      if (profile.household_id) {
+        setHouseholdId(profile.household_id);
 
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('name', { ascending: true });
+        // 2. Fetch Accounts filtered by household_id
+        const { data, error } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('household_id', profile.household_id)
+          .order('name', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching accounts:', error.message);
-    } else {
-      setAccounts(data || []);
+        if (error) {
+          console.error('Error fetching accounts:', error.message);
+        } else {
+          setAccounts(data || []);
+        }
+      }
     }
     setLoading(false);
   };
@@ -84,6 +92,11 @@ export default function AccountsPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found for this user!');
+      return;
+    }
+
     const parsedBalance = parseFloat(balance);
     const parsedLimit = type === 'Credit Card' && creditLimit ? parseFloat(creditLimit) : 0;
     const isCash = type === 'Cash';
@@ -96,6 +109,7 @@ export default function AccountsPage() {
         current_balance: parsedBalance,
         credit_limit: parsedLimit,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -129,7 +143,6 @@ export default function AccountsPage() {
       name: editName,
       current_balance: parseFloat(editBalance),
       account_number: editAccountNumber || null,
-      user_id: user.id,
     };
 
     const isCreditCard = (editingAccount.type || '').trim().toLowerCase().includes('credit');
@@ -140,8 +153,7 @@ export default function AccountsPage() {
     const { error } = await supabase
       .from('accounts')
       .update(updatePayload)
-      .eq('id', editingAccount.id)
-      .eq('user_id', user.id);
+      .eq('id', editingAccount.id);
 
     if (error) {
       alert('Error updating account: ' + error.message);
@@ -154,14 +166,10 @@ export default function AccountsPage() {
   const handleDeleteAccount = async (id: string, name: string) => {
     if (!confirm(`Kya aap waqai "${name}" account ko delete karna chahte hain?`)) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('accounts')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) {
       alert('Error deleting account: ' + error.message);
