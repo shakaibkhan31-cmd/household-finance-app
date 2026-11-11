@@ -242,6 +242,17 @@ export default function BillsPage() {
       ? Number(bill.amount || 0) + Number(bill.late_charges || 0)
       : Number(bill.amount || 0);
     setTransferTotalAmount(initialTotal);
+
+    // Automatically select Credit Card as target account by default if bill title or category matches
+    const matchingCreditAccount = accounts.find(
+      acc => acc.toLowerCase().includes('credit') || acc.toLowerCase().includes('card') || bill.title.toLowerCase().includes(acc.toLowerCase())
+    );
+    if (matchingCreditAccount) {
+      setTargetAccount(matchingCreditAccount);
+    } else if (accounts.length > 1) {
+      const alternative = accounts.find(acc => acc !== sourceAccount);
+      if (alternative) setTargetAccount(alternative);
+    }
   };
 
   const handleActualAmountChange = (val: string, type: 'markPaid' | 'transfer') => {
@@ -296,7 +307,10 @@ export default function BillsPage() {
 
     if (accList && accList.length > 0) {
       const acc = accList[0];
-      const newBal = Number(acc.current_balance || 0) - payingTotalAmount;
+      const isCard = (acc.type || acc.account_type || '').toLowerCase().includes('credit');
+      const newBal = isCard 
+        ? Number(acc.current_balance || 0) + payingTotalAmount 
+        : Number(acc.current_balance || 0) - payingTotalAmount;
       await supabase
         .from('accounts')
         .update({ current_balance: newBal })
@@ -370,7 +384,10 @@ export default function BillsPage() {
 
         if (accList && accList.length > 0) {
           const acc = accList[0];
-          const restoredBal = Number(acc.current_balance || 0) + paidAmount;
+          const isCard = (acc.type || acc.account_type || '').toLowerCase().includes('credit');
+          const restoredBal = isCard 
+            ? Number(acc.current_balance || 0) - paidAmount 
+            : Number(acc.current_balance || 0) + paidAmount;
           await supabase
             .from('accounts')
             .update({ current_balance: restoredBal })
@@ -427,6 +444,7 @@ export default function BillsPage() {
       return;
     }
 
+    // Source Account deduction
     const { data: srcAcc } = await supabase
       .from('accounts')
       .select('*')
@@ -435,13 +453,17 @@ export default function BillsPage() {
       .limit(1);
 
     if (srcAcc && srcAcc.length > 0) {
-      const newBal = Number(srcAcc[0].current_balance || 0) - transferTotalAmount;
+      const isSrcCard = (srcAcc[0].type || srcAcc[0].account_type || '').toLowerCase().includes('credit');
+      const newBal = isSrcCard 
+        ? Number(srcAcc[0].current_balance || 0) + transferTotalAmount 
+        : Number(srcAcc[0].current_balance || 0) - transferTotalAmount;
       await supabase
         .from('accounts')
         .update({ current_balance: newBal })
         .eq('id', srcAcc[0].id);
     }
 
+    // Destination Account (Credit Card) payment reduction
     const { data: destAcc } = await supabase
       .from('accounts')
       .select('*')
@@ -450,7 +472,10 @@ export default function BillsPage() {
       .limit(1);
 
     if (destAcc && destAcc.length > 0) {
-      const newBal = Number(destAcc[0].current_balance || 0) + transferTotalAmount;
+      const isDestCard = (destAcc[0].type || destAcc[0].account_type || '').toLowerCase().includes('credit');
+      const newBal = isDestCard 
+        ? Number(destAcc[0].current_balance || 0) - transferTotalAmount 
+        : Number(destAcc[0].current_balance || 0) + transferTotalAmount;
       await supabase
         .from('accounts')
         .update({ current_balance: newBal })
@@ -458,7 +483,7 @@ export default function BillsPage() {
     }
 
     if (targetAccount.toLowerCase().includes('credit card') || targetAccount.toLowerCase().includes('card')) {
-      await syncCreditCardDebt(targetAccount, -transferTotalAmount);
+      await syncCreditCardDebt(targetAccount, transferTotalAmount);
     }
 
     await supabase
