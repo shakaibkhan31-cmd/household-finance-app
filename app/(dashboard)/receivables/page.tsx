@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/currency';
-import { Plus, CheckCircle, Clock, Calendar, DollarSign, Trash2, ArrowDownLeft, TrendingUp } from 'lucide-react';
+import { Plus, Calendar, Trash2, ArrowDownLeft } from 'lucide-react';
 
 export interface Receivable {
   id: string;
@@ -16,16 +16,33 @@ export interface Receivable {
   notes?: string;
   created_at?: string;
   user_id?: string;
+  household_id?: string;
+}
+
+export interface Transaction {
+  id: string;
+  date?: string;
+  transaction_date?: string;
+  type: string;
+  account_name: string;
+  category?: string;
+  amount: number;
+  party_name?: string;
+  description?: string;
+  user_id?: string;
+  household_id?: string;
 }
 
 export default function ReceivablesPage() {
   const [receivables, setReceivables] = useState<Receivable[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [todayStr, setTodayStr] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [currency, setCurrency] = useState('PKR');
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [memberName, setMemberName] = useState<string>('Member');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -56,43 +73,54 @@ export default function ReceivablesPage() {
       return;
     }
 
-    // Fetch User Profile Currency preference
+    // 1. Fetch User Profile for Currency, Household ID, and Full Name
     const { data: profile } = await supabase
       .from('profiles')
-      .select('preferred_currency')
+      .select('preferred_currency, full_name, household_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile && profile.preferred_currency) {
-      setCurrency(profile.preferred_currency);
+    if (profile) {
+      if (profile.preferred_currency) {
+        setCurrency(profile.preferred_currency);
+      }
+      if (profile.full_name) {
+        setMemberName(profile.full_name);
+      } else {
+        setMemberName(user.email ? user.email.split('@')[0] : 'Member');
+      }
+
+      if (profile.household_id) {
+        setHouseholdId(profile.household_id);
+
+        // 2. Fetch Household Accounts
+        const { data: accData } = await supabase
+          .from('accounts')
+          .select('name')
+          .eq('household_id', profile.household_id);
+
+        if (accData && accData.length > 0) {
+          const names = accData.map((a: { name: string }) => a.name);
+          setAccounts(names);
+          setSelectedAccount(names[0]);
+        }
+
+        // 3. Fetch Household Receivables
+        const { data: recData } = await supabase
+          .from('receivables')
+          .select('*')
+          .eq('household_id', profile.household_id)
+          .order('expected_date', { ascending: true });
+        setReceivables(recData || []);
+
+        // 4. Fetch Household Transactions
+        const { data: txData } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('household_id', profile.household_id);
+        setTransactions(txData || []);
+      }
     }
-
-    // Fetch Accounts
-    const { data: accData } = await supabase
-      .from('accounts')
-      .select('name')
-      .eq('user_id', user.id);
-
-    if (accData && accData.length > 0) {
-      const names = accData.map((a: { name: string }) => a.name);
-      setAccounts(names);
-      setSelectedAccount(names[0]);
-    }
-
-    // Fetch Receivables
-    const { data: recData } = await supabase
-      .from('receivables')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('expected_date', { ascending: true });
-    setReceivables(recData || []);
-
-    // Fetch Transactions
-    const { data: txData } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id);
-    setTransactions(txData || []);
 
     setLoading(false);
   };
@@ -111,6 +139,11 @@ export default function ReceivablesPage() {
       return;
     }
 
+    if (!householdId) {
+      alert('Household ID not found!');
+      return;
+    }
+
     const { error } = await supabase.from('receivables').insert([
       {
         title,
@@ -121,6 +154,7 @@ export default function ReceivablesPage() {
         status: 'Pending',
         notes,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -142,7 +176,7 @@ export default function ReceivablesPage() {
 
   // Confirm Mark Received & Deposit into Selected Account
   const handleConfirmReceived = async () => {
-    if (!receivingItem || !selectedAccount) return;
+    if (!receivingItem || !selectedAccount || !householdId) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -159,8 +193,9 @@ export default function ReceivablesPage() {
         amount: receiveAmount,
         party_name: receivingItem.source_person || receivingItem.title,
         description: `Income Received: ${receivingItem.title}`,
-        entered_by: 'Husband',
+        entered_by: memberName,
         user_id: user.id,
+        household_id: householdId,
       },
     ]);
 
@@ -174,7 +209,7 @@ export default function ReceivablesPage() {
       .from('accounts')
       .select('*')
       .eq('name', selectedAccount)
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
       .limit(1);
 
     if (accList && accList.length > 0) {
@@ -183,16 +218,14 @@ export default function ReceivablesPage() {
       await supabase
         .from('accounts')
         .update({ current_balance: newBal })
-        .eq('id', acc.id)
-        .eq('user_id', user.id);
+        .eq('id', acc.id);
     }
 
     // 3. Update Receivable Status to 'Received'
     const { error: recErr } = await supabase
       .from('receivables')
       .update({ status: 'Received' })
-      .eq('id', receivingItem.id)
-      .eq('user_id', user.id);
+      .eq('id', receivingItem.id);
 
     if (recErr) {
       alert('Error updating receivable status: ' + recErr.message);
@@ -208,14 +241,10 @@ export default function ReceivablesPage() {
   const handleDeleteReceivable = async (id: string) => {
     if (!confirm('Kya aap waqai is entry ko delete karna chahte hain?')) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase
       .from('receivables')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) {
       alert('Error deleting receivable: ' + error.message);
